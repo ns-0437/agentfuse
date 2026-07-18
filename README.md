@@ -4,7 +4,7 @@
 
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
-<!-- LIVE_DASHBOARD -->
+**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser.
 
 Long-running agents (hours → days, hundreds of steps) don't usually fail with a
 crash. They fail *quietly*: an infinite tool loop, a slow drift from the original
