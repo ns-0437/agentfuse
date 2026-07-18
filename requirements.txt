@@ -1,0 +1,16 @@
+# AgentFuse core requires NOTHING — it runs on the Python stdlib.
+# The packages below are OPTIONAL upgrades:
+
+# Pretty, colored live trace in the terminal (falls back to plain text if absent)
+rich>=13.0.0
+
+# Real reasoning-model recovery + real embedding-based drift detection.
+# Without this (or without OPENAI_API_KEY) AgentFuse uses its offline mock backend.
+openai>=1.40.0
+
+# Needed for the REAL AgentKit integration + example (examples/real_agentkit_run.py):
+openai-agents>=0.18.0
+
+# Only needed if you wire the LangGraph adapter into a real LangGraph app:
+# langgraph>=0.2.0
+# langchain-core>=0.3.0
