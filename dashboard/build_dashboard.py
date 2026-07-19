@@ -7,11 +7,19 @@ artifacts with the data embedded inline (no server, no CDN, no build step):
   * ``dashboard/artifact.html`` — body-only fragment for a Claude Artifact
   * ``docs/index.html``         — GitHub Pages copy
 
-Design language: a technical-brutalist *engineering schematic*. High-contrast
-editorial serif (Fraunces) for display, raw monospace (Space Mono) for data;
-hard edges, hairline rules, corner registration ticks, section index marks, a
-titleblock on every panel, an annotated plotted chart, and one signal-orange
-accent — the fuse.
+Design language — technical-brutalist *engineering schematic* with a committed
+type system:
+
+  * Fraunces (serif)  = NAMES + THE NUMBERS A HUMAN CARES ABOUT
+      product nameplate · run titles · outcome word · headline trips/recoveries
+      figures · the chart's peak value.
+  * Space Mono (mono) = THE MACHINE'S READOUT
+      every label, axis, secondary stat, table, timeline row and tool arg.
+
+Three weight tiers: (1) an elevated filled readout band, (2) framed plates with
+corner ticks — chart & timeline (the story), (3) an unframed marginalia column
+and a quiet secondary-stat cluster. The chart is a plotter trace (crosshair
+samples, dotted grid, labelled trip divider), not a gradient sparkline.
 
 Usage:
     python dashboard/build_dashboard.py
@@ -41,70 +49,91 @@ TITLE = "AgentFuse — Observability Dashboard"
 STYLE = """<style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap');
 :root{
-  --bg:#0B0A09; --ink:#F1EEE6; --dim:#98938A; --faint:#6E6A61;
-  --rule:#2B2925; --rule2:#403C35;
-  --fuse:#FF5D1F; --live:#54DE8B; --stop:#FF4D4D; --cool:#7FB4D6;
+  --bg:#0B0A09; --panel:#15130F; --panel2:#1B1813; --ink:#F1EEE6; --dim:#9A948A; --faint:#6E6A61;
+  --rule:#2B2925; --rule2:#403C35; --rule3:#544E44;
+  --fuse:#FF5D1F; --fuse-dim:#B8461B; --live:#54DE8B; --stop:#FF4D4D; --cool:#86B7D8;
   --serif:'Fraunces',Georgia,'Times New Roman',serif;
   --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
 html{color-scheme:dark}
 body{margin:0;color:var(--ink);font-family:var(--mono);font-size:13px;-webkit-font-smoothing:antialiased;
-  background:
-    repeating-linear-gradient(90deg,transparent 0 63px,rgba(255,255,255,.015) 63px 64px),
-    var(--bg);}
+  background:var(--bg)}
 ::selection{background:var(--fuse);color:#0B0A09}
 a{color:var(--fuse)}
+.num{font-family:var(--serif);font-variant-numeric:lining-nums;font-feature-settings:"tnum" 0}
 
-/* ---------- masthead ---------- */
-.mast{display:flex;align-items:center;gap:16px;padding:15px 26px 14px;
+/* ---------- masthead : serif nameplate ---------- */
+.mast{display:flex;align-items:baseline;gap:14px;padding:16px 26px 15px;
   border-bottom:2px solid var(--ink);position:relative}
 .mast::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:1px;background:var(--rule2)}
-.mb{display:flex;align-items:center;gap:9px}
-.mb svg{color:var(--fuse);filter:drop-shadow(0 0 5px rgba(255,93,31,.55))}
-.mb .wm{font-weight:700;font-size:16px;letter-spacing:1px}
-.spec{margin-left:auto;font-size:10.5px;letter-spacing:1px;color:var(--faint);display:flex;gap:14px;flex-wrap:wrap}
+.mb{display:flex;align-items:baseline;gap:11px}
+.mb svg{color:var(--fuse);filter:drop-shadow(0 0 5px rgba(255,93,31,.55));align-self:center}
+.mb .np{font-family:var(--serif);font-weight:600;font-size:25px;letter-spacing:-.7px}
+.mb .kick{font-size:10px;letter-spacing:2.5px;color:var(--faint)}
+.spec{margin-left:auto;font-size:10.5px;letter-spacing:1px;color:var(--faint);display:flex;gap:15px;flex-wrap:wrap}
 .spec b{color:var(--dim);font-weight:400}
 .spec .on{color:var(--live)}
 
 /* ---------- shell ---------- */
-.app{display:grid;grid-template-columns:252px 1fr;min-height:calc(100vh - 58px)}
-.rail{border-right:1px solid var(--rule);padding:16px 0 20px}
-.rail-hd{font-size:10px;letter-spacing:2px;color:var(--faint);padding:2px 18px 12px;
-  border-bottom:1px solid var(--rule)}
+.app{display:grid;grid-template-columns:262px 1fr;min-height:calc(100vh - 60px)}
+.rail{border-right:1px solid var(--rule);padding:0 0 20px}
+.rail-hd{display:flex;align-items:baseline;gap:9px;padding:15px 20px 12px;border-bottom:1px solid var(--rule2)}
+.rail-hd .sx{color:var(--fuse);font-weight:700;font-size:11px}
+.rail-hd .lx{font-size:10px;letter-spacing:2px;color:var(--faint)}
 .run{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;background:none;
-  border:0;border-bottom:1px solid var(--rule);padding:13px 18px 13px 26px;position:relative}
-.run::before{content:attr(data-ix);position:absolute;left:6px;top:13px;font-size:9.5px;color:var(--faint)}
-.run:hover .nm{text-decoration:underline;text-underline-offset:3px}
+  border:0;border-bottom:1px solid var(--rule);padding:14px 18px 15px 34px;position:relative}
+.run .ix{position:absolute;left:14px;top:16px;font-size:9.5px;color:var(--faint)}
+.run:hover .nm{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
 .run:focus-visible{outline:2px solid var(--fuse);outline-offset:-2px}
-.run.on{background:linear-gradient(90deg,rgba(255,93,31,.07),transparent 80%)}
-.run.on::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--fuse)}
+.run.on{background:linear-gradient(90deg,rgba(255,93,31,.08),transparent 78%)}
+.run.on::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--fuse);box-shadow:0 0 10px rgba(255,93,31,.5)}
+.run.on .ix{color:var(--fuse)}
 .run .r1{display:flex;align-items:baseline;gap:8px}
-.run .nm{font-family:var(--serif);font-size:16px;font-weight:600;letter-spacing:-.2px}
+.run .nm{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:-.4px;line-height:1.05}
 .run.on .nm{color:var(--fuse)}
-.run .tg{margin-left:auto;font-size:9px;letter-spacing:1px;color:var(--faint)}
+.run .tg{margin-left:auto;font-size:8.5px;letter-spacing:1px;color:var(--faint);align-self:center}
 .run .tg.esc{color:var(--stop)} .run .tg.ok{color:var(--live)}
-.run .ds{color:var(--dim);font-size:11px;line-height:1.4;margin:5px 0 7px}
+.run .ds{color:var(--dim);font-size:11px;line-height:1.42;margin:6px 0 8px}
 .run .mt{font-size:10px;color:var(--faint)}
 .run .mt b{color:var(--dim);font-weight:700}
 
 /* ---------- main ---------- */
-.main{padding:22px 30px 40px;max-width:1180px}
-.hero{display:grid;grid-template-columns:1.7fr 1fr;gap:30px;align-items:end;
-  padding-bottom:20px;border-bottom:2px solid var(--rule2)}
+.main{padding:24px 32px 42px;max-width:1200px}
+.hero{display:grid;grid-template-columns:1.75fr 1fr;gap:34px;align-items:end;
+  padding-bottom:20px;border-bottom:2px solid var(--rule3)}
 .eyebrow{font-size:10.5px;letter-spacing:2px;color:var(--fuse)}
-.htitle{font-family:var(--serif);font-weight:600;font-size:52px;line-height:.96;letter-spacing:-1.4px;
-  margin:12px 0 12px;text-wrap:balance}
+.htitle{font-family:var(--serif);font-weight:600;font-size:54px;line-height:.94;letter-spacing:-1.6px;
+  margin:13px 0 13px;text-wrap:balance}
 .hobj{color:var(--dim);font-size:12.5px;line-height:1.55;max-width:560px}
-.hmeta{font-size:10.5px;color:var(--faint);margin-top:10px;letter-spacing:.3px}
-.oc{text-align:right;border-top:2px solid var(--rule2);padding-top:12px}
-.oc .w{font-family:var(--serif);font-weight:600;font-size:33px;line-height:1;letter-spacing:-.8px}
+.hmeta{font-size:10.5px;color:var(--faint);margin-top:11px;letter-spacing:.3px}
+.oc{text-align:right;border-top:2px solid var(--rule3);padding-top:13px}
+.oc .w{font-family:var(--serif);font-weight:600;font-size:36px;line-height:1;letter-spacing:-1px}
 .oc .w.heal{color:var(--live)} .oc .w.esc{color:var(--stop)} .oc .w.plain{color:var(--ink)}
-.oc .s{font-size:10.5px;color:var(--faint);margin-top:9px;letter-spacing:1px}
+.oc .s{font-size:10.5px;color:var(--faint);margin-top:10px;letter-spacing:1px}
 
-/* corner-tick plate */
-.plate{border:1px solid var(--rule);position:relative;padding:15px 17px}
-.plate::before,.plate::after{content:"";position:absolute;width:9px;height:9px;border:2px solid var(--rule2)}
+/* TIER 1 — elevated readout band */
+.band{display:grid;grid-template-columns:1.15fr 1.15fr 2fr;background:var(--panel);
+  border:1px solid var(--rule3);margin:24px 0 22px;box-shadow:0 10px 30px -18px rgba(0,0,0,.9)}
+.key{padding:18px 22px 16px;border-right:1px solid var(--rule)}
+.key .k{font-size:10px;letter-spacing:1.5px;color:var(--dim);display:flex;align-items:center;gap:7px}
+.key .fig{font-size:52px;font-weight:600;letter-spacing:-2.5px;line-height:.85;margin-top:12px}
+.key.trip .fig{color:var(--fuse)} .key.heal .fig{color:var(--live)}
+.key .u{font-size:9.5px;color:var(--faint);margin-top:9px;letter-spacing:1px}
+.sec{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border-left:1px solid var(--rule2)}
+.mini{background:var(--panel);padding:12px 18px}
+.mini .k{font-size:9px;letter-spacing:1.5px;color:var(--faint)}
+.mini .v{font-size:17px;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+.mini .v.sm{font-size:13px}
+
+/* TIER 2 — framed plates (chart + timeline = the story) */
+.cols{display:grid;grid-template-columns:1fr 288px;gap:0;margin-bottom:20px;border:1px solid var(--rule2);position:relative}
+.cols::before,.cols::after{content:"";position:absolute;width:9px;height:9px;border:2px solid var(--rule3)}
+.cols::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+.cols::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+.plot-wrap{padding:16px 18px 14px}
+.plate{border:1px solid var(--rule2);position:relative;padding:16px 18px;margin-bottom:0}
+.plate::before,.plate::after{content:"";position:absolute;width:9px;height:9px;border:2px solid var(--rule3)}
 .plate::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
 .plate::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
 .tb{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--rule);
@@ -112,45 +141,34 @@ a{color:var(--fuse)}
 .tb .ix{color:var(--fuse);font-weight:700;font-size:11px}
 .tb .lb{font-size:10.5px;letter-spacing:2px;color:var(--dim)}
 .tb .rt{margin-left:auto;font-size:10px;color:var(--faint);letter-spacing:.5px}
+.chart{width:100%;height:196px;display:block}
+.chart text{font-family:var(--mono)}
 
-/* readout spec-table */
-.readout{display:grid;grid-template-columns:1.5fr 1.6fr 1fr .8fr 1.1fr 1fr;
-  border:1px solid var(--rule2);margin:22px 0 20px}
-.cell{padding:13px 15px;border-right:1px solid var(--rule)}
-.cell:last-child{border-right:0}
-.cell .k{font-size:9.5px;letter-spacing:1.5px;color:var(--faint);display:flex;align-items:center;gap:6px}
-.cell .v{font-size:27px;font-weight:700;margin-top:9px;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1}
-.cell .u{font-size:9.5px;color:var(--faint);margin-top:4px;letter-spacing:1px}
-.cell.hi{background:rgba(255,93,31,.05)} .cell.hi .v{color:var(--fuse)}
-.cell.hg{background:rgba(84,222,139,.05)} .cell.hg .v{color:var(--live)}
-
-.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-bottom:16px}
-.chart{width:100%;height:172px;display:block}
-.chart text{font-family:var(--mono);fill:var(--faint)}
-.chart .plot{stroke:var(--fuse);stroke-width:1.75;fill:none;stroke-dasharray:1600;stroke-dashoffset:1600;animation:draw 1.15s ease forwards}
-@keyframes draw{to{stroke-dashoffset:0}}
-.dets{display:flex;flex-direction:column;gap:0}
-.det{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--faint);
-  padding:8px 0;border-bottom:1px solid var(--rule)}
-.det:last-child{border-bottom:0}
-.det .bx{width:9px;height:9px;border:1px solid var(--rule2);flex:none}
-.det .st{margin-left:auto;font-size:9.5px;letter-spacing:1px}
-.det.hot{color:var(--fuse)} .det.hot .bx{background:var(--fuse);border-color:var(--fuse);box-shadow:0 0 7px var(--fuse)}
+/* TIER 3 — marginalia column (detectors + route), unframed & quiet */
+.marg{border-left:1px solid var(--rule2);padding:16px 18px;background:rgba(255,255,255,.008)}
+.mlbl{display:flex;align-items:baseline;gap:8px;font-size:10px;letter-spacing:2px;color:var(--faint);margin-bottom:11px}
+.mlbl .sx{color:var(--fuse-dim);font-weight:700}
+.det{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--faint);
+  padding:7px 0;border-bottom:1px dotted var(--rule)}
+.det:last-of-type{border-bottom:0}
+.det .bx{width:8px;height:8px;border:1px solid var(--rule3);flex:none}
+.det .st{margin-left:auto;font-size:9px;letter-spacing:1px}
+.det.hot{color:var(--fuse)} .det.hot .bx{background:var(--fuse);border-color:var(--fuse);box-shadow:0 0 6px var(--fuse)}
 .det.hot .st{color:var(--fuse)}
-.route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;margin-top:2px}
-.route .n{border:1px solid var(--rule2);padding:4px 9px}
+.route{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:11px;margin-top:2px}
+.route .n{border:1px solid var(--rule2);padding:4px 8px}
 .route .w{color:var(--faint)}
 
 /* timeline ledger */
 .tl{margin-top:2px}
-.ln{display:grid;grid-template-columns:74px 96px 1fr;gap:0;border-bottom:1px solid var(--rule);
+.ln{display:grid;grid-template-columns:72px 92px 1fr;border-bottom:1px solid var(--rule);
   padding:8px 0;align-items:baseline}
 .ln .g{color:var(--faint);font-size:10.5px;border-right:1px solid var(--rule);padding-right:12px;text-align:right}
 .ln .t{color:var(--dim);font-size:10.5px;padding-left:12px}
-.ln .d{font-size:12.5px;line-height:1.45;padding-left:6px}
-.notice{margin:2px 0;padding:12px 15px;border:1px solid var(--rule2);position:relative}
-.notice.trip{border-left:3px solid var(--fuse);background:linear-gradient(90deg,rgba(255,93,31,.06),transparent 70%)}
-.notice.heal{border-left:3px solid var(--live);background:linear-gradient(90deg,rgba(84,222,139,.055),transparent 70%)}
+.ln .d{font-size:12.5px;line-height:1.45;padding-left:8px}
+.notice{margin:3px 0;padding:13px 16px;border:1px solid var(--rule2);position:relative;background:var(--panel)}
+.notice.trip{border-left:3px solid var(--fuse);background:linear-gradient(90deg,rgba(255,93,31,.07),var(--panel) 72%)}
+.notice.heal{border-left:3px solid var(--live);background:linear-gradient(90deg,rgba(84,222,139,.06),var(--panel) 72%)}
 .notice .h{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.5px}
 .notice.trip .h{color:var(--fuse)} .notice.heal .h{color:var(--live)}
 .notice .h svg{filter:drop-shadow(0 0 4px currentColor)}
@@ -162,22 +180,21 @@ a{color:var(--fuse)}
 .foot{color:var(--faint);font-size:10.5px;margin-top:26px;border-top:1px solid var(--rule);
   padding-top:14px;letter-spacing:.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
-@media(max-width:940px){.app{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.oc{text-align:left}
-  .readout{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:960px){.app{grid-template-columns:1fr}.hero,.band{grid-template-columns:1fr}
+  .cols{grid-template-columns:1fr}.oc{text-align:left}.sec{grid-template-columns:1fr 1fr}}
 </style>"""
 
-BOLT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>'
+BOLT = '<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>'
 BOLT_SM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>'
 STEER = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>'
 
 BODY = f"""<header class="mast">
-  <div class="mb">{BOLT}<span class="wm">AGENTFUSE</span></div>
-  <div class="spec"><span>SUPERVISORY CIRCUIT BREAKER</span><span><b>REV</b> 0.1</span>
-    <span><b>BUS</b> <span id="nrun">0</span> RUNS</span><span class="on">&#9679; ONLINE</span></div>
+  <div class="mb">{BOLT}<span class="np">AgentFuse</span><span class="kick">SUPERVISORY CIRCUIT BREAKER</span></div>
+  <div class="spec"><span><b>REV</b> 0.1</span><span><b>BUS</b> <span id="nrun">0</span> RUNS</span><span class="on">&#9679; ONLINE</span></div>
 </header>
 <div class="app">
   <aside class="rail">
-    <div class="rail-hd">INDEX &mdash; SUPERVISED RUNS</div>
+    <div class="rail-hd"><span class="sx">§</span><span class="lx">INDEX &mdash; SUPERVISED RUNS</span></div>
     <div id="runlist"></div>
   </aside>
   <main class="main" id="main"></main>
@@ -185,7 +202,7 @@ BODY = f"""<header class="mast">
 
 SCRIPT = """<script id="data" type="application/json">__DATA__</script>
 <script>
-const BOLT='__BOLT__', STEER='__STEER__';
+const BOLT='__BOLT__', STEER='__STEER__', SERIF="Fraunces,Georgia,serif";
 const RUNS = JSON.parse(document.getElementById('data').textContent);
 let active = 0;
 const sumOf=r=>r.records.find(x=>x.kind==='summary')||{};
@@ -201,9 +218,9 @@ function outcome(s){
 
 function renderList(){
   document.getElementById('runlist').innerHTML = RUNS.map((r,i)=>{
-    const s=sumOf(r), st=s.status||'x';
-    const tg = st==='escalated'?'esc':(st==='complete'?'ok':'');
-    return `<button class="run ${i===active?'on':''}" data-ix="${String(i+1).padStart(2,'0')}" onclick="select(${i})">
+    const s=sumOf(r), st=s.status||'x', tg=st==='escalated'?'esc':(st==='complete'?'ok':'');
+    return `<button class="run ${i===active?'on':''}" onclick="select(${i})">
+      <span class="ix">${String(i+1).padStart(2,'0')}</span>
       <div class="r1"><span class="nm">${esc(r.title)}</span><span class="tg ${tg}">${st.toUpperCase()}</span></div>
       <div class="ds">${esc(r.subtitle)}</div>
       <div class="mt"><b>${s.trips??0}</b> TRIP · <b>${s.recoveries??0}</b> HEAL · <b>${(s.total_tokens??0).toLocaleString()}</b> TOK</div>
@@ -211,6 +228,7 @@ function renderList(){
   }).join('');
 }
 
+// Plotter trace: L-axes, dotted grid, crosshair samples, trip divider, serif peak.
 function chart(records){
   let cum=0, pts=[], tripAt=null, ev=0;
   for(const e of records){
@@ -218,38 +236,43 @@ function chart(records){
     else if(e.kind==='trip' && tripAt===null) tripAt=Math.max(0,ev-1);
   }
   if(pts.length<2) return '<div style="color:var(--faint)">no token data</div>';
-  const W=600,H=172,L=48,R=14,T=16,B=26, maxY=Math.max(...pts)||1;
+  const W=640,H=196,L=52,R=82,T=18,B=30, maxY=Math.max(...pts)||1;
   const X=i=>L+(i/(pts.length-1))*(W-L-R), Y=v=>H-B-(v/maxY)*(H-T-B);
+  let g='';
+  [0,.25,.5,.75,1].forEach(f=>{ const y=(H-B)-f*(H-T-B);
+    if(f>0) g+=`<line x1="${L}" y1="${y.toFixed(1)}" x2="${W-R}" y2="${y.toFixed(1)}" stroke="#2B2925" stroke-width="1" stroke-dasharray="1 4"/>`;
+    if(f===0||f===.5||f===1) g+=`<text x="${L-8}" y="${(y+3).toFixed(1)}" font-size="9" fill="#6E6A61" text-anchor="end">${Math.round(maxY*f).toLocaleString()}</text>`;
+  });
   const line=pts.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-  const area=`${line} L${X(pts.length-1).toFixed(1)},${H-B} L${L},${H-B} Z`;
-  // gridlines + y labels (0, mid, max)
-  let grid='';
-  [0,.5,1].forEach(f=>{ const y=(H-B)-(f)*(H-T-B); const val=Math.round(maxY*f);
-    grid+=`<line x1="${L}" y1="${y.toFixed(1)}" x2="${W-R}" y2="${y.toFixed(1)}" stroke="#2B2925" stroke-width="1"/>`;
-    grid+=`<text x="${L-6}" y="${(y+3).toFixed(1)}" font-size="9" text-anchor="end">${val.toLocaleString()}</text>`; });
-  // trip annotation
+  const cross=pts.map((v,i)=>{const x=X(i).toFixed(1),y=Y(v).toFixed(1);
+    return `<line x1="${x-4}" y1="${y}" x2="${(+x+4)}" y2="${y}" stroke="#FF5D1F" stroke-width="1"/><line x1="${x}" y1="${y-4}" x2="${x}" y2="${(+y+4)}" stroke="#FF5D1F" stroke-width="1"/>`;
+  }).join('');
   let ann='';
-  if(tripAt!==null){ const tx=X(tripAt);
-    ann=`<line x1="${tx.toFixed(1)}" y1="${T}" x2="${tx.toFixed(1)}" y2="${H-B}" stroke="#FF5D1F" stroke-width="1" stroke-dasharray="3 3"/>
-      <circle cx="${tx.toFixed(1)}" cy="${Y(pts[tripAt]).toFixed(1)}" r="3.5" fill="#FF5D1F"/>
-      <text x="${(tx+5).toFixed(1)}" y="${T+9}" font-size="9" fill="#FF5D1F">TRIP</text>`; }
+  if(tripAt!==null){ const tx=X(tripAt).toFixed(1);
+    ann=`<line x1="${tx}" y1="${T-2}" x2="${tx}" y2="${H-B}" stroke="#FF5D1F" stroke-width="1" stroke-dasharray="2 3" opacity=".8"/>
+      <rect x="${(+tx+3)}" y="${T-4}" width="34" height="13" fill="#15130F" stroke="#FF5D1F" stroke-width=".8"/>
+      <text x="${(+tx+7)}" y="${T+5.5}" font-size="8.5" fill="#FF5D1F" letter-spacing="1">TRIP</text>`; }
+  const ex=X(pts.length-1), ey=Y(maxY);
+  const ly=Math.min(Math.max(ey,T+16),H-B-6);  // keep the callout inside the plot band
+  const peak=`<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3" fill="#FF5D1F"/>
+    <line x1="${(ex+3).toFixed(1)}" y1="${ey.toFixed(1)}" x2="${(ex+9).toFixed(1)}" y2="${ly.toFixed(1)}" stroke="#403C35" stroke-width="1"/>
+    <text x="${(ex+12).toFixed(1)}" y="${(ly-1).toFixed(1)}" font-family="${SERIF}" font-size="18" font-weight="600" fill="#F1EEE6">${maxY.toLocaleString()}</text>
+    <text x="${(ex+12).toFixed(1)}" y="${(ly+11).toFixed(1)}" font-size="8" fill="#6E6A61" letter-spacing="1">TOK PEAK</text>`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
-    <defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FF5D1F" stop-opacity=".22"/><stop offset="1" stop-color="#FF5D1F" stop-opacity="0"/></linearGradient></defs>
-    ${grid}
+    ${g}
+    <line x1="${L}" y1="${T-2}" x2="${L}" y2="${H-B}" stroke="#403C35" stroke-width="1"/>
     <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#403C35" stroke-width="1"/>
-    <path d="${area}" fill="url(#fl)"/><path class="plot" d="${line}"/>
-    ${pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="1.8" fill="#FF5D1F"/>`).join('')}
-    ${ann}
-    <text x="${L}" y="${H-8}" font-size="9">STEP 1</text>
-    <text x="${W-R}" y="${H-8}" font-size="9" text-anchor="end">STEP ${pts.length}</text>
+    <path d="${line}" fill="none" stroke="#FF5D1F" stroke-width="1.5" stroke-linejoin="round"/>
+    ${cross}${ann}${peak}
+    <text x="${L}" y="${H-9}" font-size="8.5" fill="#6E6A61">STEP 1</text>
+    <text x="${W-R}" y="${H-9}" font-size="8.5" fill="#6E6A61" text-anchor="end">STEP ${pts.length}</text>
   </svg>`;
 }
 
 function detectors(r){
   const hot=new Set(r.records.filter(x=>x.kind==='trip').map(x=>x.detector));
-  return '<div class="dets">'+['loop','drift','progress','spend'].map(d=>
-    `<div class="det ${hot.has(d)?'hot':''}"><span class="bx"></span>${d.toUpperCase()}<span class="st">${hot.has(d)?'TRIPPED':'nominal'}</span></div>`).join('')+'</div>';
+  return ['loop','drift','progress','spend'].map(d=>
+    `<div class="det ${hot.has(d)?'hot':''}"><span class="bx"></span>${d.toUpperCase()}<span class="st">${hot.has(d)?'TRIPPED':'nominal'}</span></div>`).join('');
 }
 function routeView(s){
   const p=(s.route||'').split('->').map(x=>x.trim()).filter(Boolean);
@@ -265,8 +288,8 @@ function timeline(r){
     if(rec.kind==='event'){
       const t=rec.type; let d='';
       if(t==='tool_call') d=`<span style="color:var(--cool)">${esc(rec.tool_name)}</span><span style="color:var(--faint)">(${esc(JSON.stringify(rec.tool_args||{}))})</span>`;
-      else if(t==='tool_result') d=`<span style="color:var(--dim)">${esc(rec.tool_name||'')}</span> &rarr; ${esc((rec.text||'').slice(0,78))}`;
-      else if(t==='llm_call') d=rec.text?esc(rec.text.slice(0,108)):'<span style="color:var(--faint)">model turn</span>';
+      else if(t==='tool_result') d=`<span style="color:var(--dim)">${esc(rec.tool_name||'')}</span> &rarr; ${esc((rec.text||'').slice(0,76))}`;
+      else if(t==='llm_call') d=rec.text?esc(rec.text.slice(0,106)):'<span style="color:var(--faint)">model turn</span>';
       else if(t==='state_update') d='<span style="color:var(--live)">state advanced</span>';
       else if(t==='resume') d=`<span style="color:var(--live)">${esc(rec.text||'resumed')}</span>`;
       else if(t==='complete') d=`<span style="color:var(--live)">${esc(rec.text||'objective complete')}</span>`;
@@ -295,20 +318,27 @@ function render(){
       </div>
       <div class="oc"><div class="w ${oc.c}">${oc.w}</div><div class="s">${s.trips??0} TRIP DETECTED · ${s.recoveries??0} RECOVERED</div></div>
     </div>
-    <div class="readout">
-      <div class="cell hi"><div class="k">${BOLT} TRIPS</div><div class="v">${s.trips??0}</div><div class="u">breaker fires</div></div>
-      <div class="cell hg"><div class="k">${STEER} RECOVERIES</div><div class="v">${s.recoveries??0}</div><div class="u">steer + resume</div></div>
-      <div class="cell"><div class="k">STATUS</div><div class="v" style="font-size:16px;padding-top:7px">${esc(s.status||'—')}</div></div>
-      <div class="cell"><div class="k">STEPS</div><div class="v">${s.steps??'—'}</div><div class="u">actions</div></div>
-      <div class="cell"><div class="k">TOKENS</div><div class="v">${(s.total_tokens??0).toLocaleString()}</div><div class="u">consumed</div></div>
-      <div class="cell"><div class="k">COST</div><div class="v">$${s.total_cost_usd??0}</div><div class="u">est. usd</div></div>
+
+    <div class="band">
+      <div class="key trip"><div class="k">${BOLT} TRIPS</div><div class="fig num">${s.trips??0}</div><div class="u">breaker fires</div></div>
+      <div class="key heal"><div class="k">${STEER} RECOVERIES</div><div class="fig num">${s.recoveries??0}</div><div class="u">steer + resume</div></div>
+      <div class="sec">
+        <div class="mini"><div class="k">STATUS</div><div class="v sm">${esc(s.status||'—')}</div></div>
+        <div class="mini"><div class="k">STEPS</div><div class="v">${s.steps??'—'}</div></div>
+        <div class="mini"><div class="k">TOKENS</div><div class="v">${(s.total_tokens??0).toLocaleString()}</div></div>
+        <div class="mini"><div class="k">COST</div><div class="v">$${s.total_cost_usd??0}</div></div>
+      </div>
     </div>
-    <div class="grid2">
-      <div class="plate">${tb('01','CUMULATIVE TOKEN SPEND','TOKENS × STEP')}${chart(r.records)}</div>
-      <div class="plate">${tb('02','DETECTORS','4-CHANNEL')}${detectors(r)}
-        ${tb('03','GRAPH ROUTE','NODE PATH').replace('margin-bottom:14px','')}${routeView(s)}</div>
+
+    <div class="cols">
+      <div class="plot-wrap">${tb('01','CUMULATIVE TOKEN SPEND','PLOT · TOKENS × STEP')}${chart(r.records)}</div>
+      <div class="marg">
+        <div class="mlbl"><span class="sx">§02</span>DETECTORS · 4-CHANNEL</div>${detectors(r)}
+        <div class="mlbl" style="margin-top:18px"><span class="sx">§03</span>GRAPH ROUTE</div>${routeView(s)}
+      </div>
     </div>
-    <div class="plate">${tb('04','EXECUTION TIMELINE',(s.steps??0)+' STEPS')}${timeline(r)}</div>
+
+    <div class="plate">${tb('04','EXECUTION TIMELINE',(s.steps??0)+' STEPS LOGGED')}${timeline(r)}</div>
     <div class="foot"><span>AGENTFUSE · LOGICAL CIRCUIT BREAKER FOR LONG-RANGE AGENTS</span><span>GENERATED FROM JSONL TRACES · SELF-CONTAINED</span></div>`;
 }
 render();
