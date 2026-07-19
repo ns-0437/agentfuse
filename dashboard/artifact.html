@@ -1,227 +1,237 @@
 <title>AgentFuse — Observability Dashboard</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap');
 :root{
-  --bg:#0A0D12; --surf:#111621; --surf2:#161C29; --surf3:#1B2331;
-  --hair:#232B3A; --hair2:#2E3849;
-  --text:#EAEEF5; --dim:#9AA6B7; --faint:#606C7E;
-  --amber:#FFB020; --amber-hi:#FFC658; --teal:#22C48E; --cyan:#4CB8FF; --red:#FF5C77; --violet:#B69CFF;
-  --sans:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --bg:#0B0A09; --ink:#F1EEE6; --dim:#98938A; --faint:#6E6A61;
+  --rule:#2B2925; --rule2:#403C35;
+  --fuse:#FF5D1F; --live:#54DE8B; --stop:#FF4D4D; --cool:#7FB4D6;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
 html{color-scheme:dark}
-body{margin:0;color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;
+body{margin:0;color:var(--ink);font-family:var(--mono);font-size:13px;-webkit-font-smoothing:antialiased;
   background:
-    radial-gradient(900px 500px at 88% -8%, rgba(255,176,32,.06), transparent 60%),
-    radial-gradient(700px 500px at -5% 108%, rgba(34,196,142,.05), transparent 55%),
-    linear-gradient(0deg, rgba(255,255,255,.014) 1px, transparent 1px) 0 0/100% 44px,
-    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px) 0 0/44px 100%,
+    repeating-linear-gradient(90deg,transparent 0 63px,rgba(255,255,255,.015) 63px 64px),
     var(--bg);}
-.app{display:grid;grid-template-columns:296px 1fr;min-height:100vh}
+::selection{background:var(--fuse);color:#0B0A09}
+a{color:var(--fuse)}
 
-/* ---- rail ---- */
-.rail{border-right:1px solid var(--hair);background:linear-gradient(180deg,#0C1017,#0A0D12);
-  padding:22px 16px 18px;display:flex;flex-direction:column;gap:16px}
-.brand{display:flex;align-items:center;gap:10px}
-.brand svg{color:var(--amber);filter:drop-shadow(0 0 6px rgba(255,176,32,.5))}
-.brand .wm{font-family:var(--mono);font-weight:600;font-size:17px;letter-spacing:.2px}
-.brand .tag{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:2px;margin-left:auto;
-  border:1px solid var(--hair2);border-radius:4px;padding:2px 6px}
-.status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim);
-  letter-spacing:.5px}
-.led{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;flex:none}
-.led.live{color:var(--teal);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.rail-label{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--faint);
-  padding-top:2px;border-top:1px solid var(--hair)}
-.runlist{display:flex;flex-direction:column;gap:9px;overflow:auto}
-.run{position:relative;text-align:left;width:100%;font:inherit;color:inherit;cursor:pointer;
-  background:var(--surf);border:1px solid var(--hair);border-radius:11px;padding:12px 13px 12px 15px;
-  transition:transform .12s ease,border-color .12s ease,background .12s ease}
-.run:hover{border-color:var(--hair2);transform:translateY(-1px)}
-.run:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-.run::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:3px;background:transparent}
-.run.active{background:var(--surf2);border-color:rgba(255,176,32,.5)}
-.run.active::before{background:var(--amber);box-shadow:0 0 10px rgba(255,176,32,.6)}
-.run .top{display:flex;align-items:center;gap:8px}
-.run .nm{font-weight:600;font-size:13.5px}
-.run .st{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.5px;
-  text-transform:uppercase;padding:2px 7px;border-radius:20px;border:1px solid transparent}
-.st-complete{color:var(--teal);border-color:rgba(34,196,142,.35);background:rgba(34,196,142,.08)}
-.st-escalated{color:var(--red);border-color:rgba(255,92,119,.35);background:rgba(255,92,119,.08)}
-.st-incomplete,.st-max_turns{color:var(--amber);border-color:rgba(255,176,32,.35);background:rgba(255,176,32,.08)}
-.run .ds{color:var(--dim);font-size:11.5px;line-height:1.35;margin:6px 0 8px}
-.run .mt{display:flex;gap:12px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
-.run .mt b{color:var(--dim);font-weight:600}
-.rail-foot{margin-top:auto;font-family:var(--mono);font-size:10px;color:var(--faint);
-  display:flex;align-items:center;gap:7px;border-top:1px solid var(--hair);padding-top:12px}
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:center;gap:16px;padding:15px 26px 14px;
+  border-bottom:2px solid var(--ink);position:relative}
+.mast::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:1px;background:var(--rule2)}
+.mb{display:flex;align-items:center;gap:9px}
+.mb svg{color:var(--fuse);filter:drop-shadow(0 0 5px rgba(255,93,31,.55))}
+.mb .wm{font-weight:700;font-size:16px;letter-spacing:1px}
+.spec{margin-left:auto;font-size:10.5px;letter-spacing:1px;color:var(--faint);display:flex;gap:14px;flex-wrap:wrap}
+.spec b{color:var(--dim);font-weight:400}
+.spec .on{color:var(--live)}
 
-/* ---- main ---- */
-.main{padding:26px 30px 34px;overflow:auto}
-.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
-  padding-bottom:18px;border-bottom:1px solid var(--hair)}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--amber);
-  display:flex;align-items:center;gap:8px}
-.eyebrow .node{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber)}
-.h-title{font-size:27px;font-weight:700;letter-spacing:-.3px;margin:11px 0 8px;text-wrap:balance}
-.h-obj{color:var(--dim);font-size:13.5px;line-height:1.5;max-width:640px}
-.h-meta{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:9px}
-.outcome{flex:none;text-align:right;min-width:190px}
-.outcome .big{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.3px;
-  display:flex;align-items:center;gap:9px;justify-content:flex-end}
-.outcome .sub{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:7px}
-.oc-heal{color:var(--teal)} .oc-esc{color:var(--red)} .oc-plain{color:var(--dim)}
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:252px 1fr;min-height:calc(100vh - 58px)}
+.rail{border-right:1px solid var(--rule);padding:16px 0 20px}
+.rail-hd{font-size:10px;letter-spacing:2px;color:var(--faint);padding:2px 18px 12px;
+  border-bottom:1px solid var(--rule)}
+.run{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;background:none;
+  border:0;border-bottom:1px solid var(--rule);padding:13px 18px 13px 26px;position:relative}
+.run::before{content:attr(data-ix);position:absolute;left:6px;top:13px;font-size:9.5px;color:var(--faint)}
+.run:hover .nm{text-decoration:underline;text-underline-offset:3px}
+.run:focus-visible{outline:2px solid var(--fuse);outline-offset:-2px}
+.run.on{background:linear-gradient(90deg,rgba(255,93,31,.07),transparent 80%)}
+.run.on::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--fuse)}
+.run .r1{display:flex;align-items:baseline;gap:8px}
+.run .nm{font-family:var(--serif);font-size:16px;font-weight:600;letter-spacing:-.2px}
+.run.on .nm{color:var(--fuse)}
+.run .tg{margin-left:auto;font-size:9px;letter-spacing:1px;color:var(--faint)}
+.run .tg.esc{color:var(--stop)} .run .tg.ok{color:var(--live)}
+.run .ds{color:var(--dim);font-size:11px;line-height:1.4;margin:5px 0 7px}
+.run .mt{font-size:10px;color:var(--faint)}
+.run .mt b{color:var(--dim);font-weight:700}
 
-.readouts{display:grid;grid-template-columns:1.3fr 1.3fr repeat(4,1fr);gap:1px;margin:20px 0;
-  background:var(--hair);border:1px solid var(--hair);border-radius:12px;overflow:hidden}
-.ro{background:var(--surf);padding:14px 15px}
-.ro .k{font-family:var(--mono);font-size:10px;letter-spacing:1.2px;color:var(--faint);display:flex;align-items:center;gap:6px}
-.ro .v{font-family:var(--mono);font-size:23px;font-weight:600;margin-top:7px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
-.ro.key{background:var(--surf2)}
-.ro.trip .v{color:var(--amber)} .ro.heal .v{color:var(--teal)}
+/* ---------- main ---------- */
+.main{padding:22px 30px 40px;max-width:1180px}
+.hero{display:grid;grid-template-columns:1.7fr 1fr;gap:30px;align-items:end;
+  padding-bottom:20px;border-bottom:2px solid var(--rule2)}
+.eyebrow{font-size:10.5px;letter-spacing:2px;color:var(--fuse)}
+.htitle{font-family:var(--serif);font-weight:600;font-size:52px;line-height:.96;letter-spacing:-1.4px;
+  margin:12px 0 12px;text-wrap:balance}
+.hobj{color:var(--dim);font-size:12.5px;line-height:1.55;max-width:560px}
+.hmeta{font-size:10.5px;color:var(--faint);margin-top:10px;letter-spacing:.3px}
+.oc{text-align:right;border-top:2px solid var(--rule2);padding-top:12px}
+.oc .w{font-family:var(--serif);font-weight:600;font-size:33px;line-height:1;letter-spacing:-.8px}
+.oc .w.heal{color:var(--live)} .oc .w.esc{color:var(--stop)} .oc .w.plain{color:var(--ink)}
+.oc .s{font-size:10.5px;color:var(--faint);margin-top:9px;letter-spacing:1px}
 
-.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px}
-.panel{background:var(--surf);border:1px solid var(--hair);border-radius:13px;padding:16px 18px}
-.p-hd{font-family:var(--mono);font-size:10.5px;letter-spacing:1.6px;color:var(--dim);text-transform:uppercase;
-  display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.p-hd::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 7px var(--amber)}
-.spark{width:100%;height:132px;display:block}
-.spark path.line{stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 1.2s ease forwards}
+/* corner-tick plate */
+.plate{border:1px solid var(--rule);position:relative;padding:15px 17px}
+.plate::before,.plate::after{content:"";position:absolute;width:9px;height:9px;border:2px solid var(--rule2)}
+.plate::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+.plate::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+.tb{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--rule);
+  padding-bottom:9px;margin-bottom:14px}
+.tb .ix{color:var(--fuse);font-weight:700;font-size:11px}
+.tb .lb{font-size:10.5px;letter-spacing:2px;color:var(--dim)}
+.tb .rt{margin-left:auto;font-size:10px;color:var(--faint);letter-spacing:.5px}
+
+/* readout spec-table */
+.readout{display:grid;grid-template-columns:1.5fr 1.6fr 1fr .8fr 1.1fr 1fr;
+  border:1px solid var(--rule2);margin:22px 0 20px}
+.cell{padding:13px 15px;border-right:1px solid var(--rule)}
+.cell:last-child{border-right:0}
+.cell .k{font-size:9.5px;letter-spacing:1.5px;color:var(--faint);display:flex;align-items:center;gap:6px}
+.cell .v{font-size:27px;font-weight:700;margin-top:9px;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1}
+.cell .u{font-size:9.5px;color:var(--faint);margin-top:4px;letter-spacing:1px}
+.cell.hi{background:rgba(255,93,31,.05)} .cell.hi .v{color:var(--fuse)}
+.cell.hg{background:rgba(84,222,139,.05)} .cell.hg .v{color:var(--live)}
+
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-bottom:16px}
+.chart{width:100%;height:172px;display:block}
+.chart text{font-family:var(--mono);fill:var(--faint)}
+.chart .plot{stroke:var(--fuse);stroke-width:1.75;fill:none;stroke-dasharray:1600;stroke-dashoffset:1600;animation:draw 1.15s ease forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
-.peak{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:6px}
-.peak b{color:var(--amber-hi)}
-.dets{display:flex;flex-wrap:wrap;gap:8px}
-.det{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;color:var(--faint);
-  border:1px solid var(--hair);border-radius:8px;padding:6px 10px}
-.det .led{width:7px;height:7px;color:#33405a;box-shadow:none}
-.det.hot{color:var(--amber);border-color:rgba(255,176,32,.45);background:rgba(255,176,32,.07)}
-.det.hot .led{color:var(--amber)}
-.route{display:flex;flex-wrap:wrap;gap:7px;align-items:center;font-family:var(--mono);font-size:12px}
-.route .n{background:var(--surf3);border:1px solid var(--hair2);border-radius:7px;padding:5px 10px}
+.dets{display:flex;flex-direction:column;gap:0}
+.det{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--faint);
+  padding:8px 0;border-bottom:1px solid var(--rule)}
+.det:last-child{border-bottom:0}
+.det .bx{width:9px;height:9px;border:1px solid var(--rule2);flex:none}
+.det .st{margin-left:auto;font-size:9.5px;letter-spacing:1px}
+.det.hot{color:var(--fuse)} .det.hot .bx{background:var(--fuse);border-color:var(--fuse);box-shadow:0 0 7px var(--fuse)}
+.det.hot .st{color:var(--fuse)}
+.route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;margin-top:2px}
+.route .n{border:1px solid var(--rule2);padding:4px 9px}
 .route .w{color:var(--faint)}
 
-.tl{position:relative;margin-top:4px;padding-left:26px}
-.tl::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;
-  background:linear-gradient(180deg,var(--hair),transparent)}
-.ev{position:relative;margin-bottom:13px}
-.mk{position:absolute;left:-22px;top:3px;width:12px;height:12px;border-radius:50%;
-  background:var(--bg);border:2px solid var(--faint)}
-.mk.tool{border-color:var(--violet)} .mk.llm{border-color:var(--cyan)}
-.mk.done{border-color:var(--teal);background:var(--teal);box-shadow:0 0 8px rgba(34,196,142,.6)}
-.mk.trip{border-color:var(--amber);background:var(--amber);box-shadow:0 0 9px rgba(255,176,32,.7)}
-.mk.heal{border-color:var(--teal);background:var(--teal);box-shadow:0 0 9px rgba(34,196,142,.6)}
-.row{display:flex;gap:11px;align-items:baseline;flex-wrap:wrap}
-.stp{font-family:var(--mono);color:var(--faint);font-size:10.5px;min-width:52px;font-variant-numeric:tabular-nums}
-.typ{font-family:var(--mono);font-size:10.5px;color:var(--dim);min-width:88px}
-.dsc{font-size:13px;line-height:1.45}
-.mono{font-family:var(--mono)}
-.blk{border-radius:11px;padding:12px 14px;margin:8px 0 12px}
-.blk.trip{background:linear-gradient(180deg,rgba(255,176,32,.09),rgba(255,176,32,.03));border:1px solid rgba(255,176,32,.4)}
-.blk.heal{background:linear-gradient(180deg,rgba(34,196,142,.08),rgba(34,196,142,.02));border:1px solid rgba(34,196,142,.38)}
-.blk .bt{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12.5px;letter-spacing:.3px;font-family:var(--mono)}
-.blk.trip .bt{color:var(--amber-hi)} .blk.heal .bt{color:var(--teal)}
-.blk .bt svg{filter:drop-shadow(0 0 4px currentColor)}
-.pill{margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;letter-spacing:.5px}
-.pill.inject{background:rgba(34,196,142,.16);color:var(--teal)}
-.pill.escalate,.pill.abort{background:rgba(255,92,119,.16);color:var(--red)}
-.blk .rz{font-size:12.5px;margin-top:7px;line-height:1.5;color:var(--text)}
-.blk .rz b{color:var(--dim);font-weight:600}
-.blk .instr{font-family:var(--mono);font-size:12px;line-height:1.55;margin-top:9px;color:var(--text);
-  background:rgba(0,0,0,.28);border:1px solid var(--hair);border-radius:8px;padding:10px 12px;white-space:pre-wrap}
-.foot{color:var(--faint);font-family:var(--mono);font-size:11px;margin-top:24px;
-  border-top:1px solid var(--hair);padding-top:14px}
+/* timeline ledger */
+.tl{margin-top:2px}
+.ln{display:grid;grid-template-columns:74px 96px 1fr;gap:0;border-bottom:1px solid var(--rule);
+  padding:8px 0;align-items:baseline}
+.ln .g{color:var(--faint);font-size:10.5px;border-right:1px solid var(--rule);padding-right:12px;text-align:right}
+.ln .t{color:var(--dim);font-size:10.5px;padding-left:12px}
+.ln .d{font-size:12.5px;line-height:1.45;padding-left:6px}
+.notice{margin:2px 0;padding:12px 15px;border:1px solid var(--rule2);position:relative}
+.notice.trip{border-left:3px solid var(--fuse);background:linear-gradient(90deg,rgba(255,93,31,.06),transparent 70%)}
+.notice.heal{border-left:3px solid var(--live);background:linear-gradient(90deg,rgba(84,222,139,.055),transparent 70%)}
+.notice .h{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.5px}
+.notice.trip .h{color:var(--fuse)} .notice.heal .h{color:var(--live)}
+.notice .h svg{filter:drop-shadow(0 0 4px currentColor)}
+.tag{margin-left:auto;font-size:9.5px;font-weight:700;letter-spacing:1px;padding:2px 7px;border:1px solid currentColor}
+.notice .rz{font-size:12px;line-height:1.5;margin-top:8px;color:var(--ink)}
+.notice .rz b{color:var(--dim)}
+.notice .instr{font-size:11.5px;line-height:1.55;margin-top:9px;color:var(--dim);
+  border-top:1px solid var(--rule);padding-top:9px;white-space:pre-wrap}
+.foot{color:var(--faint);font-size:10.5px;margin-top:26px;border-top:1px solid var(--rule);
+  padding-top:14px;letter-spacing:.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
-@media(max-width:920px){.app{grid-template-columns:1fr}.readouts{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:940px){.app{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.oc{text-align:left}
+  .readout{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}}
 </style>
+<header class="mast">
+  <div class="mb"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span class="wm">AGENTFUSE</span></div>
+  <div class="spec"><span>SUPERVISORY CIRCUIT BREAKER</span><span><b>REV</b> 0.1</span>
+    <span><b>BUS</b> <span id="nrun">0</span> RUNS</span><span class="on">&#9679; ONLINE</span></div>
+</header>
 <div class="app">
   <aside class="rail">
-    <div class="brand"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span class="wm">AgentFuse</span><span class="tag">SUPERVISOR</span></div>
-    <div class="status"><span class="led live"></span><span id="statusline">ONLINE</span></div>
-    <div class="rail-label">SUPERVISED RUNS</div>
-    <div class="runlist" id="runlist"></div>
-    <div class="rail-foot"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span>github.com/ns-0437/agentfuse</span></div>
+    <div class="rail-hd">INDEX &mdash; SUPERVISED RUNS</div>
+    <div id="runlist"></div>
   </aside>
   <main class="main" id="main"></main>
 </div>
 <script id="data" type="application/json">[{"file": "drift.jsonl", "title": "Goal Drift", "subtitle": "Agent wanders off-objective; the breaker re-anchors it.", "kind": "drift", "records": [{"kind": "meta", "original_goal": "Summarize the Q3 revenue figures from the attached finance report into three bullet points.", "recovery_backend": "mock", "config": {"loop_threshold": 3, "drift_threshold": 0.45, "stall_patience": 6, "max_tokens": null, "max_cost_usd": null, "max_recoveries": 3}}, {"kind": "event", "type": "llm_call", "step": 1, "node": "analyst", "tool_name": null, "tool_args": null, "text": "Opening the finance report to read the Q3 revenue section.", "tokens_in": 1200, "tokens_out": 300, "cost_usd": 0.006, "state": null, "goal": "Opening the finance report to read the Q3 revenue section.", "ts": 1784371979.899035, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 2, "node": "analyst", "tool_name": null, "tool_args": null, "text": "Q3 revenue looks tied to the new product line's marketing push.", "tokens_in": 1200, "tokens_out": 300, "cost_usd": 0.006, "state": null, "goal": "Q3 revenue looks tied to the new product line's marketing push.", "ts": 1784371979.9105477, "meta": {}}, {"kind": "trip", "step": 2, "detector": "drift", "severity": "trip", "reason": "Agent's working goal has drifted from the original objective (similarity 0.28 < 0.45 for 2 consecutive turns).", "evidence": {"similarity": 0.276, "backend": "lexical", "original_goal": "Summarize the Q3 revenue figures from the attached finance report into three bullet points.", "current_goal": "Q3 revenue looks tied to the new product line's marketing push."}}, {"kind": "recovery", "action": "inject", "instruction": "You have drifted from your assigned objective. Your recent focus (\"Q3 revenue looks tied to the new product line's marketing push.\") is not what you were asked to do. Discard that tangent and realign strictly to the ORIGINAL objective: \"Summarize the Q3 revenue figures from the attached finance report into three bullet points.\". State your next action in terms of that objective only.", "rationale": "Interpreted goal diverged from the system prompt; re-anchor to original objective.", "confidence": 0.75, "backend": "mock"}, {"kind": "event", "type": "resume", "step": 2, "node": "supervisor", "tool_name": null, "tool_args": null, "text": "re-anchored to original objective", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371979.9192011, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 3, "node": "analyst", "tool_name": null, "tool_args": null, "text": "Re-focusing: extracting the three key Q3 revenue figures from the report.", "tokens_in": 1200, "tokens_out": 300, "cost_usd": 0.006, "state": null, "goal": "Re-focusing: extracting the three key Q3 revenue figures from the report.", "ts": 1784371979.9192011, "meta": {}}, {"kind": "event", "type": "complete", "step": 4, "node": "analyst", "tool_name": null, "tool_args": null, "text": "Q3 revenue summarized in three bullets", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": {"done": true}, "goal": null, "ts": 1784371979.9192011, "meta": {}}, {"kind": "summary", "status": "complete", "steps": 4, "total_tokens": 4500, "total_cost_usd": 0.018, "trips": 1, "recoveries": 1, "route": "analyst -> supervisor -> analyst"}]}, {"file": "escalation.jsonl", "title": "Human Escalation", "subtitle": "An unrecoverable failure; the breaker hands control to a human.", "kind": "escalate", "records": [{"kind": "meta", "original_goal": "Reconcile the vendor invoices against purchase orders and flag mismatches.", "recovery_backend": "mock", "config": {"loop_threshold": 3, "drift_threshold": 0.45, "stall_patience": 6, "max_tokens": 60000, "max_cost_usd": null, "max_recoveries": 2}}, {"kind": "event", "type": "tool_call", "step": 1, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.429768, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 1, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 2, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 2, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 3, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "trip", "step": 3, "detector": "loop", "severity": "trip", "reason": "Tool 'fetch_invoice' called with identical arguments 3x within the last 3 calls, with no state progress since step 0.", "evidence": {"tool": "fetch_invoice", "args": {"vendor": "acme", "page": 1}, "repeats": 3, "signature": "fetch_invoice:2a37d6cd52b2", "steps_without_progress": 3}}, {"kind": "recovery", "action": "inject", "instruction": "STOP repeating `fetch_invoice` with the same arguments \u2014 it has returned the same result every time and is not advancing the task. Re-read your original objective: \"Reconcile the vendor invoices against purchase orders and flag mismatches.\". Choose a DIFFERENT next action or a different tool/argument that moves the state forward. If the information you need does not exist via this tool, note that assumption as false and try another path.", "rationale": "Repetitive identical tool call with no state progress; break the loop by forcing a different action.", "confidence": 0.8, "backend": "mock"}, {"kind": "event", "type": "tool_result", "step": 3, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 4, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 4, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 5, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4356449, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 5, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 6, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "trip", "step": 6, "detector": "loop", "severity": "trip", "reason": "Tool 'fetch_invoice' called with identical arguments 3x within the last 3 calls, with no state progress since step 0.", "evidence": {"tool": "fetch_invoice", "args": {"vendor": "acme", "page": 1}, "repeats": 3, "signature": "fetch_invoice:2a37d6cd52b2", "steps_without_progress": 6}}, {"kind": "recovery", "action": "inject", "instruction": "STOP repeating `fetch_invoice` with the same arguments \u2014 it has returned the same result every time and is not advancing the task. Re-read your original objective: \"Reconcile the vendor invoices against purchase orders and flag mismatches.\". Choose a DIFFERENT next action or a different tool/argument that moves the state forward. If the information you need does not exist via this tool, note that assumption as false and try another path.", "rationale": "Repetitive identical tool call with no state progress; break the loop by forcing a different action.", "confidence": 0.8, "backend": "mock"}, {"kind": "event", "type": "tool_result", "step": 6, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 7, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 7, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 8, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 8, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 9, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": {"vendor": "acme", "page": 1}, "text": null, "tokens_in": 1500, "tokens_out": 400, "cost_usd": 0.01, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "trip", "step": 9, "detector": "loop", "severity": "trip", "reason": "Tool 'fetch_invoice' called with identical arguments 3x within the last 3 calls, with no state progress since step 0.", "evidence": {"tool": "fetch_invoice", "args": {"vendor": "acme", "page": 1}, "repeats": 3, "signature": "fetch_invoice:2a37d6cd52b2", "steps_without_progress": 9}}, {"kind": "recovery", "action": "escalate", "instruction": "STOP repeating `fetch_invoice` with the same arguments \u2014 it has returned the same result every time and is not advancing the task. Re-read your original objective: \"Reconcile the vendor invoices against purchase orders and flag mismatches.\". Choose a DIFFERENT next action or a different tool/argument that moves the state forward. If the information you need does not exist via this tool, note that assumption as false and try another path.", "rationale": "Repetitive identical tool call with no state progress; break the loop by forcing a different action.", "confidence": 0.8, "backend": "mock"}, {"kind": "event", "type": "tool_result", "step": 9, "node": "reconciler", "tool_name": "fetch_invoice", "tool_args": null, "text": "HTTP 500 upstream error", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371980.4456944, "meta": {}}, {"kind": "summary", "status": "escalated", "steps": 9, "total_tokens": 17100, "total_cost_usd": 0.09, "trips": 3, "recoveries": 3, "route": "reconciler"}]}, {"file": "loop_trap.jsonl", "title": "Infinite Tool Loop", "subtitle": "Agent repeats a doomed tool call; the breaker forces a new path.", "kind": "loop", "records": [{"kind": "meta", "original_goal": "Rotate the production database credential: locate the active connection string, generate a new secret, and update the secret store.", "recovery_backend": "mock", "config": {"loop_threshold": 3, "drift_threshold": 0.45, "stall_patience": 6, "max_tokens": 200000, "max_cost_usd": null, "max_recoveries": 3}}, {"kind": "event", "type": "tool_call", "step": 1, "node": "researcher", "tool_name": "search_files", "tool_args": {"dir": "./config", "pattern": "*.conn"}, "text": null, "tokens_in": 800, "tokens_out": 200, "cost_usd": 0.004, "state": null, "goal": "locate the active production database connection string to rotate the credential", "ts": 1784371979.3457968, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 1, "node": "researcher", "tool_name": "search_files", "tool_args": null, "text": "0 files matched", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371979.355128, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 2, "node": "researcher", "tool_name": "search_files", "tool_args": {"dir": "./config", "pattern": "*.conn"}, "text": null, "tokens_in": 800, "tokens_out": 200, "cost_usd": 0.004, "state": null, "goal": "locate the active production database connection string to rotate the credential", "ts": 1784371979.355128, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 2, "node": "researcher", "tool_name": "search_files", "tool_args": null, "text": "0 files matched", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371979.355128, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 3, "node": "researcher", "tool_name": "search_files", "tool_args": {"dir": "./config", "pattern": "*.conn"}, "text": null, "tokens_in": 800, "tokens_out": 200, "cost_usd": 0.004, "state": null, "goal": "locate the active production database connection string to rotate the credential", "ts": 1784371979.355128, "meta": {}}, {"kind": "trip", "step": 3, "detector": "loop", "severity": "trip", "reason": "Tool 'search_files' called with identical arguments 3x within the last 3 calls, with no state progress since step 0.", "evidence": {"tool": "search_files", "args": {"dir": "./config", "pattern": "*.conn"}, "repeats": 3, "signature": "search_files:d1279b3902bc", "steps_without_progress": 3}}, {"kind": "recovery", "action": "inject", "instruction": "STOP repeating `search_files` with the same arguments \u2014 it has returned the same result every time and is not advancing the task. Re-read your original objective: \"Rotate the production database credential: locate the active connection string, generate a new secret, and update the secret store.\". Choose a DIFFERENT next action or a different tool/argument that moves the state forward. If the information you need does not exist via this tool, note that assumption as false and try another path.", "rationale": "Repetitive identical tool call with no state progress; break the loop by forcing a different action.", "confidence": 0.8, "backend": "mock"}, {"kind": "event", "type": "tool_result", "step": 3, "node": "researcher", "tool_name": "search_files", "tool_args": null, "text": "0 files matched", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371979.3616989, "meta": {}}, {"kind": "event", "type": "resume", "step": 3, "node": "supervisor", "tool_name": null, "tool_args": null, "text": "steering injected; agent resuming with corrected plan", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371979.3616989, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 4, "node": "researcher", "tool_name": "secret_manager.get", "tool_args": {"name": "prod/db/primary"}, "text": null, "tokens_in": 600, "tokens_out": 150, "cost_usd": 0.003, "state": {"found_connection_string": true}, "goal": "retrieve the active DB credential from the secret manager", "ts": 1784371979.3653798, "meta": {}}, {"kind": "event", "type": "complete", "step": 5, "node": "researcher", "tool_name": null, "tool_args": null, "text": "connection string retrieved and rotated", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": {"rotated": true}, "goal": null, "ts": 1784371979.3653798, "meta": {}}, {"kind": "summary", "status": "complete", "steps": 5, "total_tokens": 3750, "total_cost_usd": 0.015, "trips": 1, "recoveries": 1, "route": "researcher -> supervisor -> researcher"}]}, {"file": "real_agentkit.jsonl", "title": "Real AgentKit Run", "subtitle": "Live openai-agents Runner + real hooks \u2014 a real run that self-healed.", "kind": "real", "records": [{"kind": "meta", "original_goal": "Rotate the production database credential: locate the active connection string, generate a new secret, and update the secret store.", "recovery_backend": "mock", "config": {"loop_threshold": 3, "drift_threshold": 0.45, "stall_patience": 6, "max_tokens": 500000, "max_cost_usd": null, "max_recoveries": 3}}, {"kind": "event", "type": "route", "step": 0, "node": "rotator", "tool_name": null, "tool_args": null, "text": "enter rotator", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.6428218, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 1, "node": "rotator", "tool_name": null, "tool_args": null, "text": null, "tokens_in": 900, "tokens_out": 180, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.6486483, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 2, "node": "rotator", "tool_name": "search_files", "tool_args": {"directory": "./config", "pattern": "*.conn"}, "text": null, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.6486483, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 2, "node": "rotator", "tool_name": "search_files", "tool_args": null, "text": "0 files matched", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.6585822, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 3, "node": "rotator", "tool_name": null, "tool_args": null, "text": null, "tokens_in": 900, "tokens_out": 180, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.729241, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 4, "node": "rotator", "tool_name": "search_files", "tool_args": {"directory": "./config", "pattern": "*.conn"}, "text": null, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.734256, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 4, "node": "rotator", "tool_name": "search_files", "tool_args": null, "text": "0 files matched", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.734256, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 5, "node": "rotator", "tool_name": null, "tool_args": null, "text": null, "tokens_in": 900, "tokens_out": 180, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.734256, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 6, "node": "rotator", "tool_name": "search_files", "tool_args": {"directory": "./config", "pattern": "*.conn"}, "text": null, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.734256, "meta": {}}, {"kind": "trip", "step": 6, "detector": "loop", "severity": "trip", "reason": "Tool 'search_files' called with identical arguments 3x within the last 3 calls, with no state progress since step 0.", "evidence": {"tool": "search_files", "args": {"directory": "./config", "pattern": "*.conn"}, "repeats": 3, "signature": "search_files:8533c24e65c0", "steps_without_progress": 6}}, {"kind": "recovery", "action": "inject", "instruction": "STOP repeating `search_files` with the same arguments \u2014 it has returned the same result every time and is not advancing the task. Re-read your original objective: \"Rotate the production database credential: locate the active connection string, generate a new secret, and update the secret store.\". Choose a DIFFERENT next action or a different tool/argument that moves the state forward. If the information you need does not exist via this tool, note that assumption as false and try another path.", "rationale": "Repetitive identical tool call with no state progress; break the loop by forcing a different action.", "confidence": 0.8, "backend": "mock"}, {"kind": "event", "type": "route", "step": 6, "node": "rotator", "tool_name": null, "tool_args": null, "text": "enter rotator", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.7475786, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 7, "node": "rotator", "tool_name": null, "tool_args": null, "text": null, "tokens_in": 900, "tokens_out": 180, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.7475786, "meta": {}}, {"kind": "event", "type": "tool_call", "step": 8, "node": "rotator", "tool_name": "secret_manager_get", "tool_args": {"name": "prod/db/primary"}, "text": null, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": null, "goal": null, "ts": 1784371984.7495885, "meta": {}}, {"kind": "event", "type": "tool_result", "step": 8, "node": "rotator", "tool_name": "secret_manager_get", "tool_args": null, "text": "secret-rotated-token for 'prod/db/primary': new credential provisioned and stored", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": {"progress": true, "result": "secret-rotated-token for 'prod/db/primary': new credential provisioned and stored"}, "goal": null, "ts": 1784371984.7495885, "meta": {}}, {"kind": "event", "type": "llm_call", "step": 9, "node": "rotator", "tool_name": null, "tool_args": null, "text": "Credential rotated successfully.", "tokens_in": 900, "tokens_out": 180, "cost_usd": 0.0, "state": null, "goal": "Credential rotated successfully.", "ts": 1784371984.7567852, "meta": {}}, {"kind": "event", "type": "complete", "step": 10, "node": "rotator", "tool_name": null, "tool_args": null, "text": "credential rotated", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "state": {"rotated": true}, "goal": null, "ts": 1784371984.7601938, "meta": {}}, {"kind": "summary", "status": "complete", "steps": 10, "total_tokens": 5400, "total_cost_usd": 0.0, "trips": 1, "recoveries": 1, "route": "rotator"}]}]</script>
 <script>
-const BOLT = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>', STEER = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>';
+const BOLT='<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>', STEER='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>';
 const RUNS = JSON.parse(document.getElementById('data').textContent);
 let active = 0;
-const sumOf = r => r.records.find(x=>x.kind==='summary')||{};
-const metaOf = r => r.records.find(x=>x.kind==='meta')||{};
-const esc = s => String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-
-document.getElementById('statusline').textContent = 'ONLINE  ·  ' + RUNS.length + ' RUNS';
+const sumOf=r=>r.records.find(x=>x.kind==='summary')||{};
+const metaOf=r=>r.records.find(x=>x.kind==='meta')||{};
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+document.getElementById('nrun').textContent = RUNS.length;
 
 function outcome(s){
-  if(s.status==='complete') return (s.recoveries>0)
-    ? {cls:'oc-heal', label:'SELF-HEALED', led:'var(--teal)'}
-    : {cls:'oc-plain', label:'COMPLETED', led:'var(--teal)'};
-  if(s.status==='escalated') return {cls:'oc-esc', label:'ESCALATED', led:'var(--red)'};
-  return {cls:'oc-plain', label:(s.status||'—').toUpperCase(), led:'var(--faint)'};
+  if(s.status==='complete') return s.recoveries>0?{c:'heal',w:'SELF-HEALED'}:{c:'plain',w:'COMPLETED'};
+  if(s.status==='escalated') return {c:'esc',w:'ESCALATED'};
+  return {c:'plain',w:(s.status||'—').toUpperCase()};
 }
 
 function renderList(){
   document.getElementById('runlist').innerHTML = RUNS.map((r,i)=>{
     const s=sumOf(r), st=s.status||'x';
-    return `<button class="run ${i===active?'active':''}" onclick="select(${i})">
-      <div class="top"><span class="nm">${esc(r.title)}</span><span class="st st-${st}">${st}</span></div>
+    const tg = st==='escalated'?'esc':(st==='complete'?'ok':'');
+    return `<button class="run ${i===active?'on':''}" data-ix="${String(i+1).padStart(2,'0')}" onclick="select(${i})">
+      <div class="r1"><span class="nm">${esc(r.title)}</span><span class="tg ${tg}">${st.toUpperCase()}</span></div>
       <div class="ds">${esc(r.subtitle)}</div>
-      <div class="mt"><span><b>${s.trips??0}</b> trips</span><span><b>${s.recoveries??0}</b> heals</span><span><b>${(s.total_tokens??0).toLocaleString()}</b> tok</span></div>
+      <div class="mt"><b>${s.trips??0}</b> TRIP · <b>${s.recoveries??0}</b> HEAL · <b>${(s.total_tokens??0).toLocaleString()}</b> TOK</div>
     </button>`;
   }).join('');
 }
 
-function sparkline(records){
-  let cum=0, pts=[], step=0;
-  records.forEach(e=>{ if(e.kind==='event'){ cum+=(e.tokens_in||0)+(e.tokens_out||0); step++; pts.push(cum);} });
-  if(pts.length<2) return '<div class="peak">no token data</div>';
-  const W=560,H=124,pad=8,maxY=Math.max(...pts)||1;
-  const X=i=>pad+(i/(pts.length-1))*(W-2*pad), Y=v=>H-pad-(v/maxY)*(H-2*pad);
+function chart(records){
+  let cum=0, pts=[], tripAt=null, ev=0;
+  for(const e of records){
+    if(e.kind==='event'){ cum+=(e.tokens_in||0)+(e.tokens_out||0); pts.push(cum); ev++; }
+    else if(e.kind==='trip' && tripAt===null) tripAt=Math.max(0,ev-1);
+  }
+  if(pts.length<2) return '<div style="color:var(--faint)">no token data</div>';
+  const W=600,H=172,L=48,R=14,T=16,B=26, maxY=Math.max(...pts)||1;
+  const X=i=>L+(i/(pts.length-1))*(W-L-R), Y=v=>H-B-(v/maxY)*(H-T-B);
   const line=pts.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-  const area=`${line} L${X(pts.length-1).toFixed(1)},${H-pad} L${pad},${H-pad} Z`;
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFB020" stop-opacity=".28"/><stop offset="1" stop-color="#FFB020" stop-opacity="0"/></linearGradient></defs>
-    <path d="${area}" fill="url(#fill)"/>
-    <path class="line" d="${line}" fill="none" stroke="#FFB020" stroke-width="2" stroke-linejoin="round"/>
-    <circle cx="${X(pts.length-1).toFixed(1)}" cy="${Y(maxY).toFixed(1)}" r="3.5" fill="#FFC658"/>
-  </svg><div class="peak">peak cumulative &nbsp;<b>${maxY.toLocaleString()}</b>&nbsp; tokens</div>`;
+  const area=`${line} L${X(pts.length-1).toFixed(1)},${H-B} L${L},${H-B} Z`;
+  // gridlines + y labels (0, mid, max)
+  let grid='';
+  [0,.5,1].forEach(f=>{ const y=(H-B)-(f)*(H-T-B); const val=Math.round(maxY*f);
+    grid+=`<line x1="${L}" y1="${y.toFixed(1)}" x2="${W-R}" y2="${y.toFixed(1)}" stroke="#2B2925" stroke-width="1"/>`;
+    grid+=`<text x="${L-6}" y="${(y+3).toFixed(1)}" font-size="9" text-anchor="end">${val.toLocaleString()}</text>`; });
+  // trip annotation
+  let ann='';
+  if(tripAt!==null){ const tx=X(tripAt);
+    ann=`<line x1="${tx.toFixed(1)}" y1="${T}" x2="${tx.toFixed(1)}" y2="${H-B}" stroke="#FF5D1F" stroke-width="1" stroke-dasharray="3 3"/>
+      <circle cx="${tx.toFixed(1)}" cy="${Y(pts[tripAt]).toFixed(1)}" r="3.5" fill="#FF5D1F"/>
+      <text x="${(tx+5).toFixed(1)}" y="${T+9}" font-size="9" fill="#FF5D1F">TRIP</text>`; }
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF5D1F" stop-opacity=".22"/><stop offset="1" stop-color="#FF5D1F" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#403C35" stroke-width="1"/>
+    <path d="${area}" fill="url(#fl)"/><path class="plot" d="${line}"/>
+    ${pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="1.8" fill="#FF5D1F"/>`).join('')}
+    ${ann}
+    <text x="${L}" y="${H-8}" font-size="9">STEP 1</text>
+    <text x="${W-R}" y="${H-8}" font-size="9" text-anchor="end">STEP ${pts.length}</text>
+  </svg>`;
 }
 
 function detectors(r){
   const hot=new Set(r.records.filter(x=>x.kind==='trip').map(x=>x.detector));
   return '<div class="dets">'+['loop','drift','progress','spend'].map(d=>
-    `<span class="det ${hot.has(d)?'hot':''}"><span class="led"></span>${d}</span>`).join('')+'</div>';
+    `<div class="det ${hot.has(d)?'hot':''}"><span class="bx"></span>${d.toUpperCase()}<span class="st">${hot.has(d)?'TRIPPED':'nominal'}</span></div>`).join('')+'</div>';
 }
 function routeView(s){
   const p=(s.route||'').split('->').map(x=>x.trim()).filter(Boolean);
-  if(!p.length) return '<div class="peak">—</div>';
+  if(!p.length) return '<div style="color:var(--faint)">—</div>';
   return '<div class="route">'+p.map((n,i)=>`<span class="n">${esc(n)}</span>${i<p.length-1?'<span class="w">&rarr;</span>':''}`).join('')+'</div>';
 }
+function tb(ix,lb,rt){return `<div class="tb"><span class="ix">§${ix}</span><span class="lb">${lb}</span><span class="rt">${rt||''}</span></div>`;}
 
 function timeline(r){
   let h='<div class="tl">';
   for(const rec of r.records){
     if(rec.kind==='meta'||rec.kind==='summary') continue;
     if(rec.kind==='event'){
-      const t=rec.type; let d='',cls='';
-      if(t==='tool_call'){cls='tool';d=`<span class="mono" style="color:var(--violet)">${esc(rec.tool_name)}</span><span class="mono" style="color:var(--faint)">(${esc(JSON.stringify(rec.tool_args||{}))})</span>`;}
-      else if(t==='tool_result'){cls='tool';d=`<span class="mono" style="color:var(--dim)">${esc(rec.tool_name||'')}</span> &rarr; ${esc((rec.text||'').slice(0,80))}`;}
-      else if(t==='llm_call'){cls='llm';d=rec.text?esc(rec.text.slice(0,110)):'<span style="color:var(--faint)">model turn</span>';}
-      else if(t==='route'){cls='';d=`<span class="mono">${esc(rec.text||rec.node)}</span>`;}
-      else if(t==='state_update'){cls='done';d='<span class="mono" style="color:var(--teal)">state advanced</span>';}
-      else if(t==='resume'){cls='heal';d=`<span style="color:var(--teal)">${esc(rec.text||'resumed')}</span>`;}
-      else if(t==='complete'){cls='done';d=`<span style="color:var(--teal)">${esc(rec.text||'objective complete')}</span>`;}
-      else d=esc(rec.text||'');
-      h+=`<div class="ev"><div class="mk ${cls}"></div><div class="row"><span class="stp">step ${rec.step}</span><span class="typ">${t}</span><span class="dsc">${d}</span></div></div>`;
+      const t=rec.type; let d='';
+      if(t==='tool_call') d=`<span style="color:var(--cool)">${esc(rec.tool_name)}</span><span style="color:var(--faint)">(${esc(JSON.stringify(rec.tool_args||{}))})</span>`;
+      else if(t==='tool_result') d=`<span style="color:var(--dim)">${esc(rec.tool_name||'')}</span> &rarr; ${esc((rec.text||'').slice(0,78))}`;
+      else if(t==='llm_call') d=rec.text?esc(rec.text.slice(0,108)):'<span style="color:var(--faint)">model turn</span>';
+      else if(t==='state_update') d='<span style="color:var(--live)">state advanced</span>';
+      else if(t==='resume') d=`<span style="color:var(--live)">${esc(rec.text||'resumed')}</span>`;
+      else if(t==='complete') d=`<span style="color:var(--live)">${esc(rec.text||'objective complete')}</span>`;
+      else d=esc(rec.text||rec.node||'');
+      h+=`<div class="ln"><span class="g">STEP ${rec.step}</span><span class="t">${t}</span><span class="d">${d}</span></div>`;
     }
     if(rec.kind==='trip')
-      h+=`<div class="ev"><div class="mk trip"></div><div class="blk trip"><div class="bt">${BOLT} CIRCUIT BREAKER TRIPPED — ${esc(rec.detector.toUpperCase())} · ${esc(rec.severity)}</div><div class="rz">${esc(rec.reason)}</div></div></div>`;
+      h+=`<div class="notice trip"><div class="h">${BOLT} BREAKER TRIP — ${esc(rec.detector.toUpperCase())} · ${esc(rec.severity)}</div><div class="rz">${esc(rec.reason)}</div></div>`;
     if(rec.kind==='recovery')
-      h+=`<div class="ev"><div class="mk heal"></div><div class="blk heal"><div class="bt">${STEER} STEERING RECOVERY<span class="pill ${esc(rec.action)}">${esc(rec.action)}</span></div><div class="rz"><b>Why</b> ${esc(rec.rationale)} <span class="mono" style="color:var(--faint)">· conf ${rec.confidence} · ${esc(rec.backend)}</span></div><div class="instr">${esc(rec.instruction)}</div></div></div>`;
+      h+=`<div class="notice heal"><div class="h">${STEER} STEERING RECOVERY<span class="tag">${esc(rec.action).toUpperCase()}</span></div><div class="rz"><b>WHY</b> ${esc(rec.rationale)} <span style="color:var(--faint)">· conf ${rec.confidence} · ${esc(rec.backend)}</span></div><div class="instr">${esc(rec.instruction)}</div></div>`;
   }
   return h+'</div>';
 }
@@ -233,31 +243,28 @@ function render(){
   document.getElementById('main').innerHTML=`
     <div class="hero">
       <div>
-        <div class="eyebrow"><span class="node"></span>RUN ${String(active+1).padStart(2,'0')} / ${String(RUNS.length).padStart(2,'0')}  ·  ${esc((r.kind||'run').toUpperCase())}</div>
-        <div class="h-title">${esc(r.title)}</div>
-        <div class="h-obj">${esc(m.original_goal||r.subtitle)}</div>
-        <div class="h-meta">backend ${esc(m.recovery_backend||'—')} &nbsp;·&nbsp; loop&ge;${cfg.loop_threshold??'—'} &nbsp;·&nbsp; drift&lt;${cfg.drift_threshold??'—'} &nbsp;·&nbsp; ${esc(r.file)}</div>
+        <div class="eyebrow">RUN ${String(active+1).padStart(2,'0')} / ${String(RUNS.length).padStart(2,'0')} &nbsp;·&nbsp; ${esc((r.kind||'run').toUpperCase())} DETECTOR</div>
+        <div class="htitle">${esc(r.title)}</div>
+        <div class="hobj">${esc(m.original_goal||r.subtitle)}</div>
+        <div class="hmeta">BACKEND ${esc((m.recovery_backend||'—').toUpperCase())} &nbsp;/&nbsp; LOOP&ge;${cfg.loop_threshold??'—'} &nbsp;/&nbsp; DRIFT&lt;${cfg.drift_threshold??'—'} &nbsp;/&nbsp; ${esc(r.file)}</div>
       </div>
-      <div class="outcome">
-        <div class="big ${oc.cls}"><span class="led" style="color:${oc.led}"></span>${oc.label}</div>
-        <div class="sub">${s.trips??0} trips detected · ${s.recoveries??0} recoveries</div>
-      </div>
+      <div class="oc"><div class="w ${oc.c}">${oc.w}</div><div class="s">${s.trips??0} TRIP DETECTED · ${s.recoveries??0} RECOVERED</div></div>
     </div>
-    <div class="readouts">
-      <div class="ro key trip"><div class="k">${BOLT} TRIPS</div><div class="v">${s.trips??0}</div></div>
-      <div class="ro key heal"><div class="k">${STEER} RECOVERIES</div><div class="v">${s.recoveries??0}</div></div>
-      <div class="ro"><div class="k">STATUS</div><div class="v" style="font-size:15px;padding-top:6px">${esc(s.status||'—')}</div></div>
-      <div class="ro"><div class="k">STEPS</div><div class="v">${s.steps??'—'}</div></div>
-      <div class="ro"><div class="k">TOKENS</div><div class="v">${(s.total_tokens??0).toLocaleString()}</div></div>
-      <div class="ro"><div class="k">COST</div><div class="v">$${s.total_cost_usd??0}</div></div>
+    <div class="readout">
+      <div class="cell hi"><div class="k">${BOLT} TRIPS</div><div class="v">${s.trips??0}</div><div class="u">breaker fires</div></div>
+      <div class="cell hg"><div class="k">${STEER} RECOVERIES</div><div class="v">${s.recoveries??0}</div><div class="u">steer + resume</div></div>
+      <div class="cell"><div class="k">STATUS</div><div class="v" style="font-size:16px;padding-top:7px">${esc(s.status||'—')}</div></div>
+      <div class="cell"><div class="k">STEPS</div><div class="v">${s.steps??'—'}</div><div class="u">actions</div></div>
+      <div class="cell"><div class="k">TOKENS</div><div class="v">${(s.total_tokens??0).toLocaleString()}</div><div class="u">consumed</div></div>
+      <div class="cell"><div class="k">COST</div><div class="v">$${s.total_cost_usd??0}</div><div class="u">est. usd</div></div>
     </div>
     <div class="grid2">
-      <div class="panel"><div class="p-hd">Cumulative token spend</div>${sparkline(r.records)}</div>
-      <div class="panel"><div class="p-hd">Detectors</div>${detectors(r)}
-        <div class="p-hd" style="margin-top:18px">Graph route</div>${routeView(s)}</div>
+      <div class="plate">${tb('01','CUMULATIVE TOKEN SPEND','TOKENS × STEP')}${chart(r.records)}</div>
+      <div class="plate">${tb('02','DETECTORS','4-CHANNEL')}${detectors(r)}
+        ${tb('03','GRAPH ROUTE','NODE PATH').replace('margin-bottom:14px','')}${routeView(s)}</div>
     </div>
-    <div class="panel"><div class="p-hd">Execution timeline</div>${timeline(r)}</div>
-    <div class="foot">AgentFuse · logical circuit breaker for long-range agents — generated from JSONL run traces, fully self-contained.</div>`;
+    <div class="plate">${tb('04','EXECUTION TIMELINE',(s.steps??0)+' STEPS')}${timeline(r)}</div>
+    <div class="foot"><span>AGENTFUSE · LOGICAL CIRCUIT BREAKER FOR LONG-RANGE AGENTS</span><span>GENERATED FROM JSONL TRACES · SELF-CONTAINED</span></div>`;
 }
 render();
 </script>
