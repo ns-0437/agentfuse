@@ -4,7 +4,7 @@ Reads every ``runs/*.jsonl`` trace and emits self-contained, dependency-free
 artifacts with the data embedded inline (no server, no CDN, no build step):
 
   * ``dashboard/index.html``    — full standalone page; open directly in a browser
-  * ``dashboard/artifact.html`` — body-only fragment for a Claude Artifact
+  * ``dashboard/artifact.html`` — body-only fragment for a hosted web artifact
   * ``docs/index.html``         — GitHub Pages copy
 
 Design language — technical-brutalist *engineering schematic* with a committed
