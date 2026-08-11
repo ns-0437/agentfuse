@@ -38,7 +38,7 @@ from .schema import Scenario, ScenarioResult, CostModel, DEFAULT_COST  # noqa: E
 # defaults are held constant across the suite so results aren't tuned per-case.
 DEFAULT_CONFIG = {
     "loop_threshold": 3,
-    "drift_threshold": 0.45,
+    "drift_threshold": 0.20,
     "stall_patience": 6,
     "max_tokens": 100_000,
     "max_cost_usd": None,

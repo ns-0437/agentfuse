@@ -17,12 +17,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from evals.ablation import run_ablation  # noqa: E402
+from evals.ablation import run_ablation, control_significance  # noqa: E402
+from evals.generators import generate_suite  # noqa: E402
 from evals.metrics import score  # noqa: E402
 from evals.report import console_report, write_artifacts  # noqa: E402
 from evals.runner import run_suite, run_scenario  # noqa: E402
 from evals.scenarios import ALL_SCENARIOS, by_id  # noqa: E402
 from evals.schema import CostModel  # noqa: E402
+from evals.sweep import run_all_sweeps, render_sweeps  # noqa: E402
 
 
 def main() -> int:
@@ -34,6 +36,14 @@ def main() -> int:
     p.add_argument("--recovery-cost", type=int, default=1500,
                    help="tokens charged per steering call")
     p.add_argument("--verbose", action="store_true", help="print per-trip detail")
+    p.add_argument("--generated", type=int, metavar="N", default=0,
+                   help="add N generated scenarios per generator (12 generators)")
+    p.add_argument("--only-generated", action="store_true",
+                   help="use ONLY generated scenarios (drops the 16 hand-written ones)")
+    p.add_argument("--seed", type=int, default=20260812, help="generation seed")
+    p.add_argument("--sweep", action="store_true", help="run threshold sweeps")
+    p.add_argument("--significance", type=int, metavar="SEEDS", default=0,
+                   help="test vs the random control across SEEDS seeds")
     args = p.parse_args()
 
     cost = CostModel(recovery_call_tokens=args.recovery_cost,
@@ -60,8 +70,13 @@ def main() -> int:
                 print(f"    · step {t['step']:>2} [{t['detector']}/{t['severity']}] {t['reason']}")
         return 0 if r.outcome in ("TP", "TN") or sc.label.known_gap else 1
 
-    # -- full suite -----------------------------------------------------
-    scenarios = ALL_SCENARIOS
+    # -- assemble the suite ---------------------------------------------
+    scenarios = [] if args.only_generated else list(ALL_SCENARIOS)
+    if args.generated:
+        scenarios += generate_suite(n_per_generator=args.generated, seed=args.seed)
+    if not scenarios:
+        print("no scenarios selected (use --generated N with --only-generated)")
+        return 2
     by_id_map = {s.id: s for s in scenarios}
 
     if args.no_ablation:
@@ -73,6 +88,17 @@ def main() -> int:
         results = run_suite(scenarios, cost=cost)
 
     print(console_report(full, rows, results, cost))
+
+    if args.significance:
+        test, rate = control_significance(scenarios, full, cost=cost, seeds=args.significance)
+        print("SIGNIFICANCE vs RATE-MATCHED RANDOM CONTROL")
+        print("-" * 78)
+        print(f"  control trip rate p={rate:.4f}   (matched to our own trip frequency)")
+        print(f"  {test.render()}")
+        print("")
+
+    if args.sweep:
+        print(render_sweeps(run_all_sweeps(scenarios, cost=cost)))
 
     if args.json:
         out_dir = Path(args.out)

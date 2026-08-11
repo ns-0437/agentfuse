@@ -1,9 +1,17 @@
 """CI gate for the AgentFuse eval suite.
 
-The suite currently has real, documented weaknesses (see ``evals/baseline.json``
-and ``evals/results/REPORT.md``). These tests do not pretend otherwise. What they
-enforce is that the numbers never get *worse* without someone noticing, and that
-the detectors keep beating a rate-matched random control.
+Two suites, two jobs:
+
+  * **Generated (536 scenarios)** — the statistically meaningful one. Confidence
+    intervals here are narrow enough (±5-6 points) that a real regression is
+    distinguishable from noise. All rate assertions run against this.
+  * **Hand-written (16 scenarios)** — kept as *named* regression cases, so a
+    specific bug that was once fixed can be asserted by name.
+
+These tests do not pretend the system is finished: ``progress`` recall is 0% and
+the false-positive rate is 10.8%, both recorded in ``baseline.json``. What they
+enforce is that nothing silently gets worse, and that the detectors keep beating
+a rate-matched random control.
 
     pytest evals/test_eval.py -v
 """
@@ -19,106 +27,156 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from evals.ablation import run_ablation  # noqa: E402
+from evals.ablation import run_ablation, control_significance  # noqa: E402
+from evals.generators import generate_suite  # noqa: E402
 from evals.metrics import score  # noqa: E402
 from evals.runner import run_suite  # noqa: E402
 from evals.scenarios import ALL_SCENARIOS, POSITIVES, NEGATIVES  # noqa: E402
+from evals.stats import wilson  # noqa: E402
 
 BASELINE = json.loads((ROOT / "evals" / "baseline.json").read_text(encoding="utf-8"))
+GEN = BASELINE["generated_suite"]
+HAND = BASELINE["handwritten_suite"]
 
 
 @pytest.fixture(scope="module")
-def suite():
-    by_id = {s.id: s for s in ALL_SCENARIOS}
+def generated():
+    scenarios = generate_suite(n_per_generator=GEN["n_per_generator"], seed=GEN["seed"])
+    results = run_suite(scenarios)
+    return scenarios, results, score(results, {s.id: s for s in scenarios})
+
+
+@pytest.fixture(scope="module")
+def handwritten():
     results = run_suite(ALL_SCENARIOS)
-    return results, score(results, by_id)
+    return results, score(results, {s.id: s for s in ALL_SCENARIOS})
 
 
-# --------------------------------------------------------------- sanity
-def test_every_scenario_runs(suite):
-    results, _ = suite
-    assert len(results) == len(ALL_SCENARIOS)
-    assert all(r.outcome in ("TP", "FP", "FN", "TN") for r in results)
+# ------------------------------------------------------------ suite sanity
+def test_generated_suite_is_large_enough(generated):
+    scenarios, _, _ = generated
+    assert len(scenarios) >= 400, (
+        "the suite must be big enough for meaningful confidence intervals")
 
 
-def test_suite_has_hard_negatives():
-    """A benchmark without hard negatives cannot measure false positives."""
-    assert len(NEGATIVES) >= 5, "need a meaningful set of healthy-run scenarios"
-    assert len(POSITIVES) >= 5
+def test_generated_suite_is_reproducible():
+    a = generate_suite(n_per_generator=5, seed=99)
+    b = generate_suite(n_per_generator=5, seed=99)
+    assert [s.id for s in a] == [s.id for s in b]
+    assert [len(s.steps) for s in a] == [len(s.steps) for s in b]
 
 
-def test_scenarios_have_unique_ids():
-    ids = [s.id for s in ALL_SCENARIOS]
+def test_suite_is_balanced(generated):
+    _, _, m = generated
+    pos, neg = m.tp + m.fn, m.fp + m.tn
+    assert pos >= 150 and neg >= 150, "need enough of both classes to score either"
+
+
+def test_confidence_intervals_are_tight_enough(generated):
+    """A benchmark whose intervals span 30 points cannot detect a regression."""
+    _, _, m = generated
+    assert m.recall_ci().width < 0.15, f"recall CI too wide: {m.recall_ci().render()}"
+    assert m.fpr_ci().width < 0.15, f"FPR CI too wide: {m.fpr_ci().render()}"
+
+
+def test_scenarios_have_unique_ids(generated):
+    scenarios, _, _ = generated
+    ids = [s.id for s in scenarios] + [s.id for s in ALL_SCENARIOS]
     assert len(ids) == len(set(ids))
 
 
-def test_positives_declare_onset_and_detector():
+def test_positives_declare_ground_truth():
     for s in POSITIVES:
         assert s.label.detector, f"{s.id} must name the detector that should catch it"
         assert s.label.onset_index is not None, f"{s.id} must declare a failure onset"
 
 
-# ------------------------------------------------------- regression gates
-def test_recall_not_below_floor(suite):
-    _, m = suite
-    assert m.recall >= BASELINE["floor"]["recall"], (
-        f"recall regressed to {m.recall:.3f} (floor {BASELINE['floor']['recall']})")
+def test_hard_negatives_exist():
+    assert len(NEGATIVES) >= 5, "without hard negatives the FPR is unmeasurable"
 
 
-def test_precision_not_below_floor(suite):
-    _, m = suite
-    assert m.precision >= BASELINE["floor"]["precision"], (
-        f"precision regressed to {m.precision:.3f}")
+# --------------------------------------------------- regression gates (generated)
+def test_recall_floor(generated):
+    _, _, m = generated
+    assert m.recall >= GEN["floor"]["recall"], f"recall regressed to {m.recall:.3f}"
 
 
-def test_false_positive_rate_not_worse(suite):
-    _, m = suite
-    assert m.false_positive_rate <= BASELINE["ceiling"]["false_positive_rate"], (
+def test_precision_floor(generated):
+    _, _, m = generated
+    assert m.precision >= GEN["floor"]["precision"], f"precision regressed to {m.precision:.3f}"
+
+
+def test_f1_floor(generated):
+    _, _, m = generated
+    assert m.f1 >= GEN["floor"]["f1"], f"F1 regressed to {m.f1:.3f}"
+
+
+def test_false_positive_ceiling(generated):
+    """The number that decides whether anyone leaves the breaker switched on."""
+    _, _, m = generated
+    assert m.false_positive_rate <= GEN["ceiling"]["false_positive_rate"], (
         f"false-positive rate worsened to {m.false_positive_rate:.3f}")
 
 
-def test_net_token_benefit_stays_positive(suite):
-    """Supervision must cost less than the waste it prevents, or it's a liability."""
-    _, m = suite
-    assert m.net_tokens > 0, "supervision now costs more than it saves"
-    assert m.net_tokens >= BASELINE["floor"]["net_tokens"]
+def test_attribution_floor(generated):
+    """Catching a loop via the spend guard produces wrong steering advice."""
+    _, _, m = generated
+    assert m.attribution_accuracy >= GEN["floor"]["attribution_accuracy"]
 
 
-def test_no_new_false_positives(suite):
-    results, _ = suite
-    known = set(BASELINE["known_false_positives"])
-    new = {r.scenario_id for r in results if r.outcome == "FP"} - known
-    assert not new, f"new false positives on healthy runs: {sorted(new)}"
+def test_no_premature_trip_regression(generated):
+    """Trips landing before the failure begins would also fire on healthy runs."""
+    _, _, m = generated
+    assert m.detected_premature <= GEN["ceiling"]["detected_premature"]
 
 
-def test_no_new_misses(suite):
-    results, _ = suite
-    known = set(BASELINE["known_misses"])
+def test_supervision_pays_for_itself(generated):
+    _, _, m = generated
+    assert m.net_tokens > 0, "supervision now costs more than the waste it prevents"
+    assert m.net_tokens >= GEN["floor"]["net_tokens"]
+    assert m.roi >= GEN["floor"]["roi"]
+
+
+# --------------------------------------------- regression gates (hand-written)
+def test_handwritten_no_new_misses(handwritten):
+    results, _ = handwritten
+    known = set(HAND["known_misses"])
     new = {r.scenario_id for r in results if r.outcome == "FN"} - known
     assert not new, f"newly missed failures: {sorted(new)}"
 
 
-def test_no_new_premature_trips(suite):
-    _, m = suite
-    assert m.detected_premature <= BASELINE["ceiling"]["detected_premature"], (
-        "more detectors are now firing before the failure begins")
+def test_handwritten_no_new_false_positives(handwritten):
+    results, _ = handwritten
+    # Entries are "scenario_id:: explanation", so split off the id.
+    known = {e.split("::")[0].strip() for e in HAND["known_false_positives"]}
+    new = {r.scenario_id for r in results if r.outcome == "FP"} - known
+    assert not new, f"new false positives on healthy runs: {sorted(new)}"
 
 
-# ------------------------------------------------------------- ablation
-def test_detectors_beat_random_control():
-    """The core validity check, after AE Studio's matched-control design.
+# ------------------------------------------------------------ validity
+def test_detectors_significantly_beat_random_control(generated):
+    """The core validity check, after AE Studio's frequency-matched control design.
 
-    If a rate-matched random detector scores as well as ours, our F1 is an
-    artefact of how often we trip, not of what we detect.
+    One lucky seed proves nothing, so the control is run across many seeds and the
+    difference is tested empirically.
     """
-    full, rows = run_ablation(ALL_SCENARIOS)
-    control = [r for r in rows if r.label.startswith("random control")][0]
-    assert full.f1 > control.metrics.f1, (
-        f"detectors ({full.f1:.3f}) do not beat random control ({control.metrics.f1:.3f})")
+    scenarios, _, m = generated
+    test, _rate = control_significance(scenarios, m,
+                                       seeds=BASELINE["significance"]["seeds"])
+    assert test.significant, (
+        f"detectors do not significantly beat a rate-matched random control: {test.render()}")
 
 
-def test_ablation_reports_every_detector():
-    _, rows = run_ablation(ALL_SCENARIOS)
+def test_ablation_covers_every_detector(generated):
+    scenarios, _, _ = generated
+    _, rows = run_ablation(scenarios[:120])
     labels = {r.label for r in rows}
     for name in ("loop", "drift", "progress", "spend"):
         assert f"ablate {name}" in labels
+
+
+def test_wilson_interval_sanity():
+    i = wilson(7, 9)
+    assert i.low < i.point < i.high
+    assert 0.0 <= i.low and i.high <= 1.0
+    assert wilson(0, 0).n == 0

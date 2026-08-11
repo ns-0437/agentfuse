@@ -46,7 +46,10 @@ class MonitorConfig:
     original_goal: str
     max_recoveries: int = 3          # after this many trips, escalate instead of steer
     loop_threshold: int = 3
-    drift_threshold: float = 0.45
+    # 0.20, not the original 0.45. Measured on the 536-scenario eval suite:
+    # 0.45 gave F1 66.0% at a 39.0% false-positive rate; 0.20 gives F1 73.3% at
+    # 10.8%, costing only ~6 points of recall. See evals/results/REPORT.md.
+    drift_threshold: float = 0.20
     stall_patience: int = 6
     max_tokens: Optional[int] = None
     max_cost_usd: Optional[float] = None

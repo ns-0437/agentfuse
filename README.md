@@ -197,57 +197,96 @@ if d.kind is DirectiveKind.INJECT:
 ## Does it actually work? (measured, not claimed)
 
 Most guardrail projects assert they work. This one is scored against a benchmark
-with ground truth, and the numbers are published — including the bad ones.
+with ground truth, confidence intervals, and a significance test — and the
+numbers are published, including the unflattering ones.
 
 ```bash
-python evals/run_eval.py --json     # full report + ablation
-pytest evals/test_eval.py -q        # CI regression gate
+python evals/run_eval.py --generated 40 --json    # 536 scenarios + ablation
+python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
+pytest evals/test_eval.py -q                      # 19-test CI gate
 ```
 
-**16 scenarios** — 9 genuine failures the breaker must catch, and **7 hard
-negatives**: healthy runs that superficially look like failures (a legitimate
-retry, a sub-goal that reads as drift, polling that really is progressing, a
-paraphrased objective). Hard negatives are what make the false-positive rate
-meaningful, and the false-positive rate is what decides whether anyone leaves a
-guardrail switched on. Everything replays deterministically — no API key, no cost.
+**536 scenarios**, generated from 12 parameterised families with ground truth
+true *by construction*, across 6 domains. 249 are genuine failures; **287 are
+hard negatives** — healthy runs that look like failures: a legitimate retry,
+polling that really is progressing, a sub-goal that reads as drift, a
+**paraphrased objective**. Hard negatives are what make the false-positive rate
+measurable, and that rate decides whether anyone leaves a guardrail switched on.
+Everything replays deterministically in ~2s — no API key, no cost.
 
-### Current baseline (2026-08-12, replay mode)
+### Current baseline (2026-08-12, replay mode, n=536)
 
-| Metric | Value | Read as |
+| Metric | Value (95% CI) | Read as |
 |---|---:|---|
-| Recall | **77.8%** | real failures caught |
-| Precision | **63.6%** | can you trust a trip |
-| F1 | **70.0%** | |
-| **False-positive rate** | **57.1%** | **halts healthy runs — the blocking problem** |
-| Attribution accuracy | 71.4% | right detector for the right failure |
-| Net token benefit | **+49,390** | saved 74,890, supervision cost 25,500 (**2.94× ROI**) |
+| Precision | **83.9%** [78.1–88.4] | can you trust a trip |
+| Recall | **65.1%** [59.0–70.7] | real failures caught |
+| F1 | **73.3%** | |
+| False-positive rate | **10.8%** [7.7–14.9] | healthy runs halted |
+| Attribution accuracy | **99.4%** [96.6–99.9] | right detector for the failure |
+| Net token benefit | **+1,102,097** | **3.78× ROI** on supervision spend |
 
-**The honest read:** detection is decent and the economics are positive, but a
-57% false-positive rate is not shippable. Three of the four false positives come
-from the drift detector's offline lexical fallback — a *paraphrase* of the
-objective scores 0.26 similarity and trips. The `NoProgressDetector` currently
-contributes **nothing** (ablating it changes F1 by 0.0). Fixing both is Phase 2.
+vs. a rate-matched random control: **p = 0.0385** across 25 seeds.
+
+**What's still broken, stated plainly:**
+
+- **`NoProgressDetector` is inert** — 0% recall across 41 stall scenarios, and
+  ablating it changes F1 by exactly 0.0. It is currently decoration.
+- **Loop detection misses semantic variants** — cosmetically different arguments
+  defeat exact hashing (65.5% recall).
+- **A 10.8% false-positive rate is still too high** for unattended production.
+- **`LoopDetector` halts a legitimate retry** that would have succeeded on the
+  next call, because it trips before the result arrives.
+
+### What the benchmark already changed
+
+The threshold sweep found the shipped `drift_threshold=0.45` was badly wrong:
+
+| drift_threshold | Recall | Precision | F1 | FPR |
+|---:|---:|---:|---:|---:|
+| 0.20 (**new default**) | 65.1% | 83.9% | **73.3%** | **10.8%** |
+| 0.45 (old default) | 71.5% | 61.4% | 66.0% | 39.0% |
+
+Six points of recall bought **28 points of false-positive rate**, took attribution
+from 87% to 99.4%, and eliminated all 54 premature trips. That one-line change was
+found by measurement, not intuition — which is the entire argument for building
+this before building anything else.
+
+**The deeper finding** is that no threshold is really safe, because the offline
+lexical similarity signal barely separates the classes:
+
+| Case | Similarity | Should trip? |
+|---|---:|---|
+| Abrupt off-topic | 0.124 | ✅ |
+| Gradual drift | 0.276 | ✅ |
+| Legitimate paraphrase | 0.332 | ❌ |
+| On-task | 0.323 | ❌ |
+
+The usable window is **~0.05 wide**. The fix is a better *signal* (embeddings,
+trajectory-aware comparison), not a better constant — which is Phase 2/4 work.
 
 ### Ablation — which detectors carry the signal
 
 Methodology adapted from AE Studio's [ESR research](https://ae.studio/research/esr):
 they established causality for a set of SAE latents by zero-ablating them and
 measuring the drop, controlled against *random latents matched for activation
-frequency*. Same two moves here — leave-one-out per detector, plus a random
-detector rate-matched to our own trip frequency.
+frequency*. Both moves apply here — leave-one-out per detector, plus a random
+detector rate-matched to our own trip frequency and run across 25 seeds.
 
-| Variant | Recall | Precision | F1 | ΔF1 |
-|---|---:|---:|---:|---:|
-| full system | 77.8% | 63.6% | 70.0% | — |
-| ablate loop | 55.6% | 62.5% | 58.8% | **−11.2** |
-| ablate spend | 66.7% | 60.0% | 63.2% | −6.8 |
-| ablate drift | 55.6% | 83.3% | 66.7% | −3.3 |
-| ablate progress | 77.8% | 63.6% | 70.0% | **0.0** ← dead weight |
-| **random control** (p=0.107) | 44.4% | 57.1% | 50.0% | −20.0 |
+Without the control, a system that simply trips often would post a respectable
+F1. It is the control that makes the headline number mean anything.
 
-The control matters: without it, a detector that simply trips often would post a
-respectable F1. Beating rate-matched chance by 20 points is what makes the
-headline number mean something.
+### Honest limitations of the benchmark itself
+
+- **Synthetic.** The generators encode *my* model of agent failure, so they fix
+  sampling error, not authoring bias. `evals/trace_import.py` converts real
+  captured runs into labelled cases; that is the only real cure.
+- **Detection only.** We score whether a failure is *caught*, never whether the
+  steering that follows actually fixes it. That needs live models (Phase 2).
+- **Notional token savings.** We assume halting saves everything downstream, and
+  charge a flat 1,500 tokens per steering call.
+
+For scale context: AE Studio's ESR baseline ran **7,892 trials**. 536 is enough
+for ±6-point intervals; it is not enough to call anything settled.
 
 ---
 

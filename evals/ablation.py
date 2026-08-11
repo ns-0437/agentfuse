@@ -146,3 +146,30 @@ def run_ablation(scenarios: list[Scenario], cost: CostModel = DEFAULT_COST,
     ))
 
     return full, rows
+
+
+def control_significance(scenarios: list[Scenario], full: Metrics,
+                         cost: CostModel = DEFAULT_COST,
+                         seeds: int = 25):
+    """Run the rate-matched control across many seeds and test the difference.
+
+    One seed proves nothing: a lucky random detector can post a respectable F1.
+    Repeating across seeds gives a distribution, and an empirical p-value for
+    "our detectors beat a system that trips exactly as often but knows nothing."
+    """
+    from .stats import compare_to_control  # local import: keeps stats optional
+
+    by_id = {s.id: s for s in scenarios}
+    full_results = run_suite(scenarios, cost=cost)
+    total_trips = sum(len(r.all_trips) for r in full_results)
+    events = observed_event_count(scenarios)
+    rate = (total_trips / events) if events else 0.0
+
+    scores: list[float] = []
+    for s in range(seeds):
+        res = run_suite(scenarios, disabled=set(DETECTOR_NAMES),
+                        extra_detectors=[RandomControlDetector(rate=rate, seed=1000 + s)],
+                        cost=cost)
+        scores.append(score(res, by_id, label=f"control-{s}").f1)
+
+    return compare_to_control(full.f1, scores), rate

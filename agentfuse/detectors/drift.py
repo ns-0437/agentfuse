@@ -43,7 +43,7 @@ def _lexical_similarity(a: str, b: str) -> float:
 class DriftDetector(Detector):
     name = "drift"
 
-    def __init__(self, original_goal: str, threshold: float = 0.45, patience: int = 2):
+    def __init__(self, original_goal: str, threshold: float = 0.20, patience: int = 2):
         self.original_goal = original_goal
         self.threshold = threshold      # trip when similarity drops BELOW this
         self.patience = patience        # consecutive low-similarity turns required

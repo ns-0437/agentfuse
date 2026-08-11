@@ -34,6 +34,7 @@ from statistics import mean
 from typing import Optional
 
 from .schema import ScenarioResult
+from .stats import Interval, wilson
 
 
 def _safe_div(a: float, b: float) -> float:
@@ -98,6 +99,22 @@ class Metrics:
         """Tokens saved per token of supervision spent. >1.0 means it pays for itself."""
         return _safe_div(self.tokens_saved, self.supervision_cost)
 
+    # -- interval estimates ---------------------------------------------
+    # Every rate below is a binomial proportion, so it gets a Wilson interval.
+    # At small n these intervals are embarrassingly wide, which is the point:
+    # the report should show how little a 16-scenario suite actually proves.
+    def recall_ci(self) -> Interval:
+        return wilson(self.tp, self.tp + self.fn)
+
+    def precision_ci(self) -> Interval:
+        return wilson(self.tp, self.tp + self.fp)
+
+    def fpr_ci(self) -> Interval:
+        return wilson(self.fp, self.fp + self.tn)
+
+    def attribution_ci(self) -> Interval:
+        return wilson(self.attribution_correct, self.attribution_total)
+
     def to_dict(self) -> dict:
         d = asdict(self)
         d.update({
@@ -108,6 +125,10 @@ class Metrics:
             "attribution_accuracy": round(self.attribution_accuracy, 4),
             "net_tokens": self.net_tokens,
             "roi": round(self.roi, 3),
+            "recall_ci": self.recall_ci().to_dict(),
+            "precision_ci": self.precision_ci().to_dict(),
+            "fpr_ci": self.fpr_ci().to_dict(),
+            "attribution_ci": self.attribution_ci().to_dict(),
         })
         return d
 
