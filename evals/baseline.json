@@ -1,0 +1,27 @@
+{
+  "_comment": "Recorded baseline for the AgentFuse detection eval. CI asserts we never fall BELOW these numbers. They are not targets to be proud of - they are the floor measured on 2026-08-12, before the Phase 2/3 detector work. Raise them as the detectors improve.",
+  "recorded_at": "2026-08-12",
+  "mode": "replay",
+  "scenarios": 16,
+  "floor": {
+    "recall": 0.77,
+    "precision": 0.63,
+    "f1": 0.69,
+    "net_tokens": 45000
+  },
+  "ceiling": {
+    "false_positive_rate": 0.58,
+    "detected_premature": 2,
+    "undocumented_misses": 1
+  },
+  "known_false_positives": [
+    "retry_transient_then_success",
+    "legit_subgoal_detour",
+    "paraphrased_goal_restatement",
+    "expensive_but_healthy_run"
+  ],
+  "known_misses": [
+    "loop_semantic_variants",
+    "stall_busy_no_progress"
+  ]
+}

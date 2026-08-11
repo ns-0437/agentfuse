@@ -1,0 +1,470 @@
+{
+  "generated_at": "2026-08-11T19:45:46.896365+00:00",
+  "mode": "replay",
+  "cost_model": "recovery=1500tok \u00b7 drift_probe=0tok \u00b7 fp_penalty=1500tok",
+  "headline": {
+    "label": "full system",
+    "n": 16,
+    "tp": 7,
+    "fp": 4,
+    "fn": 2,
+    "tn": 3,
+    "attribution_correct": 5,
+    "attribution_total": 7,
+    "detected_late": 0,
+    "detected_premature": 2,
+    "mean_steps_late": 2.29,
+    "known_gap_misses": 1,
+    "tokens_saved": 74890,
+    "supervision_cost": 25500,
+    "tokens_spent": 112520,
+    "wasted_if_unsupervised": 117010,
+    "per_family": {
+      "loop": {
+        "TP": 3,
+        "FP": 0,
+        "FN": 1,
+        "TN": 0
+      },
+      "drift": {
+        "TP": 2,
+        "FP": 0,
+        "FN": 0,
+        "TN": 0
+      },
+      "progress": {
+        "TP": 0,
+        "FP": 0,
+        "FN": 1,
+        "TN": 0
+      },
+      "spend": {
+        "TP": 2,
+        "FP": 0,
+        "FN": 0,
+        "TN": 0
+      },
+      "benign": {
+        "TP": 0,
+        "FP": 4,
+        "FN": 0,
+        "TN": 3
+      }
+    },
+    "failures": [
+      {
+        "scenario": "loop_semantic_variants",
+        "outcome": "FN",
+        "family": "loop",
+        "known_gap": true,
+        "expected_detector": "loop",
+        "actual_detector": null,
+        "trip_step_index": null
+      },
+      {
+        "scenario": "stall_busy_no_progress",
+        "outcome": "FN",
+        "family": "progress",
+        "known_gap": false,
+        "expected_detector": "progress",
+        "actual_detector": null,
+        "trip_step_index": null
+      },
+      {
+        "scenario": "retry_transient_then_success",
+        "outcome": "FP",
+        "family": "benign",
+        "known_gap": false,
+        "expected_detector": null,
+        "actual_detector": "loop",
+        "trip_step_index": 3
+      },
+      {
+        "scenario": "legit_subgoal_detour",
+        "outcome": "FP",
+        "family": "benign",
+        "known_gap": false,
+        "expected_detector": null,
+        "actual_detector": "drift",
+        "trip_step_index": 1
+      },
+      {
+        "scenario": "paraphrased_goal_restatement",
+        "outcome": "FP",
+        "family": "benign",
+        "known_gap": false,
+        "expected_detector": null,
+        "actual_detector": "drift",
+        "trip_step_index": 1
+      },
+      {
+        "scenario": "expensive_but_healthy_run",
+        "outcome": "FP",
+        "family": "benign",
+        "known_gap": false,
+        "expected_detector": null,
+        "actual_detector": "drift",
+        "trip_step_index": 6
+      }
+    ],
+    "precision": 0.6364,
+    "recall": 0.7778,
+    "f1": 0.7,
+    "false_positive_rate": 0.5714,
+    "attribution_accuracy": 0.7143,
+    "net_tokens": 49390,
+    "roi": 2.937
+  },
+  "families": {
+    "benign": {
+      "recall": 0.0,
+      "precision": 0.0,
+      "counts": {
+        "TP": 0,
+        "FP": 4,
+        "FN": 0,
+        "TN": 3
+      }
+    },
+    "drift": {
+      "recall": 1.0,
+      "precision": 1.0,
+      "counts": {
+        "TP": 2,
+        "FP": 0,
+        "FN": 0,
+        "TN": 0
+      }
+    },
+    "loop": {
+      "recall": 0.75,
+      "precision": 1.0,
+      "counts": {
+        "TP": 3,
+        "FP": 0,
+        "FN": 1,
+        "TN": 0
+      }
+    },
+    "progress": {
+      "recall": 0.0,
+      "precision": 0.0,
+      "counts": {
+        "TP": 0,
+        "FP": 0,
+        "FN": 1,
+        "TN": 0
+      }
+    },
+    "spend": {
+      "recall": 1.0,
+      "precision": 1.0,
+      "counts": {
+        "TP": 2,
+        "FP": 0,
+        "FN": 0,
+        "TN": 0
+      }
+    }
+  },
+  "ablation": [
+    {
+      "label": "full system",
+      "recall": 0.7778,
+      "precision": 0.6364,
+      "f1": 0.7,
+      "fpr": 0.5714,
+      "net_tokens": 49390,
+      "delta_recall": 0.0,
+      "delta_precision": 0.0,
+      "delta_f1": 0.0,
+      "delta_net_tokens": 0
+    },
+    {
+      "label": "ablate loop",
+      "recall": 0.5556,
+      "precision": 0.625,
+      "f1": 0.5882,
+      "fpr": 0.4286,
+      "net_tokens": 46790,
+      "delta_recall": -0.2222,
+      "delta_precision": -0.0114,
+      "delta_f1": -0.1118,
+      "delta_net_tokens": -2600
+    },
+    {
+      "label": "ablate drift",
+      "recall": 0.5556,
+      "precision": 0.8333,
+      "f1": 0.6667,
+      "fpr": 0.1429,
+      "net_tokens": 18200,
+      "delta_recall": -0.2222,
+      "delta_precision": 0.197,
+      "delta_f1": -0.0333,
+      "delta_net_tokens": -31190
+    },
+    {
+      "label": "ablate progress",
+      "recall": 0.7778,
+      "precision": 0.6364,
+      "f1": 0.7,
+      "fpr": 0.5714,
+      "net_tokens": 49390,
+      "delta_recall": 0.0,
+      "delta_precision": 0.0,
+      "delta_f1": 0.0,
+      "delta_net_tokens": 0
+    },
+    {
+      "label": "ablate spend",
+      "recall": 0.6667,
+      "precision": 0.6,
+      "f1": 0.6316,
+      "fpr": 0.5714,
+      "net_tokens": 49490,
+      "delta_recall": -0.1111,
+      "delta_precision": -0.0364,
+      "delta_f1": -0.0684,
+      "delta_net_tokens": 100
+    },
+    {
+      "label": "random control (p=0.1066)",
+      "recall": 0.4444,
+      "precision": 0.5714,
+      "f1": 0.5,
+      "fpr": 0.4286,
+      "net_tokens": 760,
+      "delta_recall": -0.3333,
+      "delta_precision": -0.0649,
+      "delta_f1": -0.2,
+      "delta_net_tokens": -48630
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "loop_exact_repeat",
+      "family": "loop",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "loop",
+      "expected_detector": "loop",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 4300,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "loop_with_interleaved_reasoning",
+      "family": "loop",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "loop",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 4560,
+      "supervision_cost": 1500,
+      "steps_late": 3
+    },
+    {
+      "id": "loop_alternating_cycle",
+      "family": "loop",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "loop",
+      "expected_detector": "loop",
+      "trip_step_index": 5,
+      "known_gap": false,
+      "tokens_saved": 3440,
+      "supervision_cost": 1500,
+      "steps_late": 4
+    },
+    {
+      "id": "loop_semantic_variants",
+      "family": "loop",
+      "outcome": "FN",
+      "should_trip": true,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": "loop",
+      "trip_step_index": null,
+      "known_gap": true,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "drift_gradual_slide",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 1,
+      "known_gap": false,
+      "tokens_saved": 6720,
+      "supervision_cost": 1500,
+      "steps_late": -1
+    },
+    {
+      "id": "drift_abrupt_hijack",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 2,
+      "known_gap": false,
+      "tokens_saved": 3360,
+      "supervision_cost": 1500,
+      "steps_late": 0
+    },
+    {
+      "id": "stall_busy_no_progress",
+      "family": "progress",
+      "outcome": "FN",
+      "should_trip": true,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": "progress",
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "spend_ceiling_breach",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 9,
+      "known_gap": false,
+      "tokens_saved": 4400,
+      "supervision_cost": 4500,
+      "steps_late": 9
+    },
+    {
+      "id": "spend_burn_rate_spike",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "spend",
+      "trip_step_index": 1,
+      "known_gap": false,
+      "tokens_saved": 41650,
+      "supervision_cost": 1500,
+      "steps_late": -1
+    },
+    {
+      "id": "retry_transient_then_success",
+      "family": "benign",
+      "outcome": "FP",
+      "should_trip": false,
+      "tripped": true,
+      "detector": "loop",
+      "expected_detector": null,
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 860,
+      "supervision_cost": 3000,
+      "steps_late": null
+    },
+    {
+      "id": "polling_until_ready",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "legit_subgoal_detour",
+      "family": "benign",
+      "outcome": "FP",
+      "should_trip": false,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": null,
+      "trip_step_index": 1,
+      "known_gap": false,
+      "tokens_saved": 3360,
+      "supervision_cost": 3000,
+      "steps_late": null
+    },
+    {
+      "id": "paraphrased_goal_restatement",
+      "family": "benign",
+      "outcome": "FP",
+      "should_trip": false,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": null,
+      "trip_step_index": 1,
+      "known_gap": false,
+      "tokens_saved": 2240,
+      "supervision_cost": 3000,
+      "steps_late": null
+    },
+    {
+      "id": "breadth_first_research",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "expensive_but_healthy_run",
+      "family": "benign",
+      "outcome": "FP",
+      "should_trip": false,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": null,
+      "trip_step_index": 6,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 3000,
+      "steps_late": null
+    },
+    {
+      "id": "short_clean_run",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    }
+  ]
+}

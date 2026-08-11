@@ -194,6 +194,63 @@ if d.kind is DirectiveKind.INJECT:
 
 ---
 
+## Does it actually work? (measured, not claimed)
+
+Most guardrail projects assert they work. This one is scored against a benchmark
+with ground truth, and the numbers are published — including the bad ones.
+
+```bash
+python evals/run_eval.py --json     # full report + ablation
+pytest evals/test_eval.py -q        # CI regression gate
+```
+
+**16 scenarios** — 9 genuine failures the breaker must catch, and **7 hard
+negatives**: healthy runs that superficially look like failures (a legitimate
+retry, a sub-goal that reads as drift, polling that really is progressing, a
+paraphrased objective). Hard negatives are what make the false-positive rate
+meaningful, and the false-positive rate is what decides whether anyone leaves a
+guardrail switched on. Everything replays deterministically — no API key, no cost.
+
+### Current baseline (2026-08-12, replay mode)
+
+| Metric | Value | Read as |
+|---|---:|---|
+| Recall | **77.8%** | real failures caught |
+| Precision | **63.6%** | can you trust a trip |
+| F1 | **70.0%** | |
+| **False-positive rate** | **57.1%** | **halts healthy runs — the blocking problem** |
+| Attribution accuracy | 71.4% | right detector for the right failure |
+| Net token benefit | **+49,390** | saved 74,890, supervision cost 25,500 (**2.94× ROI**) |
+
+**The honest read:** detection is decent and the economics are positive, but a
+57% false-positive rate is not shippable. Three of the four false positives come
+from the drift detector's offline lexical fallback — a *paraphrase* of the
+objective scores 0.26 similarity and trips. The `NoProgressDetector` currently
+contributes **nothing** (ablating it changes F1 by 0.0). Fixing both is Phase 2.
+
+### Ablation — which detectors carry the signal
+
+Methodology adapted from AE Studio's [ESR research](https://ae.studio/research/esr):
+they established causality for a set of SAE latents by zero-ablating them and
+measuring the drop, controlled against *random latents matched for activation
+frequency*. Same two moves here — leave-one-out per detector, plus a random
+detector rate-matched to our own trip frequency.
+
+| Variant | Recall | Precision | F1 | ΔF1 |
+|---|---:|---:|---:|---:|
+| full system | 77.8% | 63.6% | 70.0% | — |
+| ablate loop | 55.6% | 62.5% | 58.8% | **−11.2** |
+| ablate spend | 66.7% | 60.0% | 63.2% | −6.8 |
+| ablate drift | 55.6% | 83.3% | 66.7% | −3.3 |
+| ablate progress | 77.8% | 63.6% | 70.0% | **0.0** ← dead weight |
+| **random control** (p=0.107) | 44.4% | 57.1% | 50.0% | −20.0 |
+
+The control matters: without it, a detector that simply trips often would post a
+respectable F1. Beating rate-matched chance by 20 points is what makes the
+headline number mean something.
+
+---
+
 ## Project layout
 
 ```
@@ -205,6 +262,13 @@ agentfuse/
   detectors/           loop · drift · progress · spend
   adapters/            agentkit · agentkit_hooks (real RunHooks) · openai_sdk · langgraph
 examples/              demo_loop_trap · demo_drift · demo_escalation · real_agentkit_run
+evals/                 the benchmark — ground-truth scenarios, metrics, ablation
+  schema.py            Scenario / Label / CostModel
+  scenarios/           positives (real failures) · negatives (healthy lookalikes)
+  runner.py            deterministic replay through the real monitor
+  metrics.py           precision · recall · FPR · attribution · net tokens
+  ablation.py          leave-one-out + rate-matched random control
+  results/             REPORT.md + results.json (regression baseline)
 ```
 
 ## Design choices that matter to reviewers
