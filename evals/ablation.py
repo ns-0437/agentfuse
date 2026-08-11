@@ -1,10 +1,16 @@
 """Ablation study — which detectors actually carry the signal?
 
-Methodology borrowed from AE Studio's *Endogenous Steering Resistance* work
-(ae.studio/research/esr). They established causality for a set of SAE latents by
-zero-ablating them and measuring the drop in self-correction (-25%), and guarded
-against coincidence with a control group of *random latents matched for
-activation frequency*.
+Methodology adapted from AE Studio's *Endogenous Steering Resistance* work.
+They established causality for a set of SAE latents by zero-ablating them and
+measuring the drop in self-correction (-25%), and guarded against coincidence
+with a control group of *random latents matched for activation frequency*.
+
+    McKenzie, Pepper, Servaes, Leitgab, Cubuktepe, Vaiana, de Lucena,
+    Rosenblatt & Graziano (2026). "Endogenous Resistance to Activation Steering
+    in Language Models." arXiv:2602.06941.  https://arxiv.org/abs/2602.06941
+
+Design only — no code from their repository is used here; this is an independent
+implementation. See CITATION.md for the full attribution and scope.
 
 The same two moves apply cleanly to an external breaker:
 

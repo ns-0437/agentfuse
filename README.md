@@ -288,6 +288,15 @@ F1. It is the control that makes the headline number mean anything.
 For scale context: AE Studio's ESR baseline ran **7,892 trials**. 536 is enough
 for ±6-point intervals; it is not enough to call anything settled.
 
+### Prior work
+
+The ablation design is adapted from AE Studio's research on **Endogenous Steering
+Resistance** ([paper](https://arxiv.org/abs/2602.06941) ·
+[code](https://github.com/agencyenterprise/endogenous-steering-resistance)) —
+methodology only; no code is used or derived. Full attribution, and a note on how
+intrinsic (ESR) and extrinsic (AgentFuse) approaches complement each other, is in
+[CITATION.md](CITATION.md).
+
 ---
 
 ## Project layout
