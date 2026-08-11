@@ -50,6 +50,16 @@ def console_report(full: Metrics, rows, results: list[ScenarioResult],
     a(f"  premature trips     {full.detected_premature}          (fired before the failure began)")
     a(f"  known-gap misses    {full.known_gap_misses}          (documented, expected)")
 
+    # -- recovery ------------------------------------------------------
+    if full.recovery_eligible:
+        a("")
+        a("RECOVERY  (does the steering actually fix anything?)")
+        a(SUB)
+        a(f"  recovery rate       {full.recovery_ci().render():<28} caught failures put back on track")
+        a(f"  steering usable     {_pct(full.steering_usable_rate)}      instructions passing the quality rubric")
+        a(f"  steering quality    {_pct(full.mean_steering_quality)}      mean rubric score")
+        a(f"  escalated to human  {full.recovery_escalated:<5}          correct outcome, not a recovery")
+
     # -- economics -----------------------------------------------------
     a("")
     a("TOKEN ECONOMICS")

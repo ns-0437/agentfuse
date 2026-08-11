@@ -130,6 +130,14 @@ class Scenario:
     description: str = ""
     config: dict = field(default_factory=dict)  # MonitorConfig overrides
 
+    # The trajectory the agent follows *if* it receives usable steering. This is
+    # what makes recovery measurable at all: without it we could only ever score
+    # detection, and "it self-heals" would remain an unverified claim. Steering
+    # that fails the quality rubric does not unlock this branch.
+    recovery_branch: list[StepSpec] = field(default_factory=list)
+    # The failing tool a correct steering instruction ought to name.
+    failing_tool: Optional[str] = None
+
     # -- token accounting ----------------------------------------------
     @property
     def total_tokens(self) -> int:
@@ -174,6 +182,7 @@ class ScenarioResult:
     tokens_saved: int = 0        # tokens avoided by halting early
     supervision_cost: int = 0    # what the supervision itself cost
     steps_late: Optional[int] = None  # steps between onset and detection
+    recovery: Optional["object"] = None  # RecoveryOutcome, when a branch existed
 
     # -- confusion-matrix classification -------------------------------
     @property

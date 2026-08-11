@@ -31,7 +31,10 @@ from agentfuse.detectors import (  # noqa: E402
 )
 from agentfuse.recovery import RecoveryEngine  # noqa: E402
 
+from agentfuse.recovery import RecoveryAction  # noqa: E402
+
 from .schema import Scenario, ScenarioResult, CostModel, DEFAULT_COST  # noqa: E402
+from .steering import RecoveryOutcome, score_steering  # noqa: E402
 
 
 # Shared baseline configuration. Scenarios may override individual keys, but the
@@ -55,6 +58,7 @@ class RecordingTracer(Tracer):
         super().__init__(jsonl_path=None, echo=False)
         self.trip_log: list[dict] = []
         self.recovery_log: list[dict] = []
+        self.paths: list = []          # the SteeringPath objects themselves
 
     def trip(self, event: AgentEvent, trip) -> None:  # type: ignore[override]
         self.trips += 1
@@ -67,6 +71,7 @@ class RecordingTracer(Tracer):
 
     def recovery(self, path) -> None:  # type: ignore[override]
         self.recoveries += 1
+        self.paths.append(path)
         self.recovery_log.append({"action": path.action.value, "backend": path.backend})
 
     def summary(self, totals: dict) -> None:  # type: ignore[override]
@@ -128,6 +133,53 @@ def _events_for_step(step, step_no: int) -> list[AgentEvent]:
     return events
 
 
+def _score_recovery(scenario: Scenario, monitor, tracer, first_trip,
+                    trip_step_index) -> Optional[RecoveryOutcome]:
+    """Score the steering, and replay the recovery branch if it was usable.
+
+    Only meaningful for positives that actually tripped and that declare a
+    recovery branch — for everything else there is nothing to recover from.
+    """
+    if not scenario.label.should_trip or first_trip is None:
+        return None
+    if not scenario.recovery_branch:
+        return None
+
+    out = RecoveryOutcome(attempted=bool(tracer.paths))
+    seen: list[str] = []
+    for path in tracer.paths:
+        s = score_steering(
+            path,
+            original_goal=scenario.goal,
+            trip_detector=first_trip["detector"],
+            trip_severity=first_trip["severity"],
+            failing_tool=scenario.failing_tool,
+            previous_instructions=seen,
+        )
+        seen.append(path.instruction or "")
+        out.steering_scores.append(s)
+        if path.action is RecoveryAction.ESCALATE:
+            out.escalated = True
+
+    out.usable = any(s.usable for s in out.steering_scores)
+
+    # A critical trip is *supposed* to escalate; that is a correct outcome, not
+    # a recovery, so it never unlocks the branch.
+    if out.escalated and first_trip["severity"] == "critical":
+        return out
+
+    # Usable steering unlocks the corrected trajectory. Vague steering does not:
+    # a nudge that names nothing concrete should not score as a free win.
+    if out.usable:
+        base = (trip_step_index or 0) + 1
+        for j, step in enumerate(scenario.recovery_branch):
+            out.tokens_to_recovery += step.tokens
+            for ev in _events_for_step(step, base + j + 1):
+                monitor.observe(ev)
+        out.recovered = True
+    return out
+
+
 def run_scenario(scenario: Scenario,
                  disabled: Optional[set[str]] = None,
                  extra_detectors: Optional[list[Detector]] = None,
@@ -166,6 +218,11 @@ def run_scenario(scenario: Scenario,
     tripped = trip_step_index is not None
     first = tracer.trip_log[0] if tracer.trip_log else None
 
+    # -- did the steering actually work? --------------------------------
+    recovery = _score_recovery(scenario, monitor, tracer, first, trip_step_index)
+    if recovery is not None:
+        tokens_spent += recovery.tokens_to_recovery
+
     # -- token economics ------------------------------------------------
     tokens_saved = scenario.tokens_after_index(trip_step_index) if tripped else 0
     supervision = tracer.recoveries * cost.recovery_call_tokens
@@ -197,6 +254,7 @@ def run_scenario(scenario: Scenario,
         supervision_cost=supervision,
         steps_late=steps_late,
         expected_detector=scenario.label.detector,
+        recovery=recovery,
     )
 
 

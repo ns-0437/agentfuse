@@ -180,3 +180,61 @@ def test_wilson_interval_sanity():
     assert i.low < i.point < i.high
     assert 0.0 <= i.low and i.high <= 1.0
     assert wilson(0, 0).n == 0
+
+
+# ------------------------------------------------------------ recovery
+# Until these existed, AgentFuse's central claim - that it steers agents back on
+# track - had never been measured. Detection was the only thing under test.
+def test_recovery_is_actually_measured(generated):
+    _, _, m = generated
+    assert m.recovery_eligible > 50, (
+        "not enough scenarios declare a recovery branch to measure steering at all")
+
+
+def test_recovery_rate_floor(generated):
+    _, _, m = generated
+    assert m.recovery_rate >= GEN["floor"]["recovery_rate"], (
+        f"recovery rate regressed to {m.recovery_rate:.3f} "
+        f"({m.recovery_succeeded}/{m.recovery_eligible})")
+
+
+def test_steering_quality_floor(generated):
+    _, _, m = generated
+    assert m.mean_steering_quality >= GEN["floor"]["steering_quality"]
+    assert m.steering_usable_rate >= GEN["floor"]["steering_usable_rate"]
+
+
+def test_vague_steering_does_not_unlock_recovery():
+    """A nudge that names nothing concrete must not score as a free win."""
+    from agentfuse.recovery import SteeringPath, RecoveryAction
+    from evals.steering import score_steering
+    vague = SteeringPath(action=RecoveryAction.INJECT,
+                         instruction="Something went wrong. Try again and be careful.",
+                         rationale="", confidence=0.5)
+    s = score_steering(vague, original_goal="Rotate the production database credential.",
+                       trip_detector="loop", trip_severity="trip", failing_tool="search_files")
+    assert not s.usable, "vague steering must not count as usable guidance"
+
+
+def test_good_steering_scores_usable():
+    from agentfuse.recovery import SteeringPath, RecoveryAction
+    from evals.steering import score_steering
+    good = SteeringPath(
+        action=RecoveryAction.INJECT,
+        instruction=("STOP repeating `search_files` with the same arguments - it is not "
+                     "advancing the task. Re-read your original objective: rotate the "
+                     "production database credential. Choose a DIFFERENT tool."),
+        rationale="", confidence=0.8)
+    s = score_steering(good, original_goal="Rotate the production database credential.",
+                       trip_detector="loop", trip_severity="trip", failing_tool="search_files")
+    assert s.usable and s.diagnostic and s.goal_anchored and s.actionable
+
+
+def test_critical_trips_must_escalate_not_steer():
+    from agentfuse.recovery import SteeringPath, RecoveryAction
+    from evals.steering import score_steering
+    wrong = SteeringPath(action=RecoveryAction.INJECT, instruction="Keep going within budget.",
+                         rationale="", confidence=0.5)
+    s = score_steering(wrong, original_goal="x", trip_detector="spend",
+                       trip_severity="critical")
+    assert not s.action_appropriate

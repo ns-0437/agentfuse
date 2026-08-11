@@ -228,6 +228,25 @@ def _noise_step(rng: random.Random, domain: dict) -> StepSpec:
     return think(rng.choice(domain["on_topic"]), tokens_in=ti, tokens_out=to)
 
 
+
+def _recovery_steps(rng: random.Random, d: dict, n: int = 3) -> list[StepSpec]:
+    """What a correctly-steered agent does next: a different action that works.
+
+    Deliberately uses a *different* tool from the one that was looping, and marks
+    genuine progress, so "recovered" means the working state actually advanced
+    rather than the agent simply carrying on.
+    """
+    steps: list[StepSpec] = []
+    for i in range(n):
+        ti, to = _tokens(rng)
+        steps.append(tool(f"resolve_{d['key']}_{i}", {"strategy": "alternate"},
+                          result="resolved", progress=True,
+                          tokens_in=ti, tokens_out=to))
+    ti, to = _tokens(rng)
+    steps.append(think(d["on_topic"][-1], tokens_in=ti, tokens_out=to, progress=True))
+    return steps
+
+
 def _healthy_prefix(rng: random.Random, domain: dict, k: int) -> list[StepSpec]:
     """Legitimate opening steps that genuinely advance the task."""
     steps = []
@@ -267,6 +286,8 @@ def gen_loop(rng: random.Random, idx: int) -> Scenario:
         description="Planted infinite tool loop with identical arguments.",
         label=Label(should_trip=True, detector="loop", onset_index=onset,
                     detect_by_index=onset + 5),
+        failing_tool=tool_name,
+        recovery_branch=_recovery_steps(rng, d),
     )
 
 
@@ -302,6 +323,8 @@ def gen_loop_semantic(rng: random.Random, idx: int) -> Scenario:
         label=Label(should_trip=True, detector="loop", onset_index=onset,
                     detect_by_index=onset + 6, known_gap=True,
                     note="KNOWN GAP: exact arg-hash matching cannot see through arg noise."),
+        failing_tool=tool_name,
+        recovery_branch=_recovery_steps(rng, d),
     )
 
 
@@ -343,6 +366,7 @@ def gen_drift(rng: random.Random, idx: int, abrupt: bool = True) -> Scenario:
                     note="" if abrupt else
                          ("Gradual drift retains goal vocabulary; lexical similarity "
                           "overlaps the legitimate-paraphrase band.")),
+        recovery_branch=_recovery_steps(rng, d),
     )
 
 
@@ -375,6 +399,7 @@ def gen_stall(rng: random.Random, idx: int) -> Scenario:
         description="Varied tool activity with zero state advance — a logic trap.",
         label=Label(should_trip=True, detector="progress", onset_index=onset,
                     detect_by_index=onset + 8),
+        recovery_branch=_recovery_steps(rng, d),
     )
 
 
@@ -414,6 +439,7 @@ def gen_spend(rng: random.Random, idx: int) -> Scenario:
         description="Budget breach: cumulative ceiling or burn-rate spike.",
         label=Label(should_trip=True, detector="spend", onset_index=onset,
                     detect_by_index=onset + 10),
+        recovery_branch=_recovery_steps(rng, d, n=2),
     )
 
 

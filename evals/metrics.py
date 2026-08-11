@@ -65,6 +65,15 @@ class Metrics:
     tokens_spent: int = 0
     wasted_if_unsupervised: int = 0
 
+    # -- recovery (the half of the product that was never measured) ----
+    recovery_eligible: int = 0     # tripped positives that declare a corrected path
+    recovery_attempted: int = 0    # steering was produced
+    recovery_usable: int = 0       # steering passed the quality rubric
+    recovery_succeeded: int = 0    # the run actually got back on track
+    recovery_escalated: int = 0    # correctly handed to a human instead
+    steering_quality_sum: float = 0.0
+    steering_quality_n: int = 0
+
     per_family: dict = field(default_factory=dict)
     failures: list[dict] = field(default_factory=list)
 
@@ -115,6 +124,23 @@ class Metrics:
     def attribution_ci(self) -> Interval:
         return wilson(self.attribution_correct, self.attribution_total)
 
+    # -- recovery rates -------------------------------------------------
+    @property
+    def recovery_rate(self) -> float:
+        """Of the failures we caught, how many did we actually get back on track?"""
+        return _safe_div(self.recovery_succeeded, self.recovery_eligible)
+
+    def recovery_ci(self) -> Interval:
+        return wilson(self.recovery_succeeded, self.recovery_eligible)
+
+    @property
+    def steering_usable_rate(self) -> float:
+        return _safe_div(self.recovery_usable, self.recovery_attempted)
+
+    @property
+    def mean_steering_quality(self) -> float:
+        return _safe_div(self.steering_quality_sum, self.steering_quality_n)
+
     def to_dict(self) -> dict:
         d = asdict(self)
         d.update({
@@ -129,6 +155,10 @@ class Metrics:
             "precision_ci": self.precision_ci().to_dict(),
             "fpr_ci": self.fpr_ci().to_dict(),
             "attribution_ci": self.attribution_ci().to_dict(),
+            "recovery_rate": round(self.recovery_rate, 4),
+            "recovery_ci": self.recovery_ci().to_dict(),
+            "steering_usable_rate": round(self.steering_usable_rate, 4),
+            "mean_steering_quality": round(self.mean_steering_quality, 4),
         })
         return d
 
@@ -175,6 +205,22 @@ def score(results: list[ScenarioResult], scenarios_by_id: dict, label: str = "fu
         # per-family rollup
         fam = m.per_family.setdefault(r.family, {"TP": 0, "FP": 0, "FN": 0, "TN": 0})
         fam[outcome] += 1
+
+        # recovery accounting
+        rec = getattr(r, "recovery", None)
+        if rec is not None:
+            m.recovery_eligible += 1
+            if rec.attempted:
+                m.recovery_attempted += 1
+            if rec.usable:
+                m.recovery_usable += 1
+            if rec.recovered:
+                m.recovery_succeeded += 1
+            if rec.escalated:
+                m.recovery_escalated += 1
+            for sc in rec.steering_scores:
+                m.steering_quality_sum += sc.score
+                m.steering_quality_n += 1
 
         if outcome in ("FP", "FN"):
             m.failures.append({
