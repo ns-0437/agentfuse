@@ -328,6 +328,46 @@ def gen_loop_semantic(rng: random.Random, idx: int) -> Scenario:
     )
 
 
+
+def gen_loop_reworded(rng: random.Random, idx: int) -> Scenario:
+    """The genuinely hard loop: same intent, genuinely different wording.
+
+    Surface normalisation (case, whitespace, punctuation) cannot collapse these
+    - the tokens themselves differ. Only a semantic comparison would see that
+    every call is asking the same question. Kept in the suite so the benchmark
+    does not flatter the string-normalisation fix that closed the cosmetic case.
+    """
+    d = rng.choice(DOMAINS)
+    prefix = rng.randint(1, 2)
+    tool_name = rng.choice(d["tools"])
+    phrasings = [
+        "unpaid acme invoices", "acme invoices not yet paid", "outstanding acme bills",
+        "acme accounts still owing", "bills from acme awaiting payment",
+        "acme unsettled invoices", "invoices acme has not paid",
+    ]
+    steps = _healthy_prefix(rng, d, prefix)
+    onset = len(steps)
+    for i in range(rng.randint(5, 7)):
+        ti, to = _tokens(rng)
+        steps.append(tool(tool_name, {"q": phrasings[i % len(phrasings)]},
+                          result="0 results", progress=False,
+                          tokens_in=ti, tokens_out=to))
+    return Scenario(
+        id=f"gen_loopword_{idx:04d}",
+        title=f"Generated reworded-args loop ({d['key']})",
+        family="loop",
+        goal=d["goal"],
+        steps=steps,
+        description="Same request, genuinely different wording each time.",
+        label=Label(should_trip=True, detector="loop", onset_index=onset,
+                    detect_by_index=onset + 6, known_gap=True,
+                    note=("KNOWN GAP: needs semantic argument comparison. String "
+                          "normalisation cannot collapse genuinely different wording.")),
+        failing_tool=tool_name,
+        recovery_branch=_recovery_steps(rng, d),
+    )
+
+
 def gen_drift(rng: random.Random, idx: int, abrupt: bool = True) -> Scenario:
     """Drift away from the objective — abrupt (easy) or gradual (hard)."""
     d = rng.choice(DOMAINS)
@@ -599,8 +639,8 @@ def gen_benign_short(rng: random.Random, idx: int) -> Scenario:
     )
 
 
-POSITIVE_GENERATORS = [gen_loop, gen_loop_semantic, gen_drift, gen_drift_subtle,
-                       gen_stall, gen_spend]
+POSITIVE_GENERATORS = [gen_loop, gen_loop_semantic, gen_loop_reworded,
+                       gen_drift, gen_drift_subtle, gen_stall, gen_spend]
 NEGATIVE_GENERATORS = [gen_benign_retry, gen_benign_polling, gen_benign_paraphrase,
                        gen_benign_subgoal, gen_benign_breadth, gen_benign_expensive,
                        gen_benign_short]

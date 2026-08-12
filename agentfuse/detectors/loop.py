@@ -67,7 +67,7 @@ class LoopDetector(Detector):
 
     # ------------------------------------------------------------------
     def _on_call(self, event: AgentEvent) -> Optional[Trip]:
-        sig = event.tool_signature
+        sig = loop_signature(event)
         if sig is None:
             return None
 
@@ -141,3 +141,35 @@ class LoopDetector(Detector):
 def _normalise(text: Optional[str]) -> str:
     """Collapse incidental formatting so equal results compare equal."""
     return " ".join((text or "").split()).lower()
+
+
+_PUNCT = str.maketrans("", "", "\"'`,.;:!?()[]{}<>")
+
+
+def _normalise_args(value):
+    """Canonicalise argument values so cosmetic differences collapse.
+
+    ``{"q": "ACME unpaid"}``, ``{"q": "acme  unpaid"}`` and ``{"q": "acme unpaid?"}``
+    are the same request expressed three ways. Hashing them raw produces three
+    different signatures and the loop is never seen.
+
+    Scope, stated plainly: this normalises **surface** form only — case,
+    surrounding and repeated whitespace, and trailing punctuation. Genuinely
+    reworded arguments ("acme unpaid" vs "unpaid invoices for acme") still
+    produce distinct signatures and remain a known gap; closing that needs
+    embeddings, not string handling.
+    """
+    if isinstance(value, str):
+        return " ".join(value.translate(_PUNCT).split()).lower()
+    if isinstance(value, dict):
+        return {k: _normalise_args(v) for k, v in sorted(value.items())}
+    if isinstance(value, (list, tuple)):
+        return [_normalise_args(v) for v in value]
+    return value
+
+
+def loop_signature(event: AgentEvent) -> Optional[str]:
+    """Normalised ``(tool, args)`` fingerprint used for loop detection."""
+    if event.tool_name is None:
+        return None
+    return f"{event.tool_name}:{stable_hash(_normalise_args(event.tool_args or {}))}"
