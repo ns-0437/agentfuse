@@ -40,6 +40,9 @@ def console_report(full: Metrics, rows, results: list[ScenarioResult],
     a("  (95% Wilson intervals — a rate without an interval is a rumour)")
     a(f"  precision           {full.precision_ci().render():<28} trust a trip when we see one")
     a(f"  recall              {full.recall_ci().render():<28} real failures caught")
+    a(f"  recall  [clustered] {full.recall_ci_clustered().render():<28} <- QUOTE THIS ONE")
+    a(f"  FPR     [clustered] {full.fpr_ci_clustered().render():<28} design effect "
+      f"{full.design_effect:.1f}x (ICC {full.intra_cluster_correlation:.2f})")
     a(f"  F1                  {_pct(full.f1)}")
     a(f"  false-positive rate {full.fpr_ci().render():<28} healthy runs halted")
     a(f"  attribution         {full.attribution_ci().render():<28} right detector for the failure")

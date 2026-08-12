@@ -16,7 +16,8 @@
       "roi": 1.5,
       "recovery_rate": 0.72,
       "steering_quality": 0.85,
-      "steering_usable_rate": 0.9
+      "steering_usable_rate": 0.9,
+      "recall_clustered_low": 0.8
     },
     "ceiling": {
       "false_positive_rate": 0.11,
@@ -48,5 +49,6 @@
     "seeds": 25,
     "note": "F1 must significantly exceed a rate-matched random control (p < 0.05)."
   },
-  "economics_note": "'tokens saved' is WASTE AVOIDED (what the doomed run would have burned after the halt), not net benefit including completing the task. The recovered path's own cost is charged to tokens_spent. Treat ROI as an upper bound on the real economic case."
+  "economics_note": "'tokens saved' is WASTE AVOIDED (what the doomed run would have burned after the halt), not net benefit including completing the task. The recovered path's own cost is charged to tokens_spent. Treat ROI as an upper bound on the real economic case.",
+  "statistical_note": "Scenarios from one generator share a template and behave near-identically, so they are NOT independent samples. Nominal Wilson intervals therefore overstate precision. The report now shows cluster-adjusted intervals (Kish design effect, DEFF = 1 + (m-1)*ICC) and those are the ones to quote. Practical consequence: adding scenarios PER GENERATOR buys no statistical power at all - only adding more independent generators does."
 }

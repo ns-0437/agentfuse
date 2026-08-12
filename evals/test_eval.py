@@ -260,3 +260,19 @@ def test_handwritten_suite_is_fully_clean(handwritten):
     _, m = handwritten
     assert m.fn == 0, f"{m.fn} hand-written failure(s) missed"
     assert m.fp == 0, f"{m.fp} hand-written healthy run(s) halted"
+
+
+def test_clustered_interval_is_wider_than_nominal(generated):
+    """The honest interval must never look tighter than the naive one.
+
+    Scenarios sharing a generator are correlated, so the nominal Wilson interval
+    overstates precision. If this ever inverts, the clustering maths is wrong.
+    """
+    _, _, m = generated
+    assert m.recall_ci_clustered().width >= m.recall_ci().width
+    assert m.design_effect >= 1.0
+
+
+def test_clustered_recall_floor(generated):
+    _, _, m = generated
+    assert m.recall_ci_clustered().low >= GEN["floor"]["recall_clustered_low"]

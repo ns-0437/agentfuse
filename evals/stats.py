@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 import random
+import statistics
 from dataclasses import dataclass
 from typing import Callable, Sequence
 
@@ -134,3 +135,49 @@ def compare_to_control(system_score: float, control_scores: Sequence[float]) -> 
     # add-one smoothing: with k seeds you can never honestly claim p < 1/(k+1)
     p = (at_least + 1) / (n + 1)
     return ComparisonTest(system_score - mean, p, mean, sd, n)
+
+
+# --------------------------------------------------------------------------
+# Cluster-aware intervals
+# --------------------------------------------------------------------------
+def design_effect(clusters: dict[str, list[int]]) -> tuple[float, float]:
+    """Return ``(deff, icc)`` for outcomes grouped by cluster.
+
+    Wilson assumes independent trials. Benchmark scenarios generated from a
+    shared template are not independent: within one generator they behave almost
+    identically, so the information content of 40 scenarios is closer to that of
+    one. The standard correction is Kish's design effect,
+    ``DEFF = 1 + (m - 1) * ICC``, where ICC is the intra-cluster correlation and
+    ``m`` the mean cluster size. Effective sample size is ``n / DEFF``.
+    """
+    sizes = [len(v) for v in clusters.values() if v]
+    if len(sizes) < 2:
+        return 1.0, 0.0
+    n = sum(sizes)
+    hits = sum(sum(v) for v in clusters.values())
+    p = hits / n if n else 0.0
+    if p <= 0.0 or p >= 1.0:
+        return 1.0, 0.0
+
+    m_avg = n / len(sizes)
+    rates = [sum(v) / len(v) for v in clusters.values() if v]
+    between = statistics.variance(rates)
+    expected = p * (1 - p) / m_avg          # variance if draws were independent
+    icc = max(0.0, (between - expected) / (p * (1 - p)))
+    return 1.0 + (m_avg - 1) * icc, icc
+
+
+def clustered_wilson(clusters: dict[str, list[int]], z: float = Z95) -> Interval:
+    """Wilson interval computed on the EFFECTIVE sample size.
+
+    Reporting the nominal interval over-states precision whenever samples are
+    clustered — on this benchmark by roughly sevenfold.
+    """
+    n = sum(len(v) for v in clusters.values())
+    if n == 0:
+        return Interval(0.0, 0.0, 0.0, 0)
+    hits = sum(sum(v) for v in clusters.values())
+    p = hits / n
+    deff, _ = design_effect(clusters)
+    eff_n = max(1, int(round(n / deff)))
+    return wilson(int(round(p * eff_n)), eff_n, z)

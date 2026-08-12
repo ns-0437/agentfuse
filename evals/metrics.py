@@ -34,7 +34,7 @@ from statistics import mean
 from typing import Optional
 
 from .schema import ScenarioResult
-from .stats import Interval, wilson
+from .stats import Interval, wilson, clustered_wilson, design_effect
 
 
 def _safe_div(a: float, b: float) -> float:
@@ -73,6 +73,11 @@ class Metrics:
     recovery_escalated: int = 0    # correctly handed to a human instead
     steering_quality_sum: float = 0.0
     steering_quality_n: int = 0
+
+    # Outcomes grouped by generator, so intervals can account for the fact that
+    # scenarios sharing a template are not independent samples.
+    clusters_recall: dict = field(default_factory=dict)
+    clusters_fpr: dict = field(default_factory=dict)
 
     per_family: dict = field(default_factory=dict)
     failures: list[dict] = field(default_factory=list)
@@ -124,6 +129,27 @@ class Metrics:
     def attribution_ci(self) -> Interval:
         return wilson(self.attribution_correct, self.attribution_total)
 
+    # -- cluster-adjusted intervals ------------------------------------
+    # The nominal intervals above assume independent trials. They are not:
+    # scenarios from one generator share a template and behave almost
+    # identically, so 40 of them carry closer to one sample's worth of
+    # information. Measured design effect on this suite is ~17x, which makes the
+    # nominal intervals roughly seven times too narrow. These are the ones to
+    # quote.
+    def recall_ci_clustered(self) -> Interval:
+        return clustered_wilson(self.clusters_recall)
+
+    def fpr_ci_clustered(self) -> Interval:
+        return clustered_wilson(self.clusters_fpr)
+
+    @property
+    def design_effect(self) -> float:
+        return design_effect(self.clusters_recall)[0]
+
+    @property
+    def intra_cluster_correlation(self) -> float:
+        return design_effect(self.clusters_recall)[1]
+
     # -- recovery rates -------------------------------------------------
     @property
     def recovery_rate(self) -> float:
@@ -155,6 +181,10 @@ class Metrics:
             "precision_ci": self.precision_ci().to_dict(),
             "fpr_ci": self.fpr_ci().to_dict(),
             "attribution_ci": self.attribution_ci().to_dict(),
+            "recall_ci_clustered": self.recall_ci_clustered().to_dict(),
+            "fpr_ci_clustered": self.fpr_ci_clustered().to_dict(),
+            "design_effect": round(self.design_effect, 2),
+            "intra_cluster_correlation": round(self.intra_cluster_correlation, 3),
             "recovery_rate": round(self.recovery_rate, 4),
             "recovery_ci": self.recovery_ci().to_dict(),
             "steering_usable_rate": round(self.steering_usable_rate, 4),
@@ -205,6 +235,13 @@ def score(results: list[ScenarioResult], scenarios_by_id: dict, label: str = "fu
         # per-family rollup
         fam = m.per_family.setdefault(r.family, {"TP": 0, "FP": 0, "FN": 0, "TN": 0})
         fam[outcome] += 1
+
+        # cluster = the generator that produced this scenario
+        cluster = r.scenario_id.rsplit("_", 1)[0]
+        if r.should_trip:
+            m.clusters_recall.setdefault(cluster, []).append(1 if outcome == "TP" else 0)
+        else:
+            m.clusters_fpr.setdefault(cluster, []).append(1 if outcome == "FP" else 0)
 
         # recovery accounting
         rec = getattr(r, "recovery", None)
