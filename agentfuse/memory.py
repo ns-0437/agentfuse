@@ -87,12 +87,21 @@ def failure_signature(detector: str, tool: Optional[str], evidence: dict) -> str
 
 
 class RecoveryMemory(Protocol):
-    """What the recovery engine needs from a memory, and nothing more."""
+    """What the recovery engine needs from a memory, and nothing more.
+
+    ``failed_strategies`` is load-bearing: it is how the engine knows which rungs
+    of the steering ladder have already been ruled out. A backend missing it does
+    not fail loudly — the engine swallows memory faults so a broken memory cannot
+    take down the run it supervises — it just silently reports that nothing has
+    been tried, so the ladder never climbs and the same correction is reissued
+    forever. Every backend must implement all of these.
+    """
 
     def remember(self, record: RecoveryRecord) -> str: ...
     def recall(self, signature: str, limit: int = 5) -> list[RecoveryRecord]: ...
     def mark_outcome(self, record_id: str, worked: bool) -> None: ...
     def failed_instructions(self, signature: str) -> list[str]: ...
+    def failed_strategies(self, signature: str) -> set[str]: ...
 
 
 # --------------------------------------------------------------------------
@@ -250,14 +259,33 @@ class QdrantMemory:
 
     def recall_similar(self, detector: str, tool: Optional[str], goal: str,
                        limit: int = 5) -> list[RecoveryRecord]:
-        """The reason this backend exists: semantically similar past failures."""
+        """The reason this backend exists: semantically similar past failures.
+
+        Exact signature matching cannot tell that "search_files found nothing"
+        and "grep_files returned no matches" are the same lesson. This can.
+
+        The client API is version-dependent: ``search()`` was replaced by
+        ``query_points()``. This class shipped calling the removed method, which
+        went unnoticed because it had never been run.
+        """
         probe = f"{detector} failure on {tool or 'unknown tool'}: {goal}"
-        hits = self._client.search(collection_name=self._collection,
-                                   query_vector=self._embedder(probe), limit=limit)
+        vector = self._embedder(probe)
+
+        if hasattr(self._client, "query_points"):
+            response = self._client.query_points(
+                collection_name=self._collection, query=vector, limit=limit)
+            hits = getattr(response, "points", response)
+        else:  # older clients
+            hits = self._client.search(collection_name=self._collection,
+                                       query_vector=vector, limit=limit)
+
         out = []
         for h in hits:
+            payload = getattr(h, "payload", None)
+            if not payload:
+                continue
             try:
-                out.append(RecoveryRecord.from_dict(dict(h.payload)))
+                out.append(RecoveryRecord.from_dict(dict(payload)))
             except (TypeError, ValueError):
                 continue
         return out
@@ -268,9 +296,22 @@ class QdrantMemory:
             rec.worked = worked
             self.remember(rec)
 
-    def failed_instructions(self, signature: str) -> list[str]:
-        return [r.instruction for r in self.recall(signature, limit=20)
-                if r.worked is False]
+    def failed_instructions(self, signature: str, limit: int = 5) -> list[str]:
+        failed = [r for r in self._by_id.values()
+                  if r.signature == signature and r.worked is False]
+        failed.sort(key=lambda r: r.ts, reverse=True)
+        return [r.instruction for r in failed[:limit]]
+
+    def failed_strategies(self, signature: str) -> set[str]:
+        """Rungs demonstrably ruled out for this failure shape.
+
+        This backend shipped without this method. Nothing failed loudly — the
+        engine swallows memory faults by design — the ladder simply never climbed
+        and the same correction was reissued indefinitely. It went unnoticed
+        because the class had never once been executed.
+        """
+        return {r.strategy for r in self._by_id.values()
+                if r.signature == signature and r.worked is False}
 
     def strategies_tried(self, signature: str) -> set[str]:
-        return {r.strategy for r in self.recall(signature, limit=20)}
+        return {r.strategy for r in self._by_id.values() if r.signature == signature}

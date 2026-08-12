@@ -16,8 +16,9 @@ dependencies = []  # core is stdlib-only
 pretty = ["rich>=13.0.0"]
 openai = ["openai>=1.40.0"]
 agentkit = ["openai-agents>=0.18.0"]
+memory = ["qdrant-client>=1.9.0"]
 langgraph = ["langgraph>=0.2.0", "langchain-core>=0.3.0"]
-all = ["rich>=13.0.0", "openai>=1.40.0", "openai-agents>=0.18.0"]
+all = ["rich>=13.0.0", "openai>=1.40.0", "openai-agents>=0.18.0", "qdrant-client>=1.9.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
