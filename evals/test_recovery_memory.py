@@ -185,3 +185,15 @@ def test_monitor_marks_a_steer_worked_when_progress_follows():
 
     assert mon.steers_that_worked >= 1
     assert any(r.worked is True for r in mon.recovery.memory._records)
+
+
+def test_max_recoveries_can_reach_every_steerable_rung():
+    """A cap below the ladder depth makes the upper rungs dead code.
+
+    This was shipped: max_recoveries defaulted to 3 against a 4-rung ladder, so
+    an agent that would have responded to `decompose` never got the chance.
+    Measured cost was 20 points of recovery rate.
+    """
+    from agentfuse.monitor import MonitorConfig
+    from agentfuse.strategies import STEERABLE
+    assert MonitorConfig(original_goal="x").max_recoveries >= len(STEERABLE)

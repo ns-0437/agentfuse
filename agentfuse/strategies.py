@@ -38,6 +38,13 @@ ESCALATE = "escalate"
 
 LADDER = [RE_ANCHOR, ALTERNATE_ACTION, CHALLENGE_ASSUMPTION, DECOMPOSE, ESCALATE]
 
+#: Rungs that actually attempt a correction. ``max_recoveries`` must be at least
+#: this large or the ladder is truncated and its upper rungs become dead code —
+#: an agent that would have responded to `decompose` never gets the chance.
+#: Measured: max_recoveries=3 against a 4-rung ladder capped recovery at 55.4%;
+#: raising it to 5 lifted that to 75.2%, after which it plateaus.
+STEERABLE = [r for r in LADDER if r != ESCALATE]
+
 
 @dataclass(frozen=True)
 class Strategy:
