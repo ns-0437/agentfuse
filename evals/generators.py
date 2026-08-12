@@ -765,6 +765,16 @@ NEGATIVE_GENERATORS = [gen_benign_retry, gen_benign_polling, gen_benign_paraphra
                        gen_long_polling_benign, gen_long_sparse_benign]
 
 
+def _with_extras() -> tuple[list, list]:
+    """Fold in the structurally distinct families from ``generators_extra``.
+
+    Imported lazily to keep the module import cycle-free: the extra generators
+    reuse the domain packs and helpers defined here.
+    """
+    from .generators_extra import EXTRA_NEGATIVES, EXTRA_POSITIVES
+    return POSITIVE_GENERATORS + EXTRA_POSITIVES, NEGATIVE_GENERATORS + EXTRA_NEGATIVES
+
+
 def generate_suite(n_per_generator: int = 40, seed: int = 20260812,
                    include: Optional[set[str]] = None) -> list[Scenario]:
     """Build a large, balanced, reproducible scenario suite.
@@ -776,7 +786,8 @@ def generate_suite(n_per_generator: int = 40, seed: int = 20260812,
     """
     rng = random.Random(seed)
     out: list[Scenario] = []
-    for gen in POSITIVE_GENERATORS + NEGATIVE_GENERATORS:
+    positives, negatives = _with_extras()
+    for gen in positives + negatives:
         if include and gen.__name__ not in include:
             continue
         for i in range(n_per_generator):
