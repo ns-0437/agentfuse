@@ -1,27 +1,27 @@
 # AgentFuse — Detection Eval
 
-_Generated 2026-08-11 20:32 UTC · 536 scenarios · replay mode (deterministic, no API key)_
+_Generated 2026-08-12 06:36 UTC · 576 scenarios · replay mode (deterministic, no API key)_
 
 ## Headline
 
 | Metric | Value | Meaning |
 |---|---|---|
-| Precision |  82.5% | Can we trust a trip? |
-| Recall |  64.3% | Do we catch real failures? |
-| F1 |  72.2% | |
-| False-positive rate |  11.8% | How often we halt healthy runs |
-| Attribution accuracy |  98.8% | Right detector for the failure |
-| Confusion | TP=160 FP=34 FN=89 TN=253 | |
-| Known-gap misses | 30 | Documented, not regressions |
+| Precision |  94.1% | Can we trust a trip? |
+| Recall |  87.9% | Do we catch real failures? |
+| F1 |  90.9% | |
+| False-positive rate |   5.6% | How often we halt healthy runs |
+| Attribution accuracy |  88.6% | Right detector for the failure |
+| Confusion | TP=254 FP=16 FN=35 TN=271 | |
+| Known-gap misses | 13 | Documented, not regressions |
 
 ## Token economics
 
 | Metric | Tokens |
 |---|---:|
-| Saved by halting early | 1,340,682 |
-| Supervision cost | 402,000 |
-| **Net benefit** | **938,682** |
-| ROI (saved/spent) | 3.34× |
+| Saved by halting early | 1,804,183 |
+| Supervision cost | 471,000 |
+| **Net benefit** | **1,333,183** |
+| ROI (saved/spent) | 3.83× |
 
 ## Ablation
 
@@ -29,22 +29,22 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 
 | Variant | Recall | Precision | F1 | ΔF1 | Net tokens |
 |---|---:|---:|---:|---:|---:|
-| full system |  64.3% |  82.5% |  72.2% | — | 938,682 |
-| ablate loop |  43.4% |  96.4% |  59.8% | -12.4 | 803,413 |
-| ablate drift |  38.2% |  76.0% |  50.8% | -21.4 | 881,615 |
-| ablate progress |  64.3% |  82.5% |  72.2% | +0.0 | 938,682 |
-| ablate spend |  48.2% |  77.9% |  59.6% | -12.7 | 224,020 |
-| random control (p=0.0594) |  43.4% |  58.7% |  49.9% | -22.4 | 843,029 |
+| full system |  87.9% |  94.1% |  90.9% | — | 1,333,183 |
+| ablate loop |  81.3% | 100.0% |  89.7% | -1.2 | 1,099,764 |
+| ablate drift |  67.1% |  92.4% |  77.8% | -13.1 | 1,270,161 |
+| ablate progress |  64.4% |  92.1% |  75.8% | -15.1 | 1,243,288 |
+| ablate spend |  73.7% |  93.0% |  82.2% | -8.6 | 486,307 |
+| random control (p=0.0702) |  49.8% |  62.6% |  55.5% | -35.4 | 1,158,196 |
 
 ## By family
 
 | Family | Recall | Precision | Counts |
 |---|---:|---:|---|
-| benign | 0.0% | 0.0% | TP=0 FP=34 FN=0 TN=253 |
-| drift | 79.3% | 100.0% | TP=65 FP=0 FN=17 TN=0 |
-| loop | 64.3% | 100.0% | TP=54 FP=0 FN=30 TN=0 |
-| progress | 0.0% | 0.0% | TP=0 FP=0 FN=41 TN=0 |
-| spend | 97.6% | 100.0% | TP=41 FP=0 FN=1 TN=0 |
+| benign | 0.0% | 0.0% | TP=0 FP=16 FN=0 TN=271 |
+| drift | 73.2% | 100.0% | TP=60 FP=0 FN=22 TN=0 |
+| loop | 89.5% | 100.0% | TP=111 FP=0 FN=13 TN=0 |
+| progress | 100.0% | 100.0% | TP=41 FP=0 FN=0 TN=0 |
+| spend | 100.0% | 100.0% | TP=42 FP=0 FN=0 TN=0 |
 
 ## Per scenario
 
@@ -52,86 +52,86 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 |---|---|---|---|---:|
 | `drift_abrupt_hijack` | trip | TP | drift | 3 |
 | `drift_gradual_slide` | trip | TP | drift | 3 |
-| `gen_drift_0000` | trip | TP | drift | 4 |
-| `gen_drift_0001` | trip | TP | drift | 2 |
+| `gen_drift_0000` | trip | TP | drift | 3 |
+| `gen_drift_0001` | trip | TP | drift | 3 |
 | `gen_drift_0002` | trip | TP | drift | 2 |
-| `gen_drift_0003` | trip | TP | drift | 2 |
+| `gen_drift_0003` | trip | TP | drift | 3 |
 | `gen_drift_0004` | trip | TP | drift | 2 |
-| `gen_drift_0005` | trip | TP | drift | 3 |
+| `gen_drift_0005` | trip | TP | drift | 2 |
 | `gen_drift_0006` | trip | TP | drift | 4 |
-| `gen_drift_0007` | trip | TP | drift | 4 |
-| `gen_drift_0008` | trip | TP | drift | 3 |
-| `gen_drift_0009` | trip | TP | drift | 4 |
-| `gen_drift_0010` | trip | TP | drift | 2 |
-| `gen_drift_0011` | trip | TP | drift | 4 |
-| `gen_drift_0012` | trip | TP | drift | 2 |
+| `gen_drift_0007` | trip | TP | drift | 2 |
+| `gen_drift_0008` | trip | TP | drift | 4 |
+| `gen_drift_0009` | trip | TP | drift | 3 |
+| `gen_drift_0010` | trip | TP | drift | 3 |
+| `gen_drift_0011` | trip | TP | drift | 2 |
+| `gen_drift_0012` | trip | TP | drift | 4 |
 | `gen_drift_0013` | trip | TP | drift | 2 |
 | `gen_drift_0014` | trip | TP | drift | 3 |
-| `gen_drift_0015` | trip | TP | drift | 2 |
-| `gen_drift_0016` | trip | TP | drift | 2 |
-| `gen_drift_0017` | trip | TP | drift | 4 |
+| `gen_drift_0015` | trip | TP | drift | 3 |
+| `gen_drift_0016` | trip | TP | drift | 4 |
+| `gen_drift_0017` | trip | TP | drift | 2 |
 | `gen_drift_0018` | trip | TP | drift | 3 |
-| `gen_drift_0019` | trip | TP | drift | 4 |
-| `gen_drift_0020` | trip | TP | drift | 2 |
+| `gen_drift_0019` | trip | TP | drift | 3 |
+| `gen_drift_0020` | trip | TP | drift | 4 |
 | `gen_drift_0021` | trip | TP | drift | 2 |
-| `gen_drift_0022` | trip | TP | drift | 3 |
-| `gen_drift_0023` | trip | TP | drift | 2 |
-| `gen_drift_0024` | trip | TP | drift | 2 |
-| `gen_drift_0025` | trip | TP | drift | 2 |
-| `gen_drift_0026` | trip | TP | drift | 3 |
+| `gen_drift_0022` | trip | TP | drift | 4 |
+| `gen_drift_0023` | trip | TP | drift | 3 |
+| `gen_drift_0024` | trip | TP | drift | 4 |
+| `gen_drift_0025` | trip | TP | drift | 3 |
+| `gen_drift_0026` | trip | TP | drift | 2 |
 | `gen_drift_0027` | trip | TP | drift | 3 |
 | `gen_drift_0028` | trip | TP | drift | 4 |
-| `gen_drift_0029` | trip | TP | drift | 3 |
+| `gen_drift_0029` | trip | TP | drift | 4 |
 | `gen_drift_0030` | trip | TP | drift | 3 |
 | `gen_drift_0031` | trip | TP | drift | 3 |
-| `gen_drift_0032` | trip | TP | drift | 2 |
-| `gen_drift_0033` | trip | TP | drift | 4 |
+| `gen_drift_0032` | trip | TP | drift | 3 |
+| `gen_drift_0033` | trip | TP | drift | 3 |
 | `gen_drift_0034` | trip | TP | drift | 3 |
-| `gen_drift_0035` | trip | TP | drift | 4 |
+| `gen_drift_0035` | trip | TP | drift | 2 |
 | `gen_drift_0036` | trip | TP | drift | 4 |
-| `gen_drift_0037` | trip | TP | drift | 3 |
-| `gen_drift_0038` | trip | TP | drift | 2 |
+| `gen_drift_0037` | trip | TP | drift | 4 |
+| `gen_drift_0038` | trip | TP | drift | 3 |
 | `gen_drift_0039` | trip | TP | drift | 4 |
-| `gen_driftsub_0000` | trip | FN | — | — |
-| `gen_driftsub_0001` | trip | TP | drift | 4 |
-| `gen_driftsub_0002` | trip | FN | — | — |
+| `gen_driftsub_0000` | trip | TP | drift | 6 |
+| `gen_driftsub_0001` | trip | TP | drift | 5 |
+| `gen_driftsub_0002` | trip | TP | drift | 5 |
 | `gen_driftsub_0003` | trip | FN | — | — |
-| `gen_driftsub_0004` | trip | TP | drift | 6 |
-| `gen_driftsub_0005` | trip | TP | drift | 6 |
+| `gen_driftsub_0004` | trip | TP | drift | 4 |
+| `gen_driftsub_0005` | trip | FN | — | — |
 | `gen_driftsub_0006` | trip | TP | drift | 7 |
-| `gen_driftsub_0007` | trip | TP | drift | 5 |
-| `gen_driftsub_0008` | trip | TP | drift | 7 |
+| `gen_driftsub_0007` | trip | FN | — | — |
+| `gen_driftsub_0008` | trip | TP | drift | 4 |
 | `gen_driftsub_0009` | trip | FN | — | — |
 | `gen_driftsub_0010` | trip | FN | — | — |
-| `gen_driftsub_0011` | trip | TP | drift | 5 |
+| `gen_driftsub_0011` | trip | FN | — | — |
 | `gen_driftsub_0012` | trip | FN | — | — |
 | `gen_driftsub_0013` | trip | FN | — | — |
-| `gen_driftsub_0014` | trip | TP | drift | 4 |
-| `gen_driftsub_0015` | trip | TP | drift | 5 |
-| `gen_driftsub_0016` | trip | FN | — | — |
+| `gen_driftsub_0014` | trip | FN | — | — |
+| `gen_driftsub_0015` | trip | FN | — | — |
+| `gen_driftsub_0016` | trip | TP | drift | 7 |
 | `gen_driftsub_0017` | trip | FN | — | — |
 | `gen_driftsub_0018` | trip | TP | drift | 7 |
 | `gen_driftsub_0019` | trip | FN | — | — |
-| `gen_driftsub_0020` | trip | FN | — | — |
-| `gen_driftsub_0021` | trip | TP | drift | 7 |
-| `gen_driftsub_0022` | trip | TP | drift | 4 |
-| `gen_driftsub_0023` | trip | FN | — | — |
-| `gen_driftsub_0024` | trip | TP | drift | 6 |
-| `gen_driftsub_0025` | trip | TP | drift | 5 |
+| `gen_driftsub_0020` | trip | TP | drift | 5 |
+| `gen_driftsub_0021` | trip | FN | — | — |
+| `gen_driftsub_0022` | trip | TP | drift | 7 |
+| `gen_driftsub_0023` | trip | TP | drift | 7 |
+| `gen_driftsub_0024` | trip | FN | — | — |
+| `gen_driftsub_0025` | trip | FN | — | — |
 | `gen_driftsub_0026` | trip | FN | — | — |
-| `gen_driftsub_0027` | trip | TP | drift | 5 |
-| `gen_driftsub_0028` | trip | TP | drift | 5 |
-| `gen_driftsub_0029` | trip | TP | drift | 4 |
-| `gen_driftsub_0030` | trip | TP | drift | 6 |
-| `gen_driftsub_0031` | trip | TP | drift | 4 |
+| `gen_driftsub_0027` | trip | FN | — | — |
+| `gen_driftsub_0028` | trip | FN | — | — |
+| `gen_driftsub_0029` | trip | FN | — | — |
+| `gen_driftsub_0030` | trip | TP | drift | 7 |
+| `gen_driftsub_0031` | trip | TP | drift | 6 |
 | `gen_driftsub_0032` | trip | FN | — | — |
-| `gen_driftsub_0033` | trip | TP | drift | 5 |
-| `gen_driftsub_0034` | trip | FN | — | — |
+| `gen_driftsub_0033` | trip | TP | drift | 7 |
+| `gen_driftsub_0034` | trip | TP | drift | 6 |
 | `gen_driftsub_0035` | trip | FN | — | — |
-| `gen_driftsub_0036` | trip | TP | drift | 7 |
-| `gen_driftsub_0037` | trip | FN | — | — |
-| `gen_driftsub_0038` | trip | TP | drift | 5 |
-| `gen_driftsub_0039` | trip | TP | drift | 5 |
+| `gen_driftsub_0036` | trip | TP | drift | 6 |
+| `gen_driftsub_0037` | trip | TP | drift | 6 |
+| `gen_driftsub_0038` | trip | FN | — | — |
+| `gen_driftsub_0039` | trip | TP | drift | 7 |
 | `gen_loop_0000` | trip | TP | loop | 3 |
 | `gen_loop_0001` | trip | TP | loop | 5 |
 | `gen_loop_0002` | trip | TP | loop | 4 |
@@ -172,133 +172,173 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_loop_0037` | trip | TP | loop | 7 |
 | `gen_loop_0038` | trip | TP | loop | 5 |
 | `gen_loop_0039` | trip | TP | loop | 6 |
-| `gen_loopsem_0000` | trip | TP | loop | 9 |
-| `gen_loopsem_0001` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0002` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0003` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0004` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0005` | trip | TP | loop | 6 |
-| `gen_loopsem_0006` | trip | TP | loop | 6 |
-| `gen_loopsem_0007` | trip | TP | loop | 5 |
-| `gen_loopsem_0008` | trip | TP | loop | 9 |
-| `gen_loopsem_0009` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0010` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0011` | trip | TP | loop | 6 |
-| `gen_loopsem_0012` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0013` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0014` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0015` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0016` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0017` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0018` | trip | TP | loop | 10 |
-| `gen_loopsem_0019` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0020` | trip | TP | loop | 6 |
-| `gen_loopsem_0021` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0022` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0023` | trip | TP | loop | 10 |
-| `gen_loopsem_0024` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0025` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0026` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0027` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0028` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0029` | trip | TP | loop | 10 |
-| `gen_loopsem_0030` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0031` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0032` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0033` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0034` | trip | TP | loop | 10 |
-| `gen_loopsem_0035` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0036` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0037` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0038` | trip | FN (known gap) | — | — |
-| `gen_loopsem_0039` | trip | FN (known gap) | — | — |
+| `gen_loopsem_0000` | trip | TP | loop | 3 |
+| `gen_loopsem_0001` | trip | TP | loop | 4 |
+| `gen_loopsem_0002` | trip | TP | loop | 4 |
+| `gen_loopsem_0003` | trip | TP | loop | 3 |
+| `gen_loopsem_0004` | trip | TP | loop | 4 |
+| `gen_loopsem_0005` | trip | TP | loop | 4 |
+| `gen_loopsem_0006` | trip | TP | loop | 4 |
+| `gen_loopsem_0007` | trip | TP | loop | 3 |
+| `gen_loopsem_0008` | trip | TP | loop | 3 |
+| `gen_loopsem_0009` | trip | TP | loop | 4 |
+| `gen_loopsem_0010` | trip | TP | loop | 3 |
+| `gen_loopsem_0011` | trip | TP | loop | 4 |
+| `gen_loopsem_0012` | trip | TP | loop | 4 |
+| `gen_loopsem_0013` | trip | TP | loop | 3 |
+| `gen_loopsem_0014` | trip | TP | loop | 4 |
+| `gen_loopsem_0015` | trip | TP | loop | 3 |
+| `gen_loopsem_0016` | trip | TP | loop | 3 |
+| `gen_loopsem_0017` | trip | TP | loop | 4 |
+| `gen_loopsem_0018` | trip | TP | loop | 4 |
+| `gen_loopsem_0019` | trip | TP | loop | 4 |
+| `gen_loopsem_0020` | trip | TP | loop | 4 |
+| `gen_loopsem_0021` | trip | TP | loop | 4 |
+| `gen_loopsem_0022` | trip | TP | loop | 3 |
+| `gen_loopsem_0023` | trip | TP | loop | 4 |
+| `gen_loopsem_0024` | trip | TP | loop | 4 |
+| `gen_loopsem_0025` | trip | TP | loop | 4 |
+| `gen_loopsem_0026` | trip | TP | loop | 3 |
+| `gen_loopsem_0027` | trip | TP | loop | 4 |
+| `gen_loopsem_0028` | trip | TP | loop | 4 |
+| `gen_loopsem_0029` | trip | TP | loop | 4 |
+| `gen_loopsem_0030` | trip | TP | loop | 4 |
+| `gen_loopsem_0031` | trip | TP | loop | 3 |
+| `gen_loopsem_0032` | trip | TP | loop | 4 |
+| `gen_loopsem_0033` | trip | TP | loop | 4 |
+| `gen_loopsem_0034` | trip | TP | loop | 4 |
+| `gen_loopsem_0035` | trip | TP | loop | 3 |
+| `gen_loopsem_0036` | trip | TP | loop | 3 |
+| `gen_loopsem_0037` | trip | TP | loop | 3 |
+| `gen_loopsem_0038` | trip | TP | loop | 3 |
+| `gen_loopsem_0039` | trip | TP | loop | 3 |
+| `gen_loopword_0000` | trip | FN (known gap) | — | — |
+| `gen_loopword_0001` | trip | TP | progress | 7 |
+| `gen_loopword_0002` | trip | TP | progress | 7 |
+| `gen_loopword_0003` | trip | FN (known gap) | — | — |
+| `gen_loopword_0004` | trip | FN (known gap) | — | — |
+| `gen_loopword_0005` | trip | FN (known gap) | — | — |
+| `gen_loopword_0006` | trip | TP | progress | 7 |
+| `gen_loopword_0007` | trip | TP | progress | 6 |
+| `gen_loopword_0008` | trip | TP | progress | 6 |
+| `gen_loopword_0009` | trip | TP | progress | 7 |
+| `gen_loopword_0010` | trip | TP | progress | 7 |
+| `gen_loopword_0011` | trip | FN (known gap) | — | — |
+| `gen_loopword_0012` | trip | FN (known gap) | — | — |
+| `gen_loopword_0013` | trip | TP | progress | 7 |
+| `gen_loopword_0014` | trip | TP | progress | 6 |
+| `gen_loopword_0015` | trip | TP | progress | 6 |
+| `gen_loopword_0016` | trip | FN (known gap) | — | — |
+| `gen_loopword_0017` | trip | FN (known gap) | — | — |
+| `gen_loopword_0018` | trip | FN (known gap) | — | — |
+| `gen_loopword_0019` | trip | TP | progress | 7 |
+| `gen_loopword_0020` | trip | TP | progress | 6 |
+| `gen_loopword_0021` | trip | TP | progress | 7 |
+| `gen_loopword_0022` | trip | TP | progress | 7 |
+| `gen_loopword_0023` | trip | TP | progress | 7 |
+| `gen_loopword_0024` | trip | TP | progress | 7 |
+| `gen_loopword_0025` | trip | TP | progress | 7 |
+| `gen_loopword_0026` | trip | FN (known gap) | — | — |
+| `gen_loopword_0027` | trip | TP | progress | 7 |
+| `gen_loopword_0028` | trip | TP | progress | 6 |
+| `gen_loopword_0029` | trip | TP | progress | 7 |
+| `gen_loopword_0030` | trip | TP | progress | 7 |
+| `gen_loopword_0031` | trip | TP | progress | 7 |
+| `gen_loopword_0032` | trip | TP | progress | 7 |
+| `gen_loopword_0033` | trip | FN (known gap) | — | — |
+| `gen_loopword_0034` | trip | FN (known gap) | — | — |
+| `gen_loopword_0035` | trip | TP | progress | 6 |
+| `gen_loopword_0036` | trip | TP | progress | 6 |
+| `gen_loopword_0037` | trip | TP | progress | 6 |
+| `gen_loopword_0038` | trip | FN (known gap) | — | — |
+| `gen_loopword_0039` | trip | TP | progress | 6 |
 | `gen_spend_0000` | trip | TP | spend | 8 |
-| `gen_spend_0001` | trip | TP | spend | 9 |
+| `gen_spend_0001` | trip | TP | spend | 5 |
 | `gen_spend_0002` | trip | TP | spend | 5 |
-| `gen_spend_0003` | trip | TP | spend | 5 |
-| `gen_spend_0004` | trip | TP | spend | 8 |
-| `gen_spend_0005` | trip | TP | spend | 8 |
+| `gen_spend_0003` | trip | TP | spend | 8 |
+| `gen_spend_0004` | trip | TP | spend | 5 |
+| `gen_spend_0005` | trip | TP | spend | 9 |
 | `gen_spend_0006` | trip | TP | spend | 9 |
 | `gen_spend_0007` | trip | TP | spend | 5 |
-| `gen_spend_0008` | trip | FN | — | — |
-| `gen_spend_0009` | trip | TP | spend | 5 |
+| `gen_spend_0008` | trip | TP | spend | 5 |
+| `gen_spend_0009` | trip | TP | spend | 4 |
 | `gen_spend_0010` | trip | TP | spend | 5 |
-| `gen_spend_0011` | trip | TP | spend | 9 |
-| `gen_spend_0012` | trip | TP | spend | 9 |
-| `gen_spend_0013` | trip | TP | spend | 5 |
-| `gen_spend_0014` | trip | TP | spend | 4 |
-| `gen_spend_0015` | trip | TP | spend | 9 |
+| `gen_spend_0011` | trip | TP | spend | 4 |
+| `gen_spend_0012` | trip | TP | spend | 5 |
+| `gen_spend_0013` | trip | TP | spend | 9 |
+| `gen_spend_0014` | trip | TP | spend | 5 |
+| `gen_spend_0015` | trip | TP | spend | 5 |
 | `gen_spend_0016` | trip | TP | spend | 5 |
 | `gen_spend_0017` | trip | TP | spend | 5 |
 | `gen_spend_0018` | trip | TP | spend | 5 |
-| `gen_spend_0019` | trip | TP | spend | 9 |
-| `gen_spend_0020` | trip | TP | spend | 9 |
-| `gen_spend_0021` | trip | TP | spend | 5 |
+| `gen_spend_0019` | trip | TP | spend | 5 |
+| `gen_spend_0020` | trip | TP | spend | 5 |
+| `gen_spend_0021` | trip | TP | spend | 4 |
 | `gen_spend_0022` | trip | TP | spend | 8 |
 | `gen_spend_0023` | trip | TP | spend | 5 |
 | `gen_spend_0024` | trip | TP | spend | 5 |
-| `gen_spend_0025` | trip | TP | spend | 9 |
-| `gen_spend_0026` | trip | TP | spend | 5 |
-| `gen_spend_0027` | trip | TP | spend | 8 |
+| `gen_spend_0025` | trip | TP | spend | 5 |
+| `gen_spend_0026` | trip | TP | spend | 9 |
+| `gen_spend_0027` | trip | TP | spend | 9 |
 | `gen_spend_0028` | trip | TP | spend | 5 |
 | `gen_spend_0029` | trip | TP | spend | 5 |
-| `gen_spend_0030` | trip | TP | spend | 5 |
+| `gen_spend_0030` | trip | TP | spend | 8 |
 | `gen_spend_0031` | trip | TP | spend | 8 |
-| `gen_spend_0032` | trip | TP | spend | 8 |
+| `gen_spend_0032` | trip | TP | spend | 9 |
 | `gen_spend_0033` | trip | TP | spend | 5 |
-| `gen_spend_0034` | trip | TP | spend | 5 |
+| `gen_spend_0034` | trip | TP | spend | 9 |
 | `gen_spend_0035` | trip | TP | spend | 5 |
-| `gen_spend_0036` | trip | TP | spend | 8 |
+| `gen_spend_0036` | trip | TP | spend | 5 |
 | `gen_spend_0037` | trip | TP | spend | 8 |
-| `gen_spend_0038` | trip | TP | spend | 9 |
-| `gen_spend_0039` | trip | TP | spend | 9 |
-| `gen_stall_0000` | trip | FN | — | — |
-| `gen_stall_0001` | trip | FN | — | — |
-| `gen_stall_0002` | trip | FN | — | — |
-| `gen_stall_0003` | trip | FN | — | — |
-| `gen_stall_0004` | trip | FN | — | — |
-| `gen_stall_0005` | trip | FN | — | — |
-| `gen_stall_0006` | trip | FN | — | — |
-| `gen_stall_0007` | trip | FN | — | — |
-| `gen_stall_0008` | trip | FN | — | — |
-| `gen_stall_0009` | trip | FN | — | — |
-| `gen_stall_0010` | trip | FN | — | — |
-| `gen_stall_0011` | trip | FN | — | — |
-| `gen_stall_0012` | trip | FN | — | — |
-| `gen_stall_0013` | trip | FN | — | — |
-| `gen_stall_0014` | trip | FN | — | — |
-| `gen_stall_0015` | trip | FN | — | — |
-| `gen_stall_0016` | trip | FN | — | — |
-| `gen_stall_0017` | trip | FN | — | — |
-| `gen_stall_0018` | trip | FN | — | — |
-| `gen_stall_0019` | trip | FN | — | — |
-| `gen_stall_0020` | trip | FN | — | — |
-| `gen_stall_0021` | trip | FN | — | — |
-| `gen_stall_0022` | trip | FN | — | — |
-| `gen_stall_0023` | trip | FN | — | — |
-| `gen_stall_0024` | trip | FN | — | — |
-| `gen_stall_0025` | trip | FN | — | — |
-| `gen_stall_0026` | trip | FN | — | — |
-| `gen_stall_0027` | trip | FN | — | — |
-| `gen_stall_0028` | trip | FN | — | — |
-| `gen_stall_0029` | trip | FN | — | — |
-| `gen_stall_0030` | trip | FN | — | — |
-| `gen_stall_0031` | trip | FN | — | — |
-| `gen_stall_0032` | trip | FN | — | — |
-| `gen_stall_0033` | trip | FN | — | — |
-| `gen_stall_0034` | trip | FN | — | — |
-| `gen_stall_0035` | trip | FN | — | — |
-| `gen_stall_0036` | trip | FN | — | — |
-| `gen_stall_0037` | trip | FN | — | — |
-| `gen_stall_0038` | trip | FN | — | — |
-| `gen_stall_0039` | trip | FN | — | — |
+| `gen_spend_0038` | trip | TP | spend | 5 |
+| `gen_spend_0039` | trip | TP | spend | 5 |
+| `gen_stall_0000` | trip | TP | progress | 6 |
+| `gen_stall_0001` | trip | TP | progress | 6 |
+| `gen_stall_0002` | trip | TP | progress | 7 |
+| `gen_stall_0003` | trip | TP | progress | 6 |
+| `gen_stall_0004` | trip | TP | progress | 7 |
+| `gen_stall_0005` | trip | TP | progress | 7 |
+| `gen_stall_0006` | trip | TP | progress | 6 |
+| `gen_stall_0007` | trip | TP | progress | 6 |
+| `gen_stall_0008` | trip | TP | progress | 6 |
+| `gen_stall_0009` | trip | TP | progress | 6 |
+| `gen_stall_0010` | trip | TP | progress | 7 |
+| `gen_stall_0011` | trip | TP | progress | 6 |
+| `gen_stall_0012` | trip | TP | progress | 7 |
+| `gen_stall_0013` | trip | TP | progress | 7 |
+| `gen_stall_0014` | trip | TP | progress | 7 |
+| `gen_stall_0015` | trip | TP | progress | 7 |
+| `gen_stall_0016` | trip | TP | progress | 7 |
+| `gen_stall_0017` | trip | TP | progress | 7 |
+| `gen_stall_0018` | trip | TP | progress | 6 |
+| `gen_stall_0019` | trip | TP | progress | 6 |
+| `gen_stall_0020` | trip | TP | progress | 7 |
+| `gen_stall_0021` | trip | TP | progress | 6 |
+| `gen_stall_0022` | trip | TP | progress | 6 |
+| `gen_stall_0023` | trip | TP | progress | 6 |
+| `gen_stall_0024` | trip | TP | progress | 6 |
+| `gen_stall_0025` | trip | TP | progress | 7 |
+| `gen_stall_0026` | trip | TP | progress | 7 |
+| `gen_stall_0027` | trip | TP | progress | 6 |
+| `gen_stall_0028` | trip | TP | progress | 6 |
+| `gen_stall_0029` | trip | TP | progress | 7 |
+| `gen_stall_0030` | trip | TP | progress | 6 |
+| `gen_stall_0031` | trip | TP | progress | 7 |
+| `gen_stall_0032` | trip | TP | progress | 6 |
+| `gen_stall_0033` | trip | TP | progress | 6 |
+| `gen_stall_0034` | trip | TP | progress | 7 |
+| `gen_stall_0035` | trip | TP | progress | 7 |
+| `gen_stall_0036` | trip | TP | progress | 7 |
+| `gen_stall_0037` | trip | TP | progress | 7 |
+| `gen_stall_0038` | trip | TP | progress | 7 |
+| `gen_stall_0039` | trip | TP | progress | 7 |
 | `loop_alternating_cycle` | trip | TP | loop | 5 |
 | `loop_exact_repeat` | trip | TP | loop | 4 |
-| `loop_semantic_variants` | trip | FN (known gap) | — | — |
+| `loop_semantic_variants` | trip | TP | loop | 3 |
 | `loop_with_interleaved_reasoning` | trip | TP | loop | 5 |
 | `spend_burn_rate_spike` | trip | TP | drift | 4 |
 | `spend_ceiling_breach` | trip | TP | spend | 9 |
-| `stall_busy_no_progress` | trip | FN | — | — |
+| `stall_busy_no_progress` | trip | TP | progress | 6 |
 | `breadth_first_research` | quiet | TN | — | — |
 | `expensive_but_healthy_run` | quiet | TN | — | — |
 | `gen_breadth_0000` | quiet | TN | — | — |
@@ -461,13 +501,13 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_poll_0037` | quiet | TN | — | — |
 | `gen_poll_0038` | quiet | TN | — | — |
 | `gen_poll_0039` | quiet | TN | — | — |
-| `gen_retry_0000` | quiet | FP | loop | 3 |
-| `gen_retry_0001` | quiet | FP | loop | 3 |
+| `gen_retry_0000` | quiet | TN | — | — |
+| `gen_retry_0001` | quiet | TN | — | — |
 | `gen_retry_0002` | quiet | TN | — | — |
 | `gen_retry_0003` | quiet | FP | loop | 3 |
-| `gen_retry_0004` | quiet | FP | loop | 3 |
-| `gen_retry_0005` | quiet | TN | — | — |
-| `gen_retry_0006` | quiet | FP | loop | 3 |
+| `gen_retry_0004` | quiet | TN | — | — |
+| `gen_retry_0005` | quiet | FP | loop | 3 |
+| `gen_retry_0006` | quiet | TN | — | — |
 | `gen_retry_0007` | quiet | TN | — | — |
 | `gen_retry_0008` | quiet | TN | — | — |
 | `gen_retry_0009` | quiet | FP | loop | 3 |
@@ -475,32 +515,32 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_retry_0011` | quiet | FP | loop | 3 |
 | `gen_retry_0012` | quiet | FP | loop | 3 |
 | `gen_retry_0013` | quiet | FP | loop | 3 |
-| `gen_retry_0014` | quiet | FP | loop | 3 |
-| `gen_retry_0015` | quiet | FP | loop | 3 |
+| `gen_retry_0014` | quiet | TN | — | — |
+| `gen_retry_0015` | quiet | TN | — | — |
 | `gen_retry_0016` | quiet | FP | loop | 3 |
 | `gen_retry_0017` | quiet | FP | loop | 3 |
-| `gen_retry_0018` | quiet | FP | loop | 3 |
+| `gen_retry_0018` | quiet | TN | — | — |
 | `gen_retry_0019` | quiet | TN | — | — |
-| `gen_retry_0020` | quiet | FP | loop | 3 |
-| `gen_retry_0021` | quiet | FP | loop | 3 |
-| `gen_retry_0022` | quiet | TN | — | — |
-| `gen_retry_0023` | quiet | FP | loop | 3 |
-| `gen_retry_0024` | quiet | FP | loop | 3 |
-| `gen_retry_0025` | quiet | FP | loop | 3 |
+| `gen_retry_0020` | quiet | TN | — | — |
+| `gen_retry_0021` | quiet | TN | — | — |
+| `gen_retry_0022` | quiet | FP | loop | 3 |
+| `gen_retry_0023` | quiet | TN | — | — |
+| `gen_retry_0024` | quiet | TN | — | — |
+| `gen_retry_0025` | quiet | TN | — | — |
 | `gen_retry_0026` | quiet | TN | — | — |
-| `gen_retry_0027` | quiet | FP | loop | 3 |
+| `gen_retry_0027` | quiet | TN | — | — |
 | `gen_retry_0028` | quiet | FP | loop | 3 |
 | `gen_retry_0029` | quiet | FP | loop | 3 |
-| `gen_retry_0030` | quiet | TN | — | — |
+| `gen_retry_0030` | quiet | FP | loop | 3 |
 | `gen_retry_0031` | quiet | TN | — | — |
 | `gen_retry_0032` | quiet | TN | — | — |
 | `gen_retry_0033` | quiet | FP | loop | 3 |
 | `gen_retry_0034` | quiet | FP | loop | 3 |
 | `gen_retry_0035` | quiet | FP | loop | 3 |
-| `gen_retry_0036` | quiet | FP | loop | 3 |
+| `gen_retry_0036` | quiet | TN | — | — |
 | `gen_retry_0037` | quiet | TN | — | — |
-| `gen_retry_0038` | quiet | FP | loop | 3 |
-| `gen_retry_0039` | quiet | FP | loop | 3 |
+| `gen_retry_0038` | quiet | TN | — | — |
+| `gen_retry_0039` | quiet | TN | — | — |
 | `gen_short_0000` | quiet | TN | — | — |
 | `gen_short_0001` | quiet | TN | — | — |
 | `gen_short_0002` | quiet | TN | — | — |
@@ -554,19 +594,19 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_subgoal_0010` | quiet | TN | — | — |
 | `gen_subgoal_0011` | quiet | TN | — | — |
 | `gen_subgoal_0012` | quiet | TN | — | — |
-| `gen_subgoal_0013` | quiet | FP | drift | 3 |
+| `gen_subgoal_0013` | quiet | TN | — | — |
 | `gen_subgoal_0014` | quiet | TN | — | — |
 | `gen_subgoal_0015` | quiet | TN | — | — |
 | `gen_subgoal_0016` | quiet | TN | — | — |
 | `gen_subgoal_0017` | quiet | TN | — | — |
 | `gen_subgoal_0018` | quiet | TN | — | — |
-| `gen_subgoal_0019` | quiet | FP | drift | 3 |
+| `gen_subgoal_0019` | quiet | TN | — | — |
 | `gen_subgoal_0020` | quiet | TN | — | — |
 | `gen_subgoal_0021` | quiet | TN | — | — |
 | `gen_subgoal_0022` | quiet | TN | — | — |
 | `gen_subgoal_0023` | quiet | TN | — | — |
 | `gen_subgoal_0024` | quiet | TN | — | — |
-| `gen_subgoal_0025` | quiet | FP | drift | 2 |
+| `gen_subgoal_0025` | quiet | TN | — | — |
 | `gen_subgoal_0026` | quiet | TN | — | — |
 | `gen_subgoal_0027` | quiet | TN | — | — |
 | `gen_subgoal_0028` | quiet | TN | — | — |
@@ -579,10 +619,10 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_subgoal_0035` | quiet | TN | — | — |
 | `gen_subgoal_0036` | quiet | TN | — | — |
 | `gen_subgoal_0037` | quiet | TN | — | — |
-| `gen_subgoal_0038` | quiet | FP | drift | 4 |
+| `gen_subgoal_0038` | quiet | TN | — | — |
 | `gen_subgoal_0039` | quiet | TN | — | — |
 | `legit_subgoal_detour` | quiet | TN | — | — |
 | `paraphrased_goal_restatement` | quiet | TN | — | — |
 | `polling_until_ready` | quiet | TN | — | — |
-| `retry_transient_then_success` | quiet | FP | loop | 3 |
+| `retry_transient_then_success` | quiet | TN | — | — |
 | `short_clean_run` | quiet | TN | — | — |
