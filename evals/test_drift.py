@@ -171,3 +171,42 @@ def test_embedder_failure_degrades_instead_of_crashing():
     assert _probe(d, "Some reasoning about revenue figures.", 1) is None
     assert d.mode == "lexical (degraded)"
     assert d.threshold <= DEFAULT_THRESHOLD_LEXICAL
+
+
+# --------------------------------------- provider-outage resilience
+# A supervisor that dies when the provider does is worse than no supervisor:
+# it takes down the run it was meant to protect. Verified after a live 429
+# (insufficient_quota) surfaced during real-model validation.
+def test_recovery_engine_survives_provider_failure():
+    from agentfuse.recovery import RecoveryEngine
+    from agentfuse.events import ExecutionSnapshot
+
+    class Failing:
+        class responses:
+            @staticmethod
+            def create(**kwargs):
+                raise RuntimeError("Error code: 429 - insufficient_quota")
+
+    engine = RecoveryEngine(backend="real")
+    engine._client = Failing()
+    snapshot = ExecutionSnapshot(
+        step=3, original_goal="Rotate the production database credential.",
+        current_goal=None, total_tokens=100, total_cost_usd=0.0,
+        route_history=["agent"], recent_events=[], trip_reason="looping",
+        trip_detector="loop", trip_evidence={"tool": "search_files"})
+
+    path = engine.recover(snapshot)
+    assert path.instruction, "a provider outage must still yield usable steering"
+    assert path.backend == "mock", "should have fallen back to the offline steerer"
+
+
+def test_offline_switch_forces_mock_even_with_a_key(monkeypatch):
+    """Having a key configured must never silently start billing the user."""
+    from agentfuse.recovery import RecoveryEngine
+    from agentfuse.detectors.drift import DriftDetector
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-looks-real-enough")
+    monkeypatch.setenv("AGENTFUSE_OFFLINE", "1")
+
+    assert RecoveryEngine().backend == "mock"
+    assert DriftDetector(original_goal="x").mode == "lexical"

@@ -130,5 +130,39 @@ async def main() -> None:
     print("\n>> Did not converge within attempt budget.")
 
 
+def _explain_api_error(exc: Exception) -> str:
+    """Turn a provider error into something a human can act on.
+
+    A forty-line traceback ending in 'insufficient_quota' tells you almost
+    nothing about what to do next, and this is the first thing a new user hits.
+    """
+    text = str(exc)
+    if "insufficient_quota" in text or "credit balance" in text.lower():
+        return ("Your API key is valid, but the account has no credit balance.\n"
+                "  Add credits: https://platform.openai.com/settings/organization/billing\n"
+                "  Nothing was charged - the request was rejected before any tokens were used.")
+    if "invalid_api_key" in text or "Incorrect API key" in text:
+        return ("The API key was rejected. Check .env with:  python check_env.py\n"
+                "  If you rotated the key recently, make sure .env holds the NEW one.")
+    if "model_not_found" in text or "does not exist" in text:
+        return (f"The configured model is not available on this account.\n"
+                f"  Currently: AGENTFUSE_MODEL={MODEL}\n"
+                f"  Try a model you have access to, e.g. gpt-4o-mini.")
+    if "rate_limit" in text or "429" in text:
+        return "Rate limited by the provider. Wait a moment and re-run."
+    return text
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as exc:  # noqa: BLE001 - this is a CLI entry point
+        print("\n" + "=" * 72)
+        print("Could not complete the live run.")
+        print("=" * 72)
+        print(f"  {_explain_api_error(exc)}")
+        print("\n  AgentFuse itself still works without an API key - the offline")
+        print("  demos and the whole eval suite run with no credits at all:")
+        print("      python examples/demo_loop_trap.py")
+        print("      python evals/run_eval.py --generated 40\n")
+        raise SystemExit(1)
