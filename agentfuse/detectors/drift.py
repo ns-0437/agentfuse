@@ -43,7 +43,7 @@ import os
 import re
 from typing import Callable, Optional
 
-from ..env import load_env
+from ..env import load_env, offline_mode
 from ..events import AgentEvent, EventType
 from .base import Detector, Trip, Severity
 
@@ -120,7 +120,7 @@ class DriftDetector(Detector):
     # ------------------------------------------------------------------
     def _make_embedder(self) -> Optional[Callable[[str], list[float]]]:
         load_env()  # pick up a key from .env if the shell has none
-        if not os.getenv("OPENAI_API_KEY"):
+        if offline_mode() or not os.getenv("OPENAI_API_KEY"):
             return None
         try:
             from openai import OpenAI  # type: ignore

@@ -17,11 +17,18 @@ Semantics that matter for honest scoring:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+# The benchmark is free and deterministic BY DEFAULT. Without this, simply
+# having a key configured would turn an ordinary `pytest` run into thousands of
+# billed embedding and reasoning calls as a side effect. Opt in deliberately
+# with AGENTFUSE_OFFLINE=0 (or `run_eval.py --live`).
+os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 
 from agentfuse import (  # noqa: E402
     AgentEvent, EventType, CircuitBreakerMonitor, MonitorConfig, Tracer,

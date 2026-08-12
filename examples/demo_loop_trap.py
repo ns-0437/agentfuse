@@ -109,10 +109,15 @@ def main() -> None:
         # Simulate the tool returning "not found" for the loop plan, so no
         # state progress is ever recorded and the loop is real.
         if event.tool_name == "search_files":
-            monitor.observe(AgentEvent(
+            result_directive = monitor.observe(AgentEvent(
                 type=EventType.TOOL_RESULT, step=event.step, node="researcher",
                 tool_name="search_files", text="0 files matched",
             ))
+            # The loop detector deliberately waits for the *result* before
+            # tripping — a call that is about to succeed is not a loop — so the
+            # directive can arrive on either observation. Take whichever acts.
+            if directive.kind is DirectiveKind.CONTINUE:
+                directive = result_directive
 
         if directive.kind is DirectiveKind.INJECT:
             agent.apply_steering(directive.steering_text or "")

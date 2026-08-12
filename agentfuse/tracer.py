@@ -122,9 +122,12 @@ class Tracer:
 
     def trip(self, event: AgentEvent, trip: Trip) -> None:
         self.trips += 1
+        _echo = self.echo
         self._write({"kind": "trip", "step": event.step, "detector": trip.detector,
                      "severity": trip.severity.value, "reason": trip.reason,
                      "evidence": trip.evidence})
+        if not _echo:
+            return
         title = f"{_TRIP_MARK} CIRCUIT BREAKER TRIPPED - {trip.detector.upper()} ({trip.severity.value})"
         body = f"{trip.reason}"
         if _RICH:
@@ -134,9 +137,12 @@ class Tracer:
 
     def recovery(self, path: SteeringPath) -> None:
         self.recoveries += 1
+        _echo = self.echo
         self._write({"kind": "recovery", "action": path.action.value,
                      "instruction": path.instruction, "rationale": path.rationale,
                      "confidence": path.confidence, "backend": path.backend})
+        if not _echo:
+            return
         title = f"{_HEAL_MARK} STEERING RECOVERY - action={path.action.value} (conf {path.confidence:.2f}, via {path.backend})"
         body = f"[rationale] {path.rationale}\n\n[injected instruction]\n{path.instruction}"
         if _RICH:

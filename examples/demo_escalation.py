@@ -52,10 +52,14 @@ def main() -> None:
             tool_name="fetch_invoice", tool_args={"vendor": "acme", "page": 1},
             tokens_in=1500, tokens_out=400, cost_usd=0.01,
         ))
-        monitor.observe(AgentEvent(
+        result_directive = monitor.observe(AgentEvent(
             type=EventType.TOOL_RESULT, step=step, node="reconciler",
             tool_name="fetch_invoice", text="HTTP 500 upstream error",
         ))
+        # The loop detector waits for the result before tripping, so the
+        # directive can arrive on either observation.
+        if directive.kind is DirectiveKind.CONTINUE:
+            directive = result_directive
 
         if directive.kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT):
             print(f"\n>> HARD STOP at step {step}: control returned to a human "

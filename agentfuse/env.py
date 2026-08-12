@@ -57,8 +57,21 @@ def load_env(path: Optional[Path] = None, override: bool = False) -> bool:
     return True
 
 
+def offline_mode() -> bool:
+    """True when network calls are explicitly disabled.
+
+    The benchmark must be free and deterministic by default. Without this an
+    ordinary `pytest` run on a machine that happens to have a key configured
+    would fire thousands of real embedding and reasoning calls and bill the
+    user, purely as a side effect of the key existing.
+    """
+    return os.getenv("AGENTFUSE_OFFLINE", "").strip().lower() in ("1", "true", "yes")
+
+
 def has_openai_key() -> bool:
     """True when a usable OpenAI key is present (loading ``.env`` if needed)."""
+    if offline_mode():
+        return False
     if not os.getenv("OPENAI_API_KEY"):
         load_env()
     key = os.getenv("OPENAI_API_KEY", "")

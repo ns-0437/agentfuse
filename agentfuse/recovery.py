@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-from .env import load_env
+from .env import load_env, offline_mode
 from .events import ExecutionSnapshot
 
 
@@ -66,7 +66,8 @@ class RecoveryEngine:
         self.model = model or os.getenv("AGENTFUSE_RECOVERY_MODEL", "o4-mini")
         if backend is None:
             load_env()
-            backend = "real" if os.getenv("OPENAI_API_KEY") else "mock"
+            backend = ("mock" if offline_mode()
+                       else ("real" if os.getenv("OPENAI_API_KEY") else "mock"))
         self.backend = backend
         self._client = self._make_client() if backend == "real" else None
         if backend == "real" and self._client is None:
