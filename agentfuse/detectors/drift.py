@@ -22,6 +22,7 @@ import os
 import re
 from typing import Optional
 
+from ..env import load_env
 from ..events import AgentEvent, EventType
 from .base import Detector, Trip, Severity
 
@@ -51,6 +52,7 @@ class DriftDetector(Detector):
         self._embedder = self._make_embedder()
 
     def _make_embedder(self):
+        load_env()  # pick up a key from .env if the shell has none
         if not os.getenv("OPENAI_API_KEY"):
             return None
         try:

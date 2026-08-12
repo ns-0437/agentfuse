@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from .env import load_env
 from .events import ExecutionSnapshot
 
 
@@ -64,6 +65,7 @@ class RecoveryEngine:
     def __init__(self, backend: Optional[str] = None, model: Optional[str] = None):
         self.model = model or os.getenv("AGENTFUSE_RECOVERY_MODEL", "o4-mini")
         if backend is None:
+            load_env()
             backend = "real" if os.getenv("OPENAI_API_KEY") else "mock"
         self.backend = backend
         self._client = self._make_client() if backend == "real" else None
@@ -71,6 +73,7 @@ class RecoveryEngine:
             self.backend = "mock"  # graceful fallback if SDK missing
 
     def _make_client(self):
+        load_env()  # pick up a key from .env if the shell has none
         try:
             from openai import OpenAI  # type: ignore
 
