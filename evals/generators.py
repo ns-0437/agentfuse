@@ -656,11 +656,113 @@ def gen_benign_short(rng: random.Random, idx: int) -> Scenario:
     )
 
 
+
+# --------------------------------------------------------------------------
+# Long runs — the regime the project actually targets
+# --------------------------------------------------------------------------
+# The rest of the suite has a median length of 7 steps, which is a poor proxy
+# for "hours of autonomous execution". It also made adaptive calibration
+# untestable: only 39% of scenarios ever accumulated enough healthy samples to
+# calibrate on, so the feature could neither help nor be shown not to.
+#
+# These generators produce runs with a long, genuinely healthy prefix before
+# anything goes wrong — and healthy runs with unusual-but-legitimate rhythms
+# (heavy polling, wide gaps between advances) that fixed thresholds should
+# misfire on and calibrated ones should tolerate.
+
+def gen_long_then_loop(rng: random.Random, idx: int) -> Scenario:
+    """Dozens of healthy steps, then a genuine loop."""
+    d = rng.choice(DOMAINS)
+    steps: list[StepSpec] = []
+    for _ in range(rng.randint(20, 34)):
+        ti, to = _tokens(rng)
+        steps.append(tool(rng.choice(d["tools"]), d["args"](rng), result="ok",
+                          progress=True, tokens_in=ti, tokens_out=to))
+    onset = len(steps)
+    tool_name = rng.choice(d["tools"])
+    args = d["args"](rng)
+    for _ in range(rng.randint(5, 9)):
+        ti, to = _tokens(rng)
+        steps.append(tool(tool_name, dict(args), result="no change",
+                          progress=False, tokens_in=ti, tokens_out=to))
+    return Scenario(
+        id=f"gen_longloop_{idx:04d}",
+        title=f"Long healthy run then loop ({d['key']})",
+        family="loop", goal=d["goal"], steps=steps,
+        description="A long-horizon run that degrades into a loop late.",
+        label=Label(should_trip=True, detector="loop", onset_index=onset,
+                    detect_by_index=onset + 6),
+        failing_tool=tool_name,
+        recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
+    )
+
+
+def gen_long_polling_benign(rng: random.Random, idx: int) -> Scenario:
+    """A healthy run whose rhythm is heavy legitimate polling.
+
+    Fixed thresholds are tuned for agents that rarely repeat a call. This one
+    repeats constantly and is entirely correct, which is precisely the workload
+    a per-run baseline is supposed to accommodate.
+    """
+    d = rng.choice(DOMAINS)
+    steps: list[StepSpec] = []
+    for cycle in range(rng.randint(6, 10)):
+        # A real poll returns a CHANGING status - elapsed time, percentage,
+        # queue position. Emitting an identical result with no progress three
+        # times running is a loop by any reasonable definition, and labelling
+        # that "benign" would have been the benchmark lying rather than the
+        # detector misfiring.
+        for poll in range(rng.randint(3, 5)):
+            ti, to = _tokens(rng)
+            steps.append(tool("check_job", {"id": "batch-7"},
+                              result=f"status: RUNNING cycle {cycle} step {poll} "
+                                     f"({20 * poll + cycle}% complete)",
+                              progress=True, tokens_in=ti, tokens_out=to))
+        ti, to = _tokens(rng)
+        steps.append(tool(rng.choice(d["tools"]), d["args"](rng), result="unit done",
+                          progress=True, tokens_in=ti, tokens_out=to))
+    return Scenario(
+        id=f"gen_longpoll_{idx:04d}",
+        title=f"Long healthy polling run ({d['key']})",
+        family="benign", goal=d["goal"], steps=steps,
+        description="Repetitive but genuinely progressing; an unusual healthy rhythm.",
+        label=Label(should_trip=False,
+                    note="Heavy repetition WITH progress is a legitimate workload."),
+    )
+
+
+def gen_long_sparse_benign(rng: random.Random, idx: int) -> Scenario:
+    """Healthy work with wide, consistent gaps between state advances."""
+    d = rng.choice(DOMAINS)
+    steps: list[StepSpec] = []
+    for _ in range(rng.randint(5, 8)):
+        for _ in range(rng.randint(4, 6)):   # a lot of work per advance
+            ti, to = _tokens(rng)
+            steps.append(tool(rng.choice(d["tools"]), d["args"](rng),
+                              result="partial", progress=False,
+                              tokens_in=ti, tokens_out=to))
+        ti, to = _tokens(rng)
+        steps.append(tool(rng.choice(d["tools"]), d["args"](rng), result="milestone",
+                          progress=True, tokens_in=ti, tokens_out=to))
+    return Scenario(
+        id=f"gen_longsparse_{idx:04d}",
+        title=f"Long run with sparse advances ({d['key']})",
+        family="benign", goal=d["goal"], steps=steps,
+        config={"max_tokens": 400_000},
+        description="Slow but real progress; fixed stall patience misreads this.",
+        label=Label(should_trip=False,
+                    note="Wide gaps between advances can still be healthy work."),
+    )
+
+
 POSITIVE_GENERATORS = [gen_loop, gen_loop_semantic, gen_loop_reworded,
-                       gen_drift, gen_drift_subtle, gen_stall, gen_spend]
+                       gen_drift, gen_drift_subtle, gen_stall, gen_spend,
+                       gen_long_then_loop]
 NEGATIVE_GENERATORS = [gen_benign_retry, gen_benign_polling, gen_benign_paraphrase,
                        gen_benign_subgoal, gen_benign_breadth, gen_benign_expensive,
-                       gen_benign_short]
+                       gen_benign_short,
+                       gen_long_polling_benign, gen_long_sparse_benign]
 
 
 def generate_suite(n_per_generator: int = 40, seed: int = 20260812,
