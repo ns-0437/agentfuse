@@ -52,7 +52,15 @@ class LoopDetector(Detector):
     # ------------------------------------------------------------------
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
         # Any real state advance clears the slate — the agent is making headway.
-        if event.type == EventType.STATE_UPDATE and event.state is not None:
+        #
+        # Keyed on the *presence of state*, not on the event type. Adapters
+        # signal progress differently: the AgentKit hooks attach state to the
+        # TOOL_RESULT they already emit, while other callers send a standalone
+        # STATE_UPDATE. Matching only on the event type meant that in production
+        # this detector never reset on genuine progress — a real bug the
+        # benchmark could not see, because the benchmark emitted the event the
+        # detector happened to want.
+        if event.state is not None:
             self._last_progress_step = event.step
             self._pairs.clear()
             self._signatures.clear()

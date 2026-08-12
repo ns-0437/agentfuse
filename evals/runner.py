@@ -109,23 +109,45 @@ def build_detectors(scenario: Scenario, cfg: dict,
 
 
 def _events_for_step(step, step_no: int) -> list[AgentEvent]:
-    """Expand one scripted step into the events an adapter would emit."""
+    """Expand one scripted step into the events an adapter would emit.
+
+    Fidelity matters more than convenience here. Comparing this against a real
+    ``openai-agents`` trace (``runs/real_agentkit.jsonl``) showed the benchmark
+    was emitting a stream production never produces:
+
+        real       llm_call -> tool_call -> tool_result [-> state_update]
+        synthetic              tool_call -> tool_result [-> state_update]
+
+    A model turn *precedes every tool call* in production — that is where the
+    tool call comes from — and the token usage is attributed to that turn, not
+    to the tool call. Omitting it meant the stall detector's activity counter
+    accumulated at roughly two-thirds the real rate, and the drift detector was
+    probed far less often than it will be in real use. Thresholds calibrated
+    against that stream would not transfer. So tool steps now emit the
+    preceding model turn, and carry the tokens on it.
+    """
     events: list[AgentEvent] = []
     if step.kind == "tool":
+        # The model turn that decided to make this call.
+        events.append(AgentEvent(
+            type=EventType.LLM_CALL, step=step_no, node=step.node,
+            text=step.text, goal=step.goal,
+            tokens_in=step.tokens_in, tokens_out=step.tokens_out,
+        ))
         events.append(AgentEvent(
             type=EventType.TOOL_CALL, step=step_no, node=step.node,
             tool_name=step.tool_name, tool_args=step.tool_args,
-            tokens_in=step.tokens_in, tokens_out=step.tokens_out, goal=step.goal,
+            goal=step.goal,
         ))
+        # Progress rides ON the tool result, exactly as the AgentKit hooks do.
+        # Emitting a standalone STATE_UPDATE here (which no adapter produces)
+        # is what hid the LoopDetector reset bug.
         events.append(AgentEvent(
             type=EventType.TOOL_RESULT, step=step_no, node=step.node,
             tool_name=step.tool_name, text=step.result,
+            state=({"advanced_at": step_no, "last": str(step.result)[:80]}
+                   if step.progress else None),
         ))
-        if step.progress:
-            events.append(AgentEvent(
-                type=EventType.STATE_UPDATE, step=step_no, node=step.node,
-                state={"advanced_at": step_no, "last": str(step.result)[:80]},
-            ))
     else:  # think
         events.append(AgentEvent(
             type=EventType.LLM_CALL, step=step_no, node=step.node,
@@ -133,10 +155,7 @@ def _events_for_step(step, step_no: int) -> list[AgentEvent]:
             tokens_in=step.tokens_in, tokens_out=step.tokens_out,
         ))
         if step.progress:
-            events.append(AgentEvent(
-                type=EventType.STATE_UPDATE, step=step_no, node=step.node,
-                state={"advanced_at": step_no, "last": str(step.text)[:80]},
-            ))
+            events[-1].state = {"advanced_at": step_no, "last": str(step.text)[:80]}
     return events
 
 
