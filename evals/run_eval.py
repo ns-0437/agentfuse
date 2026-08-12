@@ -25,6 +25,7 @@ from evals.runner import run_suite, run_scenario  # noqa: E402
 from evals.scenarios import ALL_SCENARIOS, by_id  # noqa: E402
 from evals.schema import CostModel  # noqa: E402
 from evals.sweep import run_all_sweeps, render_sweeps  # noqa: E402
+from evals.perf import run_latency_suite, render as render_latency  # noqa: E402
 
 
 def main() -> int:
@@ -42,6 +43,8 @@ def main() -> int:
                    help="use ONLY generated scenarios (drops the 16 hand-written ones)")
     p.add_argument("--seed", type=int, default=20260812, help="generation seed")
     p.add_argument("--sweep", action="store_true", help="run threshold sweeps")
+    p.add_argument("--latency", action="store_true",
+                   help="profile supervision overhead per event")
     p.add_argument("--significance", type=int, metavar="SEEDS", default=0,
                    help="test vs the random control across SEEDS seeds")
     args = p.parse_args()
@@ -99,6 +102,10 @@ def main() -> int:
 
     if args.sweep:
         print(render_sweeps(run_all_sweeps(scenarios, cost=cost)))
+
+    if args.latency:
+        print(render_latency(run_latency_suite()))
+
 
     if args.json:
         out_dir = Path(args.out)
