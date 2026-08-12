@@ -2,24 +2,24 @@
   "_comment": "Recorded baseline for the AgentFuse eval. CI asserts we never fall below these. A floor, not an achievement. The generated suite (536 scenarios) is the statistically meaningful one; the 16 hand-written cases are named regression cases. Recovery metrics added 2026-08-12 - before that, AgentFuse's central claim ('it steers the agent back') was completely unmeasured.",
   "recorded_at": "2026-08-12",
   "mode": "replay",
-  "config_note": "drift_threshold default lowered 0.45 -> 0.20 on 2026-08-12 based on the threshold sweep: F1 66.0->73.3, FPR 39.0->10.8, premature trips 54->0, at a cost of 6.4 points of recall.",
+  "config_note": "drift_threshold default lowered 0.45 -> 0.20 on 2026-08-12 based on the threshold sweep: F1 66.0->73.3, FPR 39.0->10.8, premature trips 54->0, at a cost of 6.4 points of recall. | LoopDetector rewritten 2026-08-12 to require an identical RESULT, not just an identical call: FPR 11.8%->4.9%, precision 82.5%->92.0%, F1 72.2%->75.7%, recall unchanged. Call-only fallback at 2x threshold still catches loops whose output varies cosmetically.",
   "generated_suite": {
     "n_per_generator": 40,
     "seed": 20260812,
     "scenarios": 536,
     "floor": {
       "recall": 0.62,
-      "precision": 0.8,
-      "f1": 0.7,
+      "precision": 0.88,
+      "f1": 0.73,
       "attribution_accuracy": 0.95,
-      "net_tokens": 850000,
-      "roi": 3.0,
+      "net_tokens": 900000,
+      "roi": 3.5,
       "recovery_rate": 0.8,
       "steering_quality": 0.85,
       "steering_usable_rate": 0.8
     },
     "ceiling": {
-      "false_positive_rate": 0.13,
+      "false_positive_rate": 0.07,
       "detected_premature": 5
     },
     "known_weak_families": {
@@ -36,9 +36,7 @@
     "ceiling": {
       "false_positive_rate": 0.3
     },
-    "known_false_positives": [
-      "retry_transient_then_success:: LoopDetector trips on the 3rd identical call BEFORE its result arrives, so a legitimate retry that then succeeds is halted. Principled fix (Phase 2): only count a repeat when the previous result for that signature was also identical."
-    ],
+    "known_false_positives": [],
     "known_misses": [
       "loop_semantic_variants",
       "stall_busy_no_progress",

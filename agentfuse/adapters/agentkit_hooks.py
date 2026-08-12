@@ -51,6 +51,12 @@ class FuseRunHooks(RunHooks):
         self._step = 0
         self.pending_steering: Optional[str] = None
         self.last_directive: Optional[Directive] = None
+        # A trip raised from inside on_tool_end lands in the SDK's tool executor,
+        # which wraps it into a tool-execution failure and destroys the clean
+        # interrupt. So a trip observed during tool handling is deferred and
+        # raised at the next turn boundary instead — which is also the better
+        # place to stop, since it halts before the next model call is paid for.
+        self._deferred: Optional[Directive] = None
 
     # -- lifecycle hooks -------------------------------------------------
     async def on_agent_start(self, context, agent) -> None:
@@ -103,6 +109,12 @@ class FuseRunHooks(RunHooks):
                 tool_name=getattr(tc, "name", "tool"), tool_args=args,
             ))
 
+    async def on_llm_start(self, context, agent, system_prompt, input_items) -> None:
+        """Safe boundary: surface any trip deferred from tool handling."""
+        if self._deferred is not None:
+            directive, self._deferred = self._deferred, None
+            raise BreakerInterrupt(directive)
+
     async def on_tool_end(self, context, agent, tool, result) -> None:
         # Mark genuine progress only when the result actually advances the task,
         # so failed/empty tool results don't reset the loop/stall detectors.
@@ -112,17 +124,22 @@ class FuseRunHooks(RunHooks):
         self._observe(AgentEvent(
             type=EventType.TOOL_RESULT, step=self._step, node=getattr(agent, "name", "agent"),
             tool_name=getattr(tool, "name", None), text=text[:200], state=state,
-        ))
+        ), defer_interrupt=True)
 
     # -- glue ------------------------------------------------------------
-    def _observe(self, event: AgentEvent) -> None:
+    def _observe(self, event: AgentEvent, defer_interrupt: bool = False) -> None:
         directive = self.monitor.observe(event)
         self.last_directive = directive
         if directive.kind is DirectiveKind.INJECT and directive.steering_text:
             self.pending_steering = directive.steering_text
-            raise BreakerInterrupt(directive)
-        if directive.kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT):
-            raise BreakerInterrupt(directive)
+        elif directive.kind not in (DirectiveKind.PAUSE, DirectiveKind.ABORT):
+            return
+
+        if defer_interrupt:
+            # Raised at the next turn boundary — see on_llm_start.
+            self._deferred = directive
+            return
+        raise BreakerInterrupt(directive)
 
     def take_steering(self) -> Optional[str]:
         s, self.pending_steering = self.pending_steering, None
