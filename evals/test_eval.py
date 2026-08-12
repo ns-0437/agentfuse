@@ -238,3 +238,25 @@ def test_critical_trips_must_escalate_not_steer():
     s = score_steering(wrong, original_goal="x", trip_detector="spend",
                        trip_severity="critical")
     assert not s.action_appropriate
+
+
+def test_allowlists_do_not_rot(handwritten):
+    """A stale allowlist silently masks regressions.
+
+    Entries that now pass must be removed, or the next genuine failure in that
+    scenario is waved through. Four entries had already gone stale once.
+    """
+    results, _ = handwritten
+    failing = {r.scenario_id for r in results if r.outcome in ("FN", "FP")}
+    declared = set(HAND["known_misses"]) | {
+        e.split("::")[0].strip() for e in HAND["known_false_positives"]}
+    stale = declared - failing
+    assert not stale, (
+        f"baseline.json lists scenarios that now pass — remove them: {sorted(stale)}")
+
+
+def test_handwritten_suite_is_fully_clean(handwritten):
+    """Named regression cases: every one should pass outright."""
+    _, m = handwritten
+    assert m.fn == 0, f"{m.fn} hand-written failure(s) missed"
+    assert m.fp == 0, f"{m.fp} hand-written healthy run(s) halted"

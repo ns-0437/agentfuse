@@ -30,19 +30,15 @@
   "handwritten_suite": {
     "scenarios": 16,
     "floor": {
-      "recall": 0.55,
-      "precision": 0.7
+      "recall": 1.0,
+      "precision": 1.0
     },
     "ceiling": {
-      "false_positive_rate": 0.3
+      "false_positive_rate": 0.0
     },
     "known_false_positives": [],
-    "known_misses": [
-      "loop_semantic_variants",
-      "stall_busy_no_progress",
-      "drift_gradual_slide",
-      "drift_abrupt_hijack"
-    ]
+    "known_misses": [],
+    "note": "All 16 hand-written cases now pass. The four entries formerly listed as known misses (drift_gradual_slide, drift_abrupt_hijack, loop_semantic_variants, stall_busy_no_progress) were resolved by the detector work on 2026-08-12. Held at a perfect floor deliberately: these are NAMED regression cases, so any future failure here is a regression, not a tuning trade-off."
   },
   "significance": {
     "seeds": 25,

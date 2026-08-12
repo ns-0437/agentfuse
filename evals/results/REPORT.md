@@ -1,27 +1,27 @@
 # AgentFuse — Detection Eval
 
-_Generated 2026-08-12 06:36 UTC · 576 scenarios · replay mode (deterministic, no API key)_
+_Generated 2026-08-12 07:50 UTC · 576 scenarios · replay mode (deterministic, no API key)_
 
 ## Headline
 
 | Metric | Value | Meaning |
 |---|---|---|
-| Precision |  94.1% | Can we trust a trip? |
-| Recall |  87.9% | Do we catch real failures? |
-| F1 |  90.9% | |
+| Precision |  94.3% | Can we trust a trip? |
+| Recall |  92.4% | Do we catch real failures? |
+| F1 |  93.4% | |
 | False-positive rate |   5.6% | How often we halt healthy runs |
-| Attribution accuracy |  88.6% | Right detector for the failure |
-| Confusion | TP=254 FP=16 FN=35 TN=271 | |
-| Known-gap misses | 13 | Documented, not regressions |
+| Attribution accuracy |  83.9% | Right detector for the failure |
+| Confusion | TP=267 FP=16 FN=22 TN=271 | |
+| Known-gap misses | 0 | Documented, not regressions |
 
 ## Token economics
 
 | Metric | Tokens |
 |---|---:|
-| Saved by halting early | 1,804,183 |
-| Supervision cost | 471,000 |
-| **Net benefit** | **1,333,183** |
-| ROI (saved/spent) | 3.83× |
+| Saved by halting early | 1,970,151 |
+| Supervision cost | 490,500 |
+| **Net benefit** | **1,479,651** |
+| ROI (saved/spent) | 4.02× |
 
 ## Ablation
 
@@ -29,12 +29,12 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 
 | Variant | Recall | Precision | F1 | ΔF1 | Net tokens |
 |---|---:|---:|---:|---:|---:|
-| full system |  87.9% |  94.1% |  90.9% | — | 1,333,183 |
-| ablate loop |  81.3% | 100.0% |  89.7% | -1.2 | 1,099,764 |
-| ablate drift |  67.1% |  92.4% |  77.8% | -13.1 | 1,270,161 |
-| ablate progress |  64.4% |  92.1% |  75.8% | -15.1 | 1,243,288 |
-| ablate spend |  73.7% |  93.0% |  82.2% | -8.6 | 486,307 |
-| random control (p=0.0702) |  49.8% |  62.6% |  55.5% | -35.4 | 1,158,196 |
+| full system |  92.4% |  94.3% |  93.4% | — | 1,479,651 |
+| ablate loop |  92.4% |  94.3% |  93.4% | +0.0 | 1,355,382 |
+| ablate drift |  71.6% |  92.8% |  80.9% | -12.5 | 1,431,325 |
+| ablate progress |  64.4% |  92.1% |  75.8% | -17.6 | 1,228,592 |
+| ablate spend |  78.2% |  93.4% |  85.1% | -8.2 | 632,775 |
+| random control (p=0.0732) |  63.0% |  56.9% |  59.8% | -33.6 | 1,915,946 |
 
 ## By family
 
@@ -42,7 +42,7 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 |---|---:|---:|---|
 | benign | 0.0% | 0.0% | TP=0 FP=16 FN=0 TN=271 |
 | drift | 73.2% | 100.0% | TP=60 FP=0 FN=22 TN=0 |
-| loop | 89.5% | 100.0% | TP=111 FP=0 FN=13 TN=0 |
+| loop | 100.0% | 100.0% | TP=124 FP=0 FN=0 TN=0 |
 | progress | 100.0% | 100.0% | TP=41 FP=0 FN=0 TN=0 |
 | spend | 100.0% | 100.0% | TP=42 FP=0 FN=0 TN=0 |
 
@@ -51,27 +51,27 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | Scenario | Expected | Outcome | Detector | Step |
 |---|---|---|---|---:|
 | `drift_abrupt_hijack` | trip | TP | drift | 3 |
-| `drift_gradual_slide` | trip | TP | drift | 3 |
+| `drift_gradual_slide` | trip | TP | drift | 4 |
 | `gen_drift_0000` | trip | TP | drift | 3 |
 | `gen_drift_0001` | trip | TP | drift | 3 |
-| `gen_drift_0002` | trip | TP | drift | 2 |
+| `gen_drift_0002` | trip | TP | drift | 3 |
 | `gen_drift_0003` | trip | TP | drift | 3 |
 | `gen_drift_0004` | trip | TP | drift | 2 |
 | `gen_drift_0005` | trip | TP | drift | 2 |
 | `gen_drift_0006` | trip | TP | drift | 4 |
-| `gen_drift_0007` | trip | TP | drift | 2 |
+| `gen_drift_0007` | trip | TP | drift | 3 |
 | `gen_drift_0008` | trip | TP | drift | 4 |
-| `gen_drift_0009` | trip | TP | drift | 3 |
+| `gen_drift_0009` | trip | TP | drift | 4 |
 | `gen_drift_0010` | trip | TP | drift | 3 |
-| `gen_drift_0011` | trip | TP | drift | 2 |
+| `gen_drift_0011` | trip | TP | drift | 3 |
 | `gen_drift_0012` | trip | TP | drift | 4 |
 | `gen_drift_0013` | trip | TP | drift | 2 |
-| `gen_drift_0014` | trip | TP | drift | 3 |
-| `gen_drift_0015` | trip | TP | drift | 3 |
-| `gen_drift_0016` | trip | TP | drift | 4 |
-| `gen_drift_0017` | trip | TP | drift | 2 |
+| `gen_drift_0014` | trip | TP | drift | 4 |
+| `gen_drift_0015` | trip | TP | drift | 4 |
+| `gen_drift_0016` | trip | TP | drift | 5 |
+| `gen_drift_0017` | trip | TP | drift | 3 |
 | `gen_drift_0018` | trip | TP | drift | 3 |
-| `gen_drift_0019` | trip | TP | drift | 3 |
+| `gen_drift_0019` | trip | TP | drift | 4 |
 | `gen_drift_0020` | trip | TP | drift | 4 |
 | `gen_drift_0021` | trip | TP | drift | 2 |
 | `gen_drift_0022` | trip | TP | drift | 4 |
@@ -80,20 +80,20 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_drift_0025` | trip | TP | drift | 3 |
 | `gen_drift_0026` | trip | TP | drift | 2 |
 | `gen_drift_0027` | trip | TP | drift | 3 |
-| `gen_drift_0028` | trip | TP | drift | 4 |
-| `gen_drift_0029` | trip | TP | drift | 4 |
+| `gen_drift_0028` | trip | TP | drift | 5 |
+| `gen_drift_0029` | trip | TP | drift | 5 |
 | `gen_drift_0030` | trip | TP | drift | 3 |
 | `gen_drift_0031` | trip | TP | drift | 3 |
 | `gen_drift_0032` | trip | TP | drift | 3 |
 | `gen_drift_0033` | trip | TP | drift | 3 |
-| `gen_drift_0034` | trip | TP | drift | 3 |
+| `gen_drift_0034` | trip | TP | drift | 4 |
 | `gen_drift_0035` | trip | TP | drift | 2 |
 | `gen_drift_0036` | trip | TP | drift | 4 |
 | `gen_drift_0037` | trip | TP | drift | 4 |
 | `gen_drift_0038` | trip | TP | drift | 3 |
 | `gen_drift_0039` | trip | TP | drift | 4 |
 | `gen_driftsub_0000` | trip | TP | drift | 6 |
-| `gen_driftsub_0001` | trip | TP | drift | 5 |
+| `gen_driftsub_0001` | trip | TP | drift | 6 |
 | `gen_driftsub_0002` | trip | TP | drift | 5 |
 | `gen_driftsub_0003` | trip | FN | — | — |
 | `gen_driftsub_0004` | trip | TP | drift | 4 |
@@ -212,46 +212,46 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_loopsem_0037` | trip | TP | loop | 3 |
 | `gen_loopsem_0038` | trip | TP | loop | 3 |
 | `gen_loopsem_0039` | trip | TP | loop | 3 |
-| `gen_loopword_0000` | trip | FN (known gap) | — | — |
-| `gen_loopword_0001` | trip | TP | progress | 7 |
-| `gen_loopword_0002` | trip | TP | progress | 7 |
-| `gen_loopword_0003` | trip | FN (known gap) | — | — |
-| `gen_loopword_0004` | trip | FN (known gap) | — | — |
-| `gen_loopword_0005` | trip | FN (known gap) | — | — |
-| `gen_loopword_0006` | trip | TP | progress | 7 |
-| `gen_loopword_0007` | trip | TP | progress | 6 |
-| `gen_loopword_0008` | trip | TP | progress | 6 |
-| `gen_loopword_0009` | trip | TP | progress | 7 |
-| `gen_loopword_0010` | trip | TP | progress | 7 |
-| `gen_loopword_0011` | trip | FN (known gap) | — | — |
-| `gen_loopword_0012` | trip | FN (known gap) | — | — |
-| `gen_loopword_0013` | trip | TP | progress | 7 |
-| `gen_loopword_0014` | trip | TP | progress | 6 |
-| `gen_loopword_0015` | trip | TP | progress | 6 |
-| `gen_loopword_0016` | trip | FN (known gap) | — | — |
-| `gen_loopword_0017` | trip | FN (known gap) | — | — |
-| `gen_loopword_0018` | trip | FN (known gap) | — | — |
-| `gen_loopword_0019` | trip | TP | progress | 7 |
-| `gen_loopword_0020` | trip | TP | progress | 6 |
-| `gen_loopword_0021` | trip | TP | progress | 7 |
-| `gen_loopword_0022` | trip | TP | progress | 7 |
-| `gen_loopword_0023` | trip | TP | progress | 7 |
-| `gen_loopword_0024` | trip | TP | progress | 7 |
-| `gen_loopword_0025` | trip | TP | progress | 7 |
-| `gen_loopword_0026` | trip | FN (known gap) | — | — |
-| `gen_loopword_0027` | trip | TP | progress | 7 |
-| `gen_loopword_0028` | trip | TP | progress | 6 |
-| `gen_loopword_0029` | trip | TP | progress | 7 |
-| `gen_loopword_0030` | trip | TP | progress | 7 |
-| `gen_loopword_0031` | trip | TP | progress | 7 |
-| `gen_loopword_0032` | trip | TP | progress | 7 |
-| `gen_loopword_0033` | trip | FN (known gap) | — | — |
-| `gen_loopword_0034` | trip | FN (known gap) | — | — |
-| `gen_loopword_0035` | trip | TP | progress | 6 |
-| `gen_loopword_0036` | trip | TP | progress | 6 |
-| `gen_loopword_0037` | trip | TP | progress | 6 |
-| `gen_loopword_0038` | trip | FN (known gap) | — | — |
-| `gen_loopword_0039` | trip | TP | progress | 6 |
+| `gen_loopword_0000` | trip | TP | progress | 4 |
+| `gen_loopword_0001` | trip | TP | progress | 5 |
+| `gen_loopword_0002` | trip | TP | progress | 5 |
+| `gen_loopword_0003` | trip | TP | progress | 4 |
+| `gen_loopword_0004` | trip | TP | progress | 5 |
+| `gen_loopword_0005` | trip | TP | progress | 4 |
+| `gen_loopword_0006` | trip | TP | progress | 5 |
+| `gen_loopword_0007` | trip | TP | progress | 4 |
+| `gen_loopword_0008` | trip | TP | progress | 4 |
+| `gen_loopword_0009` | trip | TP | progress | 5 |
+| `gen_loopword_0010` | trip | TP | progress | 5 |
+| `gen_loopword_0011` | trip | TP | progress | 4 |
+| `gen_loopword_0012` | trip | TP | progress | 4 |
+| `gen_loopword_0013` | trip | TP | progress | 5 |
+| `gen_loopword_0014` | trip | TP | progress | 4 |
+| `gen_loopword_0015` | trip | TP | progress | 4 |
+| `gen_loopword_0016` | trip | TP | progress | 4 |
+| `gen_loopword_0017` | trip | TP | progress | 5 |
+| `gen_loopword_0018` | trip | TP | progress | 4 |
+| `gen_loopword_0019` | trip | TP | progress | 5 |
+| `gen_loopword_0020` | trip | TP | progress | 4 |
+| `gen_loopword_0021` | trip | TP | progress | 5 |
+| `gen_loopword_0022` | trip | TP | progress | 5 |
+| `gen_loopword_0023` | trip | TP | progress | 5 |
+| `gen_loopword_0024` | trip | TP | progress | 5 |
+| `gen_loopword_0025` | trip | TP | progress | 5 |
+| `gen_loopword_0026` | trip | TP | progress | 4 |
+| `gen_loopword_0027` | trip | TP | progress | 5 |
+| `gen_loopword_0028` | trip | TP | progress | 4 |
+| `gen_loopword_0029` | trip | TP | progress | 5 |
+| `gen_loopword_0030` | trip | TP | progress | 5 |
+| `gen_loopword_0031` | trip | TP | progress | 5 |
+| `gen_loopword_0032` | trip | TP | progress | 5 |
+| `gen_loopword_0033` | trip | TP | progress | 5 |
+| `gen_loopword_0034` | trip | TP | progress | 4 |
+| `gen_loopword_0035` | trip | TP | progress | 4 |
+| `gen_loopword_0036` | trip | TP | progress | 4 |
+| `gen_loopword_0037` | trip | TP | progress | 4 |
+| `gen_loopword_0038` | trip | TP | progress | 5 |
+| `gen_loopword_0039` | trip | TP | progress | 4 |
 | `gen_spend_0000` | trip | TP | spend | 8 |
 | `gen_spend_0001` | trip | TP | spend | 5 |
 | `gen_spend_0002` | trip | TP | spend | 5 |
@@ -292,53 +292,53 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_spend_0037` | trip | TP | spend | 8 |
 | `gen_spend_0038` | trip | TP | spend | 5 |
 | `gen_spend_0039` | trip | TP | spend | 5 |
-| `gen_stall_0000` | trip | TP | progress | 6 |
-| `gen_stall_0001` | trip | TP | progress | 6 |
-| `gen_stall_0002` | trip | TP | progress | 7 |
-| `gen_stall_0003` | trip | TP | progress | 6 |
-| `gen_stall_0004` | trip | TP | progress | 7 |
-| `gen_stall_0005` | trip | TP | progress | 7 |
-| `gen_stall_0006` | trip | TP | progress | 6 |
-| `gen_stall_0007` | trip | TP | progress | 6 |
-| `gen_stall_0008` | trip | TP | progress | 6 |
-| `gen_stall_0009` | trip | TP | progress | 6 |
-| `gen_stall_0010` | trip | TP | progress | 7 |
-| `gen_stall_0011` | trip | TP | progress | 6 |
-| `gen_stall_0012` | trip | TP | progress | 7 |
-| `gen_stall_0013` | trip | TP | progress | 7 |
-| `gen_stall_0014` | trip | TP | progress | 7 |
-| `gen_stall_0015` | trip | TP | progress | 7 |
-| `gen_stall_0016` | trip | TP | progress | 7 |
-| `gen_stall_0017` | trip | TP | progress | 7 |
-| `gen_stall_0018` | trip | TP | progress | 6 |
-| `gen_stall_0019` | trip | TP | progress | 6 |
-| `gen_stall_0020` | trip | TP | progress | 7 |
-| `gen_stall_0021` | trip | TP | progress | 6 |
-| `gen_stall_0022` | trip | TP | progress | 6 |
-| `gen_stall_0023` | trip | TP | progress | 6 |
-| `gen_stall_0024` | trip | TP | progress | 6 |
-| `gen_stall_0025` | trip | TP | progress | 7 |
-| `gen_stall_0026` | trip | TP | progress | 7 |
-| `gen_stall_0027` | trip | TP | progress | 6 |
-| `gen_stall_0028` | trip | TP | progress | 6 |
-| `gen_stall_0029` | trip | TP | progress | 7 |
-| `gen_stall_0030` | trip | TP | progress | 6 |
-| `gen_stall_0031` | trip | TP | progress | 7 |
-| `gen_stall_0032` | trip | TP | progress | 6 |
-| `gen_stall_0033` | trip | TP | progress | 6 |
-| `gen_stall_0034` | trip | TP | progress | 7 |
-| `gen_stall_0035` | trip | TP | progress | 7 |
-| `gen_stall_0036` | trip | TP | progress | 7 |
-| `gen_stall_0037` | trip | TP | progress | 7 |
-| `gen_stall_0038` | trip | TP | progress | 7 |
-| `gen_stall_0039` | trip | TP | progress | 7 |
-| `loop_alternating_cycle` | trip | TP | loop | 5 |
+| `gen_stall_0000` | trip | TP | progress | 4 |
+| `gen_stall_0001` | trip | TP | progress | 4 |
+| `gen_stall_0002` | trip | TP | progress | 5 |
+| `gen_stall_0003` | trip | TP | progress | 4 |
+| `gen_stall_0004` | trip | TP | progress | 5 |
+| `gen_stall_0005` | trip | TP | progress | 5 |
+| `gen_stall_0006` | trip | TP | progress | 4 |
+| `gen_stall_0007` | trip | TP | progress | 4 |
+| `gen_stall_0008` | trip | TP | progress | 4 |
+| `gen_stall_0009` | trip | TP | progress | 4 |
+| `gen_stall_0010` | trip | TP | progress | 5 |
+| `gen_stall_0011` | trip | TP | progress | 4 |
+| `gen_stall_0012` | trip | TP | progress | 5 |
+| `gen_stall_0013` | trip | TP | progress | 5 |
+| `gen_stall_0014` | trip | TP | progress | 5 |
+| `gen_stall_0015` | trip | TP | progress | 5 |
+| `gen_stall_0016` | trip | TP | progress | 5 |
+| `gen_stall_0017` | trip | TP | progress | 5 |
+| `gen_stall_0018` | trip | TP | progress | 4 |
+| `gen_stall_0019` | trip | TP | progress | 4 |
+| `gen_stall_0020` | trip | TP | progress | 5 |
+| `gen_stall_0021` | trip | TP | progress | 4 |
+| `gen_stall_0022` | trip | TP | progress | 4 |
+| `gen_stall_0023` | trip | TP | progress | 4 |
+| `gen_stall_0024` | trip | TP | progress | 4 |
+| `gen_stall_0025` | trip | TP | progress | 5 |
+| `gen_stall_0026` | trip | TP | progress | 5 |
+| `gen_stall_0027` | trip | TP | progress | 4 |
+| `gen_stall_0028` | trip | TP | progress | 4 |
+| `gen_stall_0029` | trip | TP | progress | 5 |
+| `gen_stall_0030` | trip | TP | progress | 4 |
+| `gen_stall_0031` | trip | TP | progress | 5 |
+| `gen_stall_0032` | trip | TP | progress | 4 |
+| `gen_stall_0033` | trip | TP | progress | 4 |
+| `gen_stall_0034` | trip | TP | progress | 5 |
+| `gen_stall_0035` | trip | TP | progress | 5 |
+| `gen_stall_0036` | trip | TP | progress | 5 |
+| `gen_stall_0037` | trip | TP | progress | 5 |
+| `gen_stall_0038` | trip | TP | progress | 5 |
+| `gen_stall_0039` | trip | TP | progress | 5 |
+| `loop_alternating_cycle` | trip | TP | progress | 4 |
 | `loop_exact_repeat` | trip | TP | loop | 4 |
 | `loop_semantic_variants` | trip | TP | loop | 3 |
 | `loop_with_interleaved_reasoning` | trip | TP | loop | 5 |
 | `spend_burn_rate_spike` | trip | TP | drift | 4 |
 | `spend_ceiling_breach` | trip | TP | spend | 9 |
-| `stall_busy_no_progress` | trip | TP | progress | 6 |
+| `stall_busy_no_progress` | trip | TP | progress | 4 |
 | `breadth_first_research` | quiet | TN | — | — |
 | `expensive_but_healthy_run` | quiet | TN | — | — |
 | `gen_breadth_0000` | quiet | TN | — | — |
