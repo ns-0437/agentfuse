@@ -201,41 +201,66 @@ with ground truth, confidence intervals, and a significance test — and the
 numbers are published, including the unflattering ones.
 
 ```bash
-python evals/run_eval.py --generated 40 --json    # 536 scenarios + ablation
+python evals/run_eval.py --generated 40 --json    # 880 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
-pytest evals/test_eval.py -q                      # 19-test CI gate
+python evals/validity.py                          # checks on the benchmark itself
+pytest evals/ -q                                  # 94-test CI gate
 ```
 
-**536 scenarios**, generated from 12 parameterised families with ground truth
-true *by construction*, across 6 domains. 249 are genuine failures; **287 are
+**880 scenarios** from **20 parameterised generator families** across 6 domains,
+with ground truth true *by construction*. 440 are genuine failures; **440 are
 hard negatives** — healthy runs that look like failures: a legitimate retry,
 polling that really is progressing, a sub-goal that reads as drift, a
-**paraphrased objective**. Hard negatives are what make the false-positive rate
-measurable, and that rate decides whether anyone leaves a guardrail switched on.
-Everything replays deterministically in ~2s — no API key, no cost.
+**paraphrased objective**, an error followed by a competent pivot. Hard negatives
+are what make the false-positive rate measurable, and that rate decides whether
+anyone leaves a guardrail switched on. Everything replays deterministically in
+~30s — no API key, no cost.
 
-### Current baseline (2026-08-12, replay mode, n=536)
+### Current baseline (2026-08-12, replay mode, local embeddings)
 
-| Metric | Value (95% CI) | Read as |
+| Metric | Value | Read as |
 |---|---:|---|
-| Precision | **83.9%** [78.1–88.4] | can you trust a trip |
-| Recall | **65.1%** [59.0–70.7] | real failures caught |
-| F1 | **73.3%** | |
-| False-positive rate | **10.8%** [7.7–14.9] | healthy runs halted |
-| Attribution accuracy | **99.4%** [96.6–99.9] | right detector for the failure |
-| Net token benefit | **+1,102,097** | **3.78× ROI** on supervision spend |
+| Recall | **88.4%** | real failures caught |
+| Precision | **90.9%** | can you trust a trip |
+| F1 | **89.6%** | |
+| False-positive rate | **8.9%** | healthy runs halted |
+| Recovery rate | **71.7%** | caught failures put back on track |
+| **Recall, cluster-adjusted** | **84.6% [57.8–95.7]** | ← **the honest interval** |
 
-vs. a rate-matched random control: **p = 0.0385** across 25 seeds.
+**Read the last row, not the first.** Scenarios generated from one template
+behave near-identically, so they are not independent samples. The measured design
+effect is ~17–33×, putting the **effective sample size near 13** against a
+nominal 880. Nominal Wilson intervals are roughly seven times too narrow. A
+consequence worth knowing: *adding scenarios per generator buys no statistical
+power at all* — sweeping 40/20/10/5 per family (total 880→110) moved effective n
+only 13→14. Only more independent **families** narrow the interval.
+
+### Against trivial baselines
+
+Four detectors, a steering ladder, a memory and a calibrator have to beat "stop
+after N steps" or the complexity is unjustified:
+
+| System | Recall | Precision | F1 |
+|---|---:|---:|---:|
+| **AgentFuse** | 88.4% | **90.9%** | **89.6%** |
+| step cap = 12 | **96.2%** | 54.0% | 69.2% |
+| naive repeat counter | 49.1% | 66.2% | 56.4% |
+
+Note what this actually says: **a dumb step cap gets 96% recall.** What AgentFuse
+buys is *precision* — not noticing failures, but not halting healthy runs.
 
 **What's still broken, stated plainly:**
 
-- **`NoProgressDetector` is inert** — 0% recall across 41 stall scenarios, and
-  ablating it changes F1 by exactly 0.0. It is currently decoration.
-- **Loop detection misses semantic variants** — cosmetically different arguments
-  defeat exact hashing (65.5% recall).
-- **A 10.8% false-positive rate is still too high** for unattended production.
-- **`LoopDetector` halts a legitimate retry** that would have succeeded on the
-  next call, because it trips before the result arrives.
+- **Partial-progress traps are missed** (`progress` family 67%). An agent that
+  advances state on *every* step while converging on none starves a binary
+  progress signal. Needs a rate-of-progress measure.
+- **Sparse-progress workloads still false-positive at ~42%** — down from 100%
+  with calibration off, but the first cycle trips before any baseline exists.
+- **`steering_usable = 100%` is circular** — that rubric scores instructions
+  built from templates written alongside it. It is not evidence and is flagged as
+  such in `baseline.json`.
+- **Everything is synthetic** except one captured trace, which validates event
+  *shape* against production, not the failure *distribution*.
 
 ### What the benchmark already changed
 
@@ -251,18 +276,28 @@ from 87% to 99.4%, and eliminated all 54 premature trips. That one-line change w
 found by measurement, not intuition — which is the entire argument for building
 this before building anything else.
 
-**The deeper finding** is that no threshold is really safe, because the offline
-lexical similarity signal barely separates the classes:
+### Drift needs a semantic signal — and the model size has a floor
 
-| Case | Similarity | Should trip? |
-|---|---:|---|
-| Abrupt off-topic | 0.124 | ✅ |
-| Gradual drift | 0.276 | ✅ |
-| Legitimate paraphrase | 0.332 | ❌ |
-| On-task | 0.323 | ❌ |
+Lexical similarity cannot separate the case that matters. Neither can a *small*
+embedding model, which is the surprising part:
 
-The usable window is **~0.05 wide**. The fix is a better *signal* (embeddings,
-trajectory-aware comparison), not a better constant — which is Phase 2/4 work.
+| Signal | on-task | paraphrase | **gradual drift** | Separable? |
+|---|---:|---:|---:|---|
+| lexical (difflib + Jaccard) | 0.323 | 0.332 | 0.276 | ~0.05 overlapping window |
+| **bge-small-en-v1.5 (33M)** | 0.712 | 0.764 | **0.756** | ❌ **inverted** |
+| **bge-base-en-v1.5 (110M)** | 0.708 | 0.769 | **0.665** | ✅ gap +0.043 |
+
+The 33M model is not merely weaker — it scores gradual drift as *more* similar to
+the objective than genuinely on-task text, so any threshold built on it fires
+backwards. **110M is the floor; a billion parameters buys nothing here.**
+
+This runs **locally and free**: `pip install agentfuse[embeddings]` pulls a
+~120MB ONNX model that needs no API key, touches no network, and costs ~4ms per
+sentence on CPU — faster than a hosted round trip, and the agent's reasoning
+never leaves the machine. Drift-family recall went **76.2% → 90.0%**.
+
+`AGENTFUSE_OFFLINE` disables only the *hosted* backend; a local model spends
+nothing, so treating it as "offline" would force the weakest signal for no gain.
 
 ### Ablation — which detectors carry the signal
 
@@ -285,8 +320,10 @@ F1. It is the control that makes the headline number mean anything.
 - **Notional token savings.** We assume halting saves everything downstream, and
   charge a flat 1,500 tokens per steering call.
 
-For scale context: AE Studio's ESR baseline ran **7,892 trials**. 536 is enough
-for ±6-point intervals; it is not enough to call anything settled.
+For scale context: AE Studio's ESR baseline ran **7,892 trials**. This suite runs
+880 — but its *effective* sample size is around 13, because the scenarios are
+clustered by generator. That is the number to reason about, and it is not enough
+to call anything settled.
 
 ### Prior work
 
@@ -309,6 +346,11 @@ agentfuse/
   tracer.py            live console trace + JSONL observability
   detectors/           loop · drift · progress · spend
   adapters/            agentkit · agentkit_hooks (real RunHooks) · openai_sdk · langgraph
+  embedding.py         local ONNX first, hosted second, lexical last
+  memory.py            what was steered, and whether it worked
+  strategies.py        the escalating ladder of interventions
+  calibration.py       per-run thresholds learned from healthy stretches
+  sanitize.py          agent/tool output is untrusted input
 examples/              demo_loop_trap · demo_drift · demo_escalation · real_agentkit_run
 evals/                 the benchmark — ground-truth scenarios, metrics, ablation
   schema.py            Scenario / Label / CostModel
@@ -316,6 +358,8 @@ evals/                 the benchmark — ground-truth scenarios, metrics, ablati
   runner.py            deterministic replay through the real monitor
   metrics.py           precision · recall · FPR · attribution · net tokens
   ablation.py          leave-one-out + rate-matched random control
+  validity.py          checks on the BENCHMARK: generalisation, baselines, clustering
+  captured/            a real openai-agents trace, scored like any other case
   results/             REPORT.md + results.json (regression baseline)
 ```
 
