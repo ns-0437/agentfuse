@@ -86,3 +86,52 @@ def test_no_event_type_is_invented_by_the_benchmark():
 def test_think_step_is_a_bare_model_turn():
     types = [e.type for e in _events_for_step(think("reasoning"), 1)]
     assert types == [EventType.LLM_CALL]
+
+
+# --------------------------------------------------- captured real traces
+def test_captured_traces_are_scored():
+    """Real captured runs, replayed through the same scoring path as synthetic ones.
+
+    Honest scope: this validates the event SHAPE against production, not the
+    failure distribution. The scenario is still one that was designed, so it does
+    not cure authoring bias — traces from agents solving tasks nobody chose for
+    their failure characteristics are what would.
+    """
+    from evals.trace_import import load_captured
+    from evals.runner import run_scenario
+
+    captured = load_captured()
+    if not captured:
+        pytest.skip("no captured traces committed")
+
+    for scenario in captured:
+        assert scenario.steps, f"{scenario.id} imported with no steps"
+        assert scenario.goal, f"{scenario.id} lost its objective on import"
+        result = run_scenario(scenario)
+        expected = "TP" if scenario.label.should_trip else "TN"
+        assert result.outcome == expected, (
+            f"{scenario.id}: expected {expected}, got {result.outcome} "
+            f"(detector={result.trip_detector})")
+
+
+def test_captured_trace_uses_the_production_progress_convention():
+    """The adapter attaches progress to TOOL_RESULT; no STATE_UPDATE events exist.
+
+    If a captured trace ever contains standalone STATE_UPDATE events, either an
+    adapter changed or the trace was synthesised — and the benchmark's fidelity
+    claim would need re-checking.
+    """
+    import json
+    from pathlib import Path as _P
+
+    traces = list((_P(__file__).resolve().parent / "captured").glob("*.jsonl"))
+    if not traces:
+        pytest.skip("no captured traces committed")
+
+    for path in traces:
+        types = {json.loads(line)["type"]
+                 for line in path.read_text(encoding="utf-8").splitlines()
+                 if line.strip() and json.loads(line).get("kind") == "event"}
+        assert "state_update" not in types, (
+            f"{path.name} contains standalone STATE_UPDATE events, which the "
+            f"AgentKit adapter does not emit")

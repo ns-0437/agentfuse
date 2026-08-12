@@ -3,3 +3,6 @@ runs/
 __pycache__/
 *.pyc
 .venv/
+
+# Captured traces are eval fixtures, not scratch output
+!evals/captured/

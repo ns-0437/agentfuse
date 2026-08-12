@@ -1,0 +1,14 @@
+{
+  "id": "captured_agentkit_loop",
+  "trace": "agentkit_loop.jsonl",
+  "_provenance": "Captured from a genuine openai-agents run: real Agent, real @function_tools, real Runner, real FuseRunHooks. Only the model's token generation was stubbed, so the EVENT STREAM is exactly what production emits - orderings, field population, and the adapter's convention of attaching progress to TOOL_RESULT rather than emitting STATE_UPDATE.",
+  "_honest_limitation": "This validates the event SHAPE, not the failure distribution. The scenario itself is still one I designed, so it does not cure authoring bias. Traces from agents solving tasks nobody chose for their failure characteristics are what would.",
+  "goal": "Rotate the production database credential: locate the active connection string, generate a new secret, and update the secret store.",
+  "label": {
+    "should_trip": true,
+    "detector": "loop",
+    "onset_index": 0,
+    "detect_by_index": 4,
+    "note": "Agent repeatedly calls search_files for a config that does not exist."
+  }
+}
