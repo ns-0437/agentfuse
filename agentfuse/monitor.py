@@ -46,10 +46,11 @@ class MonitorConfig:
     original_goal: str
     max_recoveries: int = 3          # after this many trips, escalate instead of steer
     loop_threshold: int = 3
-    # 0.20, not the original 0.45. Measured on the 536-scenario eval suite:
-    # 0.45 gave F1 66.0% at a 39.0% false-positive rate; 0.20 gives F1 73.3% at
-    # 10.8%, costing only ~6 points of recall. See evals/results/REPORT.md.
-    drift_threshold: float = 0.20
+    # None = let DriftDetector choose per mode. Embedding and lexical similarity
+    # live on different scales (~0.62 vs ~0.20), so one constant cannot serve
+    # both; hard-coding the lexical value would cripple the embedding path.
+    # Set an explicit float to override. See evals/results/REPORT.md.
+    drift_threshold: Optional[float] = None
     stall_patience: int = 6
     max_tokens: Optional[int] = None
     max_cost_usd: Optional[float] = None

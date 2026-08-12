@@ -1,0 +1,173 @@
+"""Drift detector tests, including the embedding path — without an API key.
+
+The embedding path is the one that matters (the lexical fallback demonstrably
+cannot separate a paraphrase from gradual drift), but it normally needs a live
+OpenAI key, which means it would go untested in CI and untested on any machine
+without billing configured.
+
+The detector therefore accepts an injected embedder. These tests supply a
+deterministic synthetic one built from topic vectors: text about the goal's
+topic embeds near the goal, text about another topic embeds away from it —
+exactly the property a real embedding model provides, reproduced in a way that
+runs offline and never costs anything.
+
+That validates the *logic* — caching, trajectory smoothing, threshold selection,
+graceful degradation — while leaving the quality of real embeddings to be
+confirmed once a key is available.
+
+    pytest evals/test_drift.py -v
+"""
+
+from __future__ import annotations
+
+import math
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from agentfuse.detectors.drift import (  # noqa: E402
+    DriftDetector, DEFAULT_THRESHOLD_EMBEDDING, DEFAULT_THRESHOLD_LEXICAL,
+    _lexical_similarity,
+)
+from agentfuse.events import AgentEvent, EventType  # noqa: E402
+
+GOAL = "Summarize the Q3 revenue figures from the finance report into three bullet points."
+
+# Topic axes: finance vs marketing. A real embedding model places a paraphrase
+# near its source and an unrelated topic far away; this reproduces that.
+_TOPICS = {
+    "revenue": (1.0, 0.0), "earnings": (0.97, 0.05), "figures": (0.93, 0.0),
+    "quarter": (0.9, 0.05), "financial": (0.95, 0.0), "report": (0.85, 0.1),
+    "summarize": (0.8, 0.1), "condense": (0.78, 0.12), "bullet": (0.8, 0.05),
+    "marketing": (0.1, 1.0), "campaign": (0.05, 0.97), "influencer": (0.0, 0.95),
+    "social": (0.05, 0.9), "advertising": (0.05, 0.93), "calendar": (0.1, 0.85),
+}
+
+
+def synthetic_embedder(text: str) -> list[float]:
+    """Deterministic stand-in with real embedding-like geometry."""
+    x = y = 0.0
+    for word in text.lower().replace(",", " ").replace(".", " ").split():
+        if word in _TOPICS:
+            dx, dy = _TOPICS[word]
+            x += dx
+            y += dy
+    if x == y == 0.0:
+        x = y = 0.5  # neutral text sits between the axes
+    norm = math.sqrt(x * x + y * y)
+    return [x / norm, y / norm]
+
+
+def _probe(det: DriftDetector, text: str, step: int = 1):
+    return det.inspect(AgentEvent(type=EventType.LLM_CALL, step=step, text=text, goal=text), [])
+
+
+def _make(**kw) -> DriftDetector:
+    return DriftDetector(original_goal=GOAL, embedder=synthetic_embedder, **kw)
+
+
+# ------------------------------------------------------------ mode selection
+def test_embedding_mode_selected_when_embedder_supplied():
+    d = _make()
+    assert d.mode == "embedding"
+    assert d.threshold == DEFAULT_THRESHOLD_EMBEDDING
+
+
+def test_lexical_mode_uses_its_own_lower_threshold():
+    """One constant cannot serve both scales — that was the original bug."""
+    d = DriftDetector(original_goal=GOAL, embedder=None)
+    assert d.mode == "lexical"
+    assert d.threshold == DEFAULT_THRESHOLD_LEXICAL
+
+
+def test_explicit_threshold_always_wins():
+    assert _make(threshold=0.9).threshold == 0.9
+
+
+# ------------------------------------------------- the case lexical gets wrong
+def test_paraphrase_does_not_trip_under_embeddings():
+    """The failure that motivated this rewrite: a restatement is not drift."""
+    d = _make()
+    for i, text in enumerate([
+        "Condense the quarter earnings figures from the financial report.",
+        "Summarize quarterly revenue figures into bullet points.",
+        "Produce a short summary of the quarter financial revenue figures.",
+    ]):
+        assert _probe(d, text, i + 1) is None, f"paraphrase wrongly tripped: {text!r}"
+
+
+def test_lexical_mode_cannot_separate_paraphrase_from_drift():
+    """Documents *why* embeddings were needed, rather than asserting it."""
+    paraphrase = "Condense the third-quarter earnings numbers into a short digest."
+    drift = "Q3 revenue looks tied to the new product line's marketing push."
+    gap = abs(_lexical_similarity(GOAL, paraphrase) - _lexical_similarity(GOAL, drift))
+    assert gap < 0.15, (
+        "if lexical similarity ever separates these cleanly, revisit the fallback")
+
+
+def test_sustained_drift_trips_under_embeddings():
+    d = _make()
+    trip = None
+    for i, text in enumerate([
+        "Reviewing competitor advertising spend across social channels.",
+        "Analysing influencer campaign performance and social reach.",
+        "Drafting a marketing content calendar for social campaigns.",
+    ]):
+        trip = trip or _probe(d, text, i + 1)
+    assert trip is not None, "sustained off-topic drift was not detected"
+    assert trip.detector == "drift"
+    assert trip.evidence["mode"] == "embedding"
+
+
+# ------------------------------------------------------- trajectory behaviour
+def test_single_aside_does_not_trip():
+    """One tangent between on-task turns is not drift; the EMA should absorb it."""
+    d = _make()
+    assert _probe(d, "Summarize the quarter revenue figures.", 1) is None
+    assert _probe(d, "Briefly noting the marketing campaign context.", 2) is None
+    assert _probe(d, "Back to the quarterly earnings report figures.", 3) is None
+
+
+def test_trend_is_reported_alongside_the_latest_turn():
+    d = _make(patience=1)
+    trip = None
+    for i in range(3):
+        trip = trip or _probe(d, "Marketing campaign social advertising calendar.", i + 1)
+    assert trip is not None
+    assert "trend" in trip.evidence and "similarity" in trip.evidence
+
+
+def test_reset_clears_the_trend():
+    d = _make(patience=1)
+    for i in range(3):
+        _probe(d, "Marketing campaign social advertising.", i + 1)
+    d.reset()
+    assert d._ema is None and d._low_streak == 0
+
+
+# ------------------------------------------------------------------ caching
+def test_vectors_are_cached_so_repeated_text_is_free():
+    calls = {"n": 0}
+
+    def counting(text: str) -> list[float]:
+        calls["n"] += 1
+        return synthetic_embedder(text)
+
+    d = DriftDetector(original_goal=GOAL, embedder=counting)
+    for i in range(5):
+        _probe(d, "Summarize the quarter revenue figures.", i + 1)
+    # One embed for the goal, one for the repeated probe — not one per turn.
+    assert calls["n"] == 2, f"expected 2 embed calls, got {calls['n']}"
+
+
+def test_embedder_failure_degrades_instead_of_crashing():
+    """A network blip must never take down the run it is supervising."""
+    def broken(text: str) -> list[float]:
+        raise RuntimeError("network down")
+
+    d = DriftDetector(original_goal=GOAL, embedder=broken)
+    assert _probe(d, "Some reasoning about revenue figures.", 1) is None
+    assert d.mode == "lexical (degraded)"
+    assert d.threshold <= DEFAULT_THRESHOLD_LEXICAL
