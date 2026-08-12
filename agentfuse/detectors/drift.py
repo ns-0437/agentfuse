@@ -43,7 +43,7 @@ import os
 import re
 from typing import Callable, Optional
 
-from ..env import load_env, offline_mode
+from ..embedding import get_embedder
 from ..events import AgentEvent, EventType
 from .base import Detector, Trip, Severity
 
@@ -51,7 +51,10 @@ _WORD = re.compile(r"[a-z0-9]+")
 
 # Embeddings separate the classes well enough to sit near the middle; the
 # lexical fallback does not, so it runs tighter to keep false positives down.
-DEFAULT_THRESHOLD_EMBEDDING = 0.62
+# Swept against the local bge-base model on the generated suite:
+# 0.60 -> drift recall 83.3%, 0.65 -> 96.7% at FPR 6.1% (best F1 92.0%),
+# 0.69 -> 100% drift recall but FPR jumps to 11.5%. 0.65 is the knee.
+DEFAULT_THRESHOLD_EMBEDDING = 0.65
 DEFAULT_THRESHOLD_LEXICAL = 0.20
 
 # How much weight the trend puts on the newest turn. Smoothing is only worth
@@ -100,8 +103,9 @@ class DriftDetector(Detector):
 
         # An injected embedder makes this testable without network access, which
         # is how the trajectory logic is verified in CI.
+        self._backend_mode = "lexical"
         self._embedder = embedder or self._make_embedder()
-        self.mode = "embedding" if self._embedder else "lexical"
+        self.mode = ("embedding" if embedder else self._backend_mode)             if self._embedder else "lexical"
 
         if threshold is None:
             threshold = (DEFAULT_THRESHOLD_EMBEDDING if self._embedder
@@ -119,22 +123,15 @@ class DriftDetector(Detector):
 
     # ------------------------------------------------------------------
     def _make_embedder(self) -> Optional[Callable[[str], list[float]]]:
-        load_env()  # pick up a key from .env if the shell has none
-        if offline_mode() or not os.getenv("OPENAI_API_KEY"):
-            return None
-        try:
-            from openai import OpenAI  # type: ignore
+        """Resolve an embedder: local ONNX first, hosted second, else lexical.
 
-            client = OpenAI()
-            model = os.getenv("AGENTFUSE_EMBED_MODEL", "text-embedding-3-small")
-
-            def embed(text: str) -> list[float]:
-                r = client.embeddings.create(model=model, input=text[:8000])
-                return r.data[0].embedding
-
-            return embed
-        except Exception:
-            return None
+        Local is preferred because it is free, needs no key, keeps the agent's
+        reasoning off a third party's servers, and costs ~4ms on CPU rather than
+        a network round trip on the supervision hot path.
+        """
+        embedder, mode = get_embedder()
+        self._backend_mode = mode
+        return embedder
 
     def _vector(self, text: str) -> Optional[list[float]]:
         """Embed with a small cache — the goal never changes and phrasings repeat."""

@@ -48,7 +48,12 @@ from .steering import RecoveryOutcome, score_steering  # noqa: E402
 # defaults are held constant across the suite so results aren't tuned per-case.
 DEFAULT_CONFIG = {
     "loop_threshold": 3,
-    "drift_threshold": 0.20,
+    # None = let the detector pick per mode. Hard-coding the LEXICAL value
+    # here silently disabled drift detection the moment embeddings were
+    # enabled: embedding similarities sit around 0.6-0.8, so a 0.20
+    # threshold can never trip. Drift recall went to 0% and looked like a
+    # model failure rather than a config bug.
+    "drift_threshold": None,
     "stall_patience": 6,
     "max_tokens": 100_000,
     "max_cost_usd": None,

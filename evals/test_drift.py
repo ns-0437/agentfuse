@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import math
 import sys
+
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,9 +77,15 @@ def test_embedding_mode_selected_when_embedder_supplied():
     assert d.threshold == DEFAULT_THRESHOLD_EMBEDDING
 
 
-def test_lexical_mode_uses_its_own_lower_threshold():
-    """One constant cannot serve both scales — that was the original bug."""
-    d = DriftDetector(original_goal=GOAL, embedder=None)
+def test_lexical_mode_uses_its_own_lower_threshold(monkeypatch):
+    """One constant cannot serve both scales — that was the original bug.
+
+    Lexical must now be requested explicitly: with fastembed installed, an
+    unconfigured detector resolves to the local model, which is the desired
+    default.
+    """
+    monkeypatch.setenv("AGENTFUSE_EMBED_BACKEND", "none")
+    d = DriftDetector(original_goal=GOAL)
     assert d.mode == "lexical"
     assert d.threshold == DEFAULT_THRESHOLD_LEXICAL
 
@@ -200,13 +208,31 @@ def test_recovery_engine_survives_provider_failure():
     assert path.backend == "mock", "should have fallen back to the offline steerer"
 
 
-def test_offline_switch_forces_mock_even_with_a_key(monkeypatch):
-    """Having a key configured must never silently start billing the user."""
+def test_offline_switch_blocks_billing_but_not_local_models(monkeypatch):
+    """AGENTFUSE_OFFLINE means "do not spend money", not "do not think".
+
+    A local ONNX model bills nothing and touches no network, so offline mode
+    must not disable it — conflating the two would force the weakest signal on
+    every CI run for no benefit. What offline must guarantee is that the HOSTED
+    backends stay unused even when a key is present.
+    """
+    from agentfuse.embedding import openai_embedder
     from agentfuse.recovery import RecoveryEngine
-    from agentfuse.detectors.drift import DriftDetector
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-looks-real-enough")
     monkeypatch.setenv("AGENTFUSE_OFFLINE", "1")
 
-    assert RecoveryEngine().backend == "mock"
-    assert DriftDetector(original_goal="x").mode == "lexical"
+    assert RecoveryEngine().backend == "mock", "offline must not call a hosted model"
+    assert openai_embedder() is None, "offline must not call hosted embeddings"
+
+
+def test_local_embeddings_are_preferred_over_hosted(monkeypatch):
+    """Free, offline and ~4ms beats billed and network-bound on a hot path."""
+    from agentfuse.embedding import get_embedder, local_embedder
+
+    if local_embedder() is None:
+        pytest.skip("fastembed not installed")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-looks-real-enough")
+    monkeypatch.delenv("AGENTFUSE_OFFLINE", raising=False)
+    _, mode = get_embedder()
+    assert mode == "embedding:local"

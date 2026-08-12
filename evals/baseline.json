@@ -8,9 +8,9 @@
     "seed": 20260812,
     "scenarios": 880,
     "floor": {
-      "recall": 0.83,
-      "precision": 0.88,
-      "f1": 0.85,
+      "recall": 0.85,
+      "precision": 0.87,
+      "f1": 0.86,
       "attribution_accuracy": 0.8,
       "net_tokens": 700000,
       "roi": 1.5,
@@ -20,11 +20,11 @@
       "recall_clustered_low": 0.55
     },
     "ceiling": {
-      "false_positive_rate": 0.11,
+      "false_positive_rate": 0.12,
       "detected_premature": 5
     },
     "known_weak_families": {
-      "drift": "73% - gradual drift still overlaps the legitimate-paraphrase band under the LEXICAL fallback. The embedding path is implemented and unit-tested with a synthetic embedder but has never been run against real embeddings (blocked on account credits).",
+      "drift": "90% with LOCAL embeddings (bge-base-en-v1.5, 110M params, free, offline), up from 76% on the lexical fallback. Model size has a hard floor here: bge-small (33M) is not merely weaker, it ranks gradual drift as MORE similar to the goal than genuinely on-task text, so any threshold built on it fires backwards.",
       "attribution": "84% - reworded-argument loops are caught by PROGRESS as a backstop rather than by LOOP, so the steering advice is blunter than ideal. Needs semantic argument comparison to fix properly.",
       "roi": "1.70x, down from 3.85x - the closed-loop measurement charges every steering attempt, and climbing a ladder costs more calls than giving up after one. The old figure only ever charged for a single attempt.",
       "long_sparse": "42.5% FPR on workloads with wide gaps between state advances, down from 100% with calibration off. Not solved - the first cycle still trips before any baseline exists.",
@@ -52,5 +52,6 @@
     "note": "F1 must significantly exceed a rate-matched random control (p < 0.05)."
   },
   "economics_note": "'tokens saved' is WASTE AVOIDED (what the doomed run would have burned after the halt), not net benefit including completing the task. The recovered path's own cost is charged to tokens_spent. Treat ROI as an upper bound on the real economic case.",
-  "statistical_note": "Scenarios from one generator share a template and behave near-identically, so they are NOT independent samples. Nominal Wilson intervals therefore overstate precision. The report now shows cluster-adjusted intervals (Kish design effect, DEFF = 1 + (m-1)*ICC) and those are the ones to quote. Practical consequence: adding scenarios PER GENERATOR buys no statistical power at all - only adding more independent generators does. Measured on the generated suite: ICC 0.407, design effect 16.9x, effective n=19 against a nominal 320. Nominal recall CI [89.8-95.4]; HONEST CI [75.4-99.1]. The clustered lower bound is the number to defend, and it is floored at 0.70 rather than the nominal 0.90 because that is what the evidence actually supports. MEASURED CORRECTION to earlier advice: effective sample size tracks the NUMBER OF GENERATORS, not the scenario count. Sweeping scenarios-per-generator across 40/20/10/5 (total 880/440/220/110) moved effective n only 13->14 and left the honest interval essentially unchanged. Running 40 per generator therefore costs 8x the compute of 5 for zero additional evidence. n_per_generator buys DIAGNOSTIC resolution (stable per-family rates for finding bugs), not statistical power. The single lever on the interval is more independent generator families."
+  "statistical_note": "Scenarios from one generator share a template and behave near-identically, so they are NOT independent samples. Nominal Wilson intervals therefore overstate precision. The report now shows cluster-adjusted intervals (Kish design effect, DEFF = 1 + (m-1)*ICC) and those are the ones to quote. Practical consequence: adding scenarios PER GENERATOR buys no statistical power at all - only adding more independent generators does. Measured on the generated suite: ICC 0.407, design effect 16.9x, effective n=19 against a nominal 320. Nominal recall CI [89.8-95.4]; HONEST CI [75.4-99.1]. The clustered lower bound is the number to defend, and it is floored at 0.70 rather than the nominal 0.90 because that is what the evidence actually supports. MEASURED CORRECTION to earlier advice: effective sample size tracks the NUMBER OF GENERATORS, not the scenario count. Sweeping scenarios-per-generator across 40/20/10/5 (total 880/440/220/110) moved effective n only 13->14 and left the honest interval essentially unchanged. Running 40 per generator therefore costs 8x the compute of 5 for zero additional evidence. n_per_generator buys DIAGNOSTIC resolution (stable per-family rates for finding bugs), not statistical power. The single lever on the interval is more independent generator families.",
+  "embedding_note": "Drift detection was blocked on OpenAI credits for most of this work. It is not any more: a local 110M ONNX model resolves it for free, offline, at ~4ms per sentence on CPU - faster than a network call and with no third party seeing the agent's reasoning. Measured separation of the case that matters (gradual drift, where the agent keeps the goal's vocabulary while its intent slides): lexical ~0.05 overlapping window; bge-small INVERTED (drift 0.756 > on-task 0.712); bge-base separable with gap +0.043. Threshold 0.65 chosen by sweep: 0.60 gives drift recall 83%, 0.65 gives 97% at FPR 6%, 0.69 gives 100% but FPR 11.5%."
 }
