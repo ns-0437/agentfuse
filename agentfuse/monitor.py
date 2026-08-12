@@ -58,6 +58,9 @@ class MonitorConfig:
     burst_tokens: Optional[int] = None
     jsonl_path: Optional[str] = None
     echo: bool = True
+    # How many steps a steer gets to demonstrate it worked before it is judged
+    # ineffective and the ladder climbs past it.
+    verify_window: int = 4
 
 
 class CircuitBreakerMonitor:
@@ -95,8 +98,37 @@ class CircuitBreakerMonitor:
         self.total_cost = 0.0
         self.current_goal: Optional[str] = None
         self.recovery_count = 0
+        # The steer awaiting a verdict: (path, step it was injected at).
+        self._pending_steer = None
+        self.steers_that_worked = 0
+        self.steers_that_failed = 0
 
     # ------------------------------------------------------------------
+    def _verify_pending(self, event: AgentEvent, new_trip: bool = False) -> None:
+        """Decide whether the last steer worked, once there is evidence either way.
+
+        A steer counts as having worked if the agent makes genuine state progress
+        within ``verify_window`` steps of receiving it. It counts as failed if the
+        breaker trips again first, or if the window closes with nothing advanced.
+
+        Until this existed the memory only knew what had been *tried*, which is
+        not enough to stop the engine repeating a correction that already failed.
+        """
+        if self._pending_steer is None:
+            return
+        path, injected_at = self._pending_steer
+
+        if event.state is not None and not new_trip:
+            self.recovery.verify(path, worked=True)
+            self._pending_steer = None
+            self.steers_that_worked += 1
+            return
+
+        if new_trip or (event.step - injected_at) > self.config.verify_window:
+            self.recovery.verify(path, worked=False)
+            self._pending_steer = None
+            self.steers_that_failed += 1
+
     def observe(self, event: AgentEvent) -> Directive:
         """Ingest one event; return what the agent should do next."""
         self.history.append(event)
@@ -110,7 +142,10 @@ class CircuitBreakerMonitor:
         self.tracer.event(event)
 
         if event.type in (EventType.COMPLETE, EventType.ABORT):
+            self._verify_pending(event)
             return Directive(DirectiveKind.CONTINUE)
+
+        self._verify_pending(event)
 
         for detector in self.detectors:
             trip = detector.inspect(event, self.history)
@@ -122,6 +157,8 @@ class CircuitBreakerMonitor:
 
     # ------------------------------------------------------------------
     def _handle_trip(self, event: AgentEvent, detector, trip) -> Directive:
+        # Tripping again is the clearest possible evidence the last steer failed.
+        self._verify_pending(event, new_trip=True)
         self.tracer.trip(event, trip)
 
         snapshot = ExecutionSnapshot(
@@ -158,6 +195,8 @@ class CircuitBreakerMonitor:
             return Directive(DirectiveKind.PAUSE, steering_text=path.instruction, path=path)
         if path.action == RecoveryAction.ABORT:
             return Directive(DirectiveKind.ABORT, steering_text=path.instruction, path=path)
+
+        self._pending_steer = (path, event.step)
         return Directive(DirectiveKind.INJECT, steering_text=path.instruction, path=path)
 
     # ------------------------------------------------------------------
@@ -169,6 +208,8 @@ class CircuitBreakerMonitor:
             "total_cost_usd": round(self.total_cost, 4),
             "trips": self.tracer.trips,
             "recoveries": self.tracer.recoveries,
+            "steers_verified_working": self.steers_that_worked,
+            "steers_verified_failed": self.steers_that_failed,
             "route": " -> ".join(self.route_history[-12:]),
         }
         self.tracer.summary(totals)

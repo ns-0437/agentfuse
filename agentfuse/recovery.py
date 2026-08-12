@@ -27,6 +27,10 @@ from typing import Optional
 
 from .env import load_env, offline_mode
 from .events import ExecutionSnapshot
+from .memory import JSONMemory, RecoveryRecord, failure_signature
+from .strategies import (
+    ESCALATE, build_instruction, describe_for_prompt, next_strategy,
+)
 
 
 class RecoveryAction(str, Enum):
@@ -43,6 +47,10 @@ class SteeringPath:
     confidence: float = 0.5
     backend: str = "mock"
     raw: dict = field(default_factory=dict)
+    # Which rung of the steering ladder produced this, and the memory record it
+    # was filed under, so the outcome can be written back once it is known.
+    strategy: str = "re-anchor"
+    record_id: Optional[str] = None
 
 
 SUPERVISOR_SYSTEM = (
@@ -62,7 +70,13 @@ SUPERVISOR_SYSTEM = (
 
 
 class RecoveryEngine:
-    def __init__(self, backend: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, backend: Optional[str] = None, model: Optional[str] = None,
+                 memory=None):
+        # Memory of what has already been tried against each failure shape. The
+        # default is in-process and dependency-free, so this is always on: a
+        # recovery engine with no memory repeats itself, which is what Phase 1
+        # measured it doing.
+        self.memory = memory if memory is not None else JSONMemory()
         self.model = model or os.getenv("AGENTFUSE_RECOVERY_MODEL", "o4-mini")
         if backend is None:
             load_env()
@@ -83,19 +97,84 @@ class RecoveryEngine:
             return None
 
     def recover(self, snapshot: ExecutionSnapshot) -> SteeringPath:
+        """Produce steering, choosing a rung the memory says has not failed here.
+
+        The lightest untried intervention is preferred. Once a rung has been
+        recorded as ineffective for this failure shape, later trips climb past
+        it instead of rephrasing it — which is what a single-shot engine does,
+        and what Phase 1 measured as its main weakness.
+        """
+        tool = snapshot.trip_evidence.get("tool")
+        signature = failure_signature(snapshot.trip_detector, tool, snapshot.trip_evidence)
+
+        # Only rungs that demonstrably FAILED are ruled out. A rung whose outcome
+        # is still unknown may simply not have been verified yet, and skipping it
+        # would climb the ladder faster than the evidence justifies.
+        tried: set[str] = set()
+        failed: list[str] = []
+        try:
+            tried = self.memory.failed_strategies(signature)
+            failed = self.memory.failed_instructions(signature)
+        except Exception:
+            pass  # a memory fault must never break the run being supervised
+
+        strategy = next_strategy(tried, severity=snapshot.trip_evidence.get(
+            "severity", "trip") if isinstance(snapshot.trip_evidence, dict) else "trip")
+
+        context = {"goal": snapshot.original_goal, "tool": tool,
+                   "detector": snapshot.trip_detector, "failed": failed}
+
         if self.backend == "real":
             try:
-                return self._recover_real(snapshot)
+                path = self._recover_real(snapshot, strategy, context)
             except Exception as e:  # never let recovery itself crash the run
-                path = self._recover_mock(snapshot)
+                path = self._recover_mock(snapshot, strategy, context)
                 path.rationale = f"[fell back to mock: {e}] " + path.rationale
-                return path
-        return self._recover_mock(snapshot)
+        else:
+            path = self._recover_mock(snapshot, strategy, context)
+
+        path.strategy = strategy
+        # Escalations carry no lesson - "we gave up" is not a correction that can
+        # succeed or fail - and recording them floods the memory for this failure.
+        if strategy == ESCALATE:
+            return path
+        try:
+            path.record_id = self.memory.remember(RecoveryRecord(
+                signature=signature, detector=snapshot.trip_detector,
+                goal=snapshot.original_goal, strategy=strategy,
+                instruction=path.instruction, tool=tool, step=snapshot.step,
+            ))
+        except Exception:
+            pass
+        return path
+
+    def verify(self, path: SteeringPath, worked: bool) -> None:
+        """Record whether a steer actually helped, once that is known.
+
+        Without this the memory only knows what was *tried*, which is not enough
+        to avoid repeating a mistake.
+        """
+        if not path.record_id:
+            return
+        try:
+            self.memory.mark_outcome(path.record_id, worked)
+        except Exception:
+            pass
 
     # --- real reasoning-model backend -----------------------------------
-    def _recover_real(self, snapshot: ExecutionSnapshot) -> SteeringPath:
+    def _recover_real(self, snapshot: ExecutionSnapshot, strategy: str,
+                      context: dict) -> SteeringPath:
         client = self._client
         user = snapshot.to_prompt_context()
+        # Tell the model which *kind* of intervention is required, and what has
+        # already been ruled out. Without both, a second call on the same
+        # snapshot reliably reproduces the first answer.
+        user += f"\n\nREQUIRED INTERVENTION TYPE -> {describe_for_prompt(strategy)}"
+        if context.get("failed"):
+            user += ("\n\nTHESE CORRECTIONS WERE ALREADY TRIED HERE AND DID NOT WORK. "
+                     "Do not repeat or rephrase them:\n")
+            for prev in context["failed"][:3]:
+                user += f"  - {prev[:220]}\n"
         resp = client.responses.create(  # type: ignore[union-attr]
             model=self.model,
             input=[
@@ -142,7 +221,37 @@ class RecoveryEngine:
         return {}
 
     # --- deterministic offline backend ----------------------------------
-    def _recover_mock(self, snapshot: ExecutionSnapshot) -> SteeringPath:
+    def _recover_mock(self, snapshot: ExecutionSnapshot, strategy: str,
+                      context: dict) -> SteeringPath:
+        """Deterministic steering, built from the chosen ladder rung."""
+        det = snapshot.trip_detector
+        severity_critical = (
+            snapshot.trip_reason.lower().startswith(("token budget", "cost budget"))
+            or "exhausted" in snapshot.trip_reason.lower())
+
+        if strategy == ESCALATE or severity_critical:
+            return SteeringPath(
+                action=RecoveryAction.ESCALATE,
+                instruction=build_instruction(ESCALATE, context),
+                rationale=("Budget ceiling reached; a human decision is required."
+                           if severity_critical else
+                           "Every lighter intervention has already been tried and failed."),
+                confidence=0.9, backend="mock", strategy=ESCALATE)
+
+        rationale = {
+            "loop": "Repetitive identical action with no state progress.",
+            "drift": "Interpreted goal diverged from the system prompt.",
+            "progress": "Activity without state progress suggests a false premise.",
+            "spend": "Token burn rate is outpacing progress.",
+        }.get(det, "Long-horizon failure detected.")
+
+        return SteeringPath(
+            action=RecoveryAction.INJECT,
+            instruction=build_instruction(strategy, context),
+            rationale=f"{rationale} Applying '{strategy}'.",
+            confidence=0.8, backend="mock", strategy=strategy)
+
+    def _legacy_mock(self, snapshot: ExecutionSnapshot) -> SteeringPath:
         det = snapshot.trip_detector
         goal = snapshot.original_goal
 
