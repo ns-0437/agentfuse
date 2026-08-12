@@ -2,16 +2,16 @@
   "_comment": "Recorded baseline for the AgentFuse eval. CI asserts we never fall below these. A floor, not an achievement. The generated suite (536 scenarios) is the statistically meaningful one; the 16 hand-written cases are named regression cases. Recovery metrics added 2026-08-12 - before that, AgentFuse's central claim ('it steers the agent back') was completely unmeasured.",
   "recorded_at": "2026-08-12",
   "mode": "replay",
-  "config_note": "drift_threshold default lowered 0.45 -> 0.20 on 2026-08-12 based on the threshold sweep: F1 66.0->73.3, FPR 39.0->10.8, premature trips 54->0, at a cost of 6.4 points of recall. | LoopDetector rewritten 2026-08-12 to require an identical RESULT, not just an identical call: FPR 11.8%->4.9%, precision 82.5%->92.0%, F1 72.2%->75.7%, recall unchanged. Call-only fallback at 2x threshold still catches loops whose output varies cosmetically.",
+  "config_note": "drift_threshold default lowered 0.45 -> 0.20 on 2026-08-12 based on the threshold sweep: F1 66.0->73.3, FPR 39.0->10.8, premature trips 54->0, at a cost of 6.4 points of recall. | LoopDetector rewritten 2026-08-12 to require an identical RESULT, not just an identical call: FPR 11.8%->4.9%, precision 82.5%->92.0%, F1 72.2%->75.7%, recall unchanged. Call-only fallback at 2x threshold still catches loops whose output varies cosmetically. | NoProgressDetector rewritten 2026-08-12: the old one incremented its stall counter ONLY on a repeated state hash, but a genuine stall emits no state updates at all, so the trip condition was unreachable - it required evidence of state changes to detect their absence. Now counts weighted actions since the last genuine advance. recall 64.3->89.2, F1 75.7->91.5, progress family 0%->100%, FPR unchanged at 4.9%.",
   "generated_suite": {
     "n_per_generator": 40,
     "seed": 20260812,
     "scenarios": 536,
     "floor": {
-      "recall": 0.62,
-      "precision": 0.88,
-      "f1": 0.73,
-      "attribution_accuracy": 0.95,
+      "recall": 0.85,
+      "precision": 0.9,
+      "f1": 0.88,
+      "attribution_accuracy": 0.84,
       "net_tokens": 900000,
       "roi": 3.5,
       "recovery_rate": 0.8,
@@ -23,8 +23,8 @@
       "detected_premature": 5
     },
     "known_weak_families": {
-      "progress": "0% recall - NoProgressDetector is inert; ablating it changes nothing",
-      "loop": "misses semantically-identical calls with cosmetically varied args"
+      "attribution": "87% not 99%: semantic-variant loops are now caught by the PROGRESS detector as a backstop rather than by LOOP, so the diagnosis is imperfect and the steering says 'check your assumptions' instead of 'stop repeating this tool'. Accepted deliberately - catching them with a blunt diagnosis beats missing them entirely (they were 0% before). Fix: teach LoopDetector to normalise arguments, which restores attribution without costing recall.",
+      "drift": "79% recall - gradual drift still overlaps the paraphrase band lexically."
     }
   },
   "handwritten_suite": {
