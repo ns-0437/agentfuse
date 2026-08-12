@@ -138,6 +138,16 @@ class Scenario:
     # The failing tool a correct steering instruction ought to name.
     failing_tool: Optional[str] = None
 
+    # Which ladder rung this agent actually responds to — the ground truth that
+    # makes recovery measurable rather than circular. Previously the recovery
+    # branch unlocked whenever our own rubric approved our own instruction,
+    # which measured nothing: the rubric and the instruction templates were
+    # written together, so it always passed. Here the agent's responsiveness is
+    # independent of what we generate, so the ladder has to actually FIND the
+    # rung that works. ``None`` means nothing steers this agent and the only
+    # correct outcome is escalation.
+    responds_to: Optional[str] = "re-anchor"
+
     # -- token accounting ----------------------------------------------
     @property
     def total_tokens(self) -> int:

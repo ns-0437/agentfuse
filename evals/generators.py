@@ -25,6 +25,17 @@ from typing import Optional
 
 from .schema import Scenario, Label, StepSpec, tool, think
 
+# Which rung a generated agent responds to. Spread deliberately: if every agent
+# obeyed the first nudge the ladder would never be exercised and its value would
+# stay unmeasured. The tail (None) is an agent nothing steers, where the only
+# correct outcome is escalation.
+RESPONSIVENESS = ["re-anchor", "re-anchor", "alternate-action",
+                  "alternate-action", "challenge-assumption", "decompose", None]
+
+
+def _responds_to(rng: random.Random) -> object:
+    return rng.choice(RESPONSIVENESS)
+
 
 # --------------------------------------------------------------------------
 # Domain packs — realistic vocabularies so trajectories aren't all one flavour
@@ -288,6 +299,7 @@ def gen_loop(rng: random.Random, idx: int) -> Scenario:
                     detect_by_index=onset + 5),
         failing_tool=tool_name,
         recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
     )
 
 
@@ -325,6 +337,7 @@ def gen_loop_semantic(rng: random.Random, idx: int) -> Scenario:
                     note="KNOWN GAP: exact arg-hash matching cannot see through arg noise."),
         failing_tool=tool_name,
         recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
     )
 
 
@@ -365,6 +378,7 @@ def gen_loop_reworded(rng: random.Random, idx: int) -> Scenario:
                           "normalisation cannot collapse genuinely different wording.")),
         failing_tool=tool_name,
         recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
     )
 
 
@@ -407,6 +421,7 @@ def gen_drift(rng: random.Random, idx: int, abrupt: bool = True) -> Scenario:
                          ("Gradual drift retains goal vocabulary; lexical similarity "
                           "overlaps the legitimate-paraphrase band.")),
         recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
     )
 
 
@@ -440,6 +455,7 @@ def gen_stall(rng: random.Random, idx: int) -> Scenario:
         label=Label(should_trip=True, detector="progress", onset_index=onset,
                     detect_by_index=onset + 8),
         recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
     )
 
 
@@ -480,6 +496,7 @@ def gen_spend(rng: random.Random, idx: int) -> Scenario:
         label=Label(should_trip=True, detector="spend", onset_index=onset,
                     detect_by_index=onset + 10),
         recovery_branch=_recovery_steps(rng, d, n=2),
+        responds_to=_responds_to(rng),
     )
 
 

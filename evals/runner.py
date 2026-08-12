@@ -54,7 +54,7 @@ DEFAULT_CONFIG = {
     "max_cost_usd": None,
     "burst_window": 6,
     "burst_tokens": None,
-    "max_recoveries": 3,
+    "max_recoveries": 5,
 }
 
 
@@ -159,12 +159,23 @@ def _events_for_step(step, step_no: int) -> list[AgentEvent]:
     return events
 
 
-def _score_recovery(scenario: Scenario, monitor, tracer, first_trip,
-                    trip_step_index) -> Optional[RecoveryOutcome]:
-    """Score the steering, and replay the recovery branch if it was usable.
+def _drive_recovery(scenario: Scenario, monitor, tracer, first_trip,
+                    trip_step_index, max_extra_steps: int = 40) -> Optional[RecoveryOutcome]:
+    """Close the loop: keep steering until a rung works, or escalation happens.
 
-    Only meaningful for positives that actually tripped and that declare a
-    recovery branch — for everything else there is nothing to recover from.
+    This replaced a measurement that could not fail. The previous version scored
+    the steering with our own rubric and unlocked the recovery branch whenever
+    that rubric approved our own instruction — but the rubric and the ladder's
+    instruction templates were written together, so it always approved them.
+    "Recovery rate 95%" meant "our templates match our rubric", and every rung
+    unlocked the same branch, so climbing the ladder scored identically to never
+    climbing it. The ladder's entire value was unmeasured.
+
+    Now the scenario declares ``responds_to``: the one rung this agent actually
+    obeys, which is ground truth independent of anything we generate. The agent
+    keeps failing until the ladder reaches that rung. So the metric answers a
+    question that can genuinely come out wrong: **does the ladder find the
+    intervention that works, before recoveries run out?**
     """
     if not scenario.label.should_trip or first_trip is None:
         return None
@@ -173,37 +184,65 @@ def _score_recovery(scenario: Scenario, monitor, tracer, first_trip,
 
     out = RecoveryOutcome(attempted=bool(tracer.paths))
     seen: list[str] = []
-    for path in tracer.paths:
+    tail = scenario.steps[-1]          # the failing behaviour the agent repeats
+    step_no = (trip_step_index or 0) + 1
+
+    def judge(path) -> bool:
         s = score_steering(
-            path,
-            original_goal=scenario.goal,
+            path, original_goal=scenario.goal,
             trip_detector=first_trip["detector"],
             trip_severity=first_trip["severity"],
             failing_tool=scenario.failing_tool,
-            previous_instructions=seen,
-        )
+            previous_instructions=list(seen))
         seen.append(path.instruction or "")
         out.steering_scores.append(s)
+        return s.usable
+
+    # The trip that brought us here already produced a steer.
+    for path in tracer.paths:
+        usable = judge(path)
         if path.action is RecoveryAction.ESCALATE:
             out.escalated = True
+        elif usable and path.strategy == scenario.responds_to:
+            out.recovered = True
 
     out.usable = any(s.usable for s in out.steering_scores)
-
-    # A critical trip is *supposed* to escalate; that is a correct outcome, not
-    # a recovery, so it never unlocks the branch.
-    if out.escalated and first_trip["severity"] == "critical":
+    if out.recovered or out.escalated:
+        if out.recovered:
+            _replay_branch(scenario, monitor, out, step_no)
         return out
 
-    # Usable steering unlocks the corrected trajectory. Vague steering does not:
-    # a nudge that names nothing concrete should not score as a free win.
-    if out.usable:
-        base = (trip_step_index or 0) + 1
-        for j, step in enumerate(scenario.recovery_branch):
-            out.tokens_to_recovery += step.tokens
-            for ev in _events_for_step(step, base + j + 1):
-                monitor.observe(ev)
-        out.recovered = True
+    # Not yet: the agent ignores what it was told and carries on failing. Each
+    # repetition trips the breaker again, which climbs the ladder.
+    seen_paths = len(tracer.paths)
+    for _ in range(max_extra_steps):
+        step_no += 1
+        for ev in _events_for_step(tail, step_no):
+            monitor.observe(ev)
+
+        for path in tracer.paths[seen_paths:]:
+            seen_paths += 1
+            usable = judge(path)
+            if path.action is RecoveryAction.ESCALATE:
+                out.escalated = True
+            elif usable and path.strategy == scenario.responds_to:
+                out.recovered = True
+
+        out.usable = any(s.usable for s in out.steering_scores)
+        if out.recovered:
+            _replay_branch(scenario, monitor, out, step_no)
+            return out
+        if out.escalated:
+            return out
     return out
+
+
+def _replay_branch(scenario: Scenario, monitor, out: RecoveryOutcome, base: int) -> None:
+    """The agent takes the advice and completes the task."""
+    for j, step in enumerate(scenario.recovery_branch):
+        out.tokens_to_recovery += step.tokens
+        for ev in _events_for_step(step, base + j + 1):
+            monitor.observe(ev)
 
 
 def run_scenario(scenario: Scenario,
@@ -245,7 +284,7 @@ def run_scenario(scenario: Scenario,
     first = tracer.trip_log[0] if tracer.trip_log else None
 
     # -- did the steering actually work? --------------------------------
-    recovery = _score_recovery(scenario, monitor, tracer, first, trip_step_index)
+    recovery = _drive_recovery(scenario, monitor, tracer, first, trip_step_index)
     if recovery is not None:
         tokens_spent += recovery.tokens_to_recovery
 
