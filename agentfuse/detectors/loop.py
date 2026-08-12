@@ -39,7 +39,10 @@ class LoopDetector(Detector):
     name = "loop"
 
     def __init__(self, threshold: int = 3, window: int = 12,
-                 blind_multiplier: int = 2):
+                 blind_multiplier: int = 2, calibrator=None):
+        # Optional per-run calibration. Widens the threshold for workloads that
+        # legitimately repeat calls (polling, retrying) — never tightens it.
+        self.calibrator = calibrator
         self.threshold = threshold          # identical (call, result) repeats before tripping
         self.window = window                # how many recent calls we remember
         self.blind_multiplier = blind_multiplier  # slack for the result-varying fallback
@@ -86,7 +89,9 @@ class LoopDetector(Detector):
 
         # Fallback: the same call repeated well past the threshold with no
         # progress is a loop even if its output keeps changing slightly.
-        blind_limit = self.threshold * self.blind_multiplier
+        effective = (self.calibrator.loop_threshold(self.threshold)
+                     if self.calibrator else self.threshold)
+        blind_limit = effective * self.blind_multiplier
         repeats = sum(1 for s in self._signatures if s == sig)
         if repeats >= blind_limit:
             return Trip(
@@ -117,8 +122,10 @@ class LoopDetector(Detector):
         self._pending = None
         self._pairs.append(pair)
 
+        effective = (self.calibrator.loop_threshold(self.threshold)
+                     if self.calibrator else self.threshold)
         repeats = sum(1 for p in self._pairs if p == pair)
-        if repeats >= self.threshold:
+        if repeats >= effective:
             meta = self._pending_meta
             return Trip(
                 detector=self.name,

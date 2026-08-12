@@ -22,6 +22,7 @@ from typing import Optional
 
 from .events import AgentEvent, EventType, ExecutionSnapshot
 from .detectors import Detector, LoopDetector, DriftDetector, SpendDetector, NoProgressDetector
+from .calibration import AdaptiveCalibrator
 from .detectors.base import Severity
 from .recovery import RecoveryEngine, SteeringPath, RecoveryAction
 from .tracer import Tracer
@@ -64,16 +65,20 @@ class MonitorConfig:
     # How many steps a steer gets to demonstrate it worked before it is judged
     # ineffective and the ladder climbs past it.
     verify_window: int = 4
+    # Learn per-run baselines from demonstrably healthy stretches and widen
+    # thresholds to match this workload. Never tightens them.
+    adaptive: bool = True
 
 
 class CircuitBreakerMonitor:
     def __init__(self, config: MonitorConfig, detectors: Optional[list[Detector]] = None,
                  recovery: Optional[RecoveryEngine] = None, tracer: Optional[Tracer] = None):
         self.config = config
+        self.calibrator = AdaptiveCalibrator(enabled=config.adaptive)
         self.detectors: list[Detector] = detectors or [
-            LoopDetector(threshold=config.loop_threshold),
+            LoopDetector(threshold=config.loop_threshold, calibrator=self.calibrator),
             DriftDetector(original_goal=config.original_goal, threshold=config.drift_threshold),
-            NoProgressDetector(patience=config.stall_patience),
+            NoProgressDetector(patience=config.stall_patience, calibrator=self.calibrator),
             SpendDetector(
                 max_tokens=config.max_tokens,
                 max_cost_usd=config.max_cost_usd,
@@ -81,6 +86,14 @@ class CircuitBreakerMonitor:
                 burst_tokens=config.burst_tokens,
             ),
         ]
+        # Calibration is owned by the monitor and injected into whatever
+        # detectors it ends up with — including a caller-supplied list. Wiring it
+        # only into the default-constructed set meant any custom detector list
+        # silently ran uncalibrated, which is exactly what the eval does.
+        for _d in self.detectors:
+            if hasattr(_d, "calibrator") and getattr(_d, "calibrator", None) is None:
+                _d.calibrator = self.calibrator
+
         self.recovery = recovery or RecoveryEngine()
         self.tracer = tracer or Tracer(jsonl_path=config.jsonl_path, echo=config.echo)
         self.tracer.meta({
@@ -143,6 +156,7 @@ class CircuitBreakerMonitor:
         if event.goal:
             self.current_goal = event.goal
         self.tracer.event(event)
+        self.calibrator.observe(event)
 
         if event.type in (EventType.COMPLETE, EventType.ABORT):
             self._verify_pending(event)

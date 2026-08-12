@@ -39,8 +39,13 @@ _THINK_WEIGHT = 0.5
 class NoProgressDetector(Detector):
     name = "progress"
 
-    def __init__(self, patience: int = 6):
+    #: How far past patience a run with NO advance yet is allowed to go before
+    #: the grace period is overridden. Bounds the blind window.
+    GRACE_MULTIPLIER = 2.0
+
+    def __init__(self, patience: int = 6, calibrator=None):
         self.patience = patience
+        self.calibrator = calibrator
         self._last_state_hash: Optional[str] = None
         self._work_since_progress = 0.0   # weighted actions since the last advance
         self._actions_since_progress = 0  # raw count, for the evidence payload
@@ -69,9 +74,22 @@ class NoProgressDetector(Detector):
         else:
             return None
 
+        effective = (self.calibrator.stall_patience(self.patience)
+                     if self.calibrator else self.patience)
+
+        # Grace period: before the run has demonstrated its own rhythm even once,
+        # there is no evidence to distinguish "exploring" from "stuck" — an agent
+        # that legitimately makes several calls between milestones looks
+        # identical to one going nowhere. So hold fire until the first genuine
+        # advance, bounded by a hard ceiling so a run that NEVER advances (the
+        # stall we most want to catch) is still caught, just later.
+        if self.calibrator is not None and self._last_state_hash is None:
+            if self._work_since_progress < effective * self.GRACE_MULTIPLIER:
+                return None
+
         # Require at least one tool call: a purely deliberative stretch is the
         # agent thinking, not the agent stuck in a trap.
-        if self._work_since_progress >= self.patience and self._tools_since_progress >= 1:
+        if self._work_since_progress >= effective and self._tools_since_progress >= 1:
             return Trip(
                 detector=self.name,
                 severity=Severity.TRIP,
