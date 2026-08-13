@@ -83,6 +83,9 @@ class MonitorConfig:
     rate_patience: Optional[int] = 8
     max_tokens: Optional[int] = None
     max_cost_usd: Optional[float] = None
+    # The agent's model, used to price events that arrive without a cost. Without
+    # it `max_cost_usd` cannot be enforced — see agentfuse/pricing.py.
+    model: Optional[str] = None
     burst_window: int = 6
     burst_tokens: Optional[int] = None
     jsonl_path: Optional[str] = None
@@ -119,6 +122,7 @@ class CircuitBreakerMonitor:
                 max_cost_usd=config.max_cost_usd,
                 burst_window=config.burst_window,
                 burst_tokens=config.burst_tokens,
+                model=config.model,
             ),
         ]
         # Last in the default list deliberately: it and SpendDetector can both
@@ -352,12 +356,31 @@ class CircuitBreakerMonitor:
             self.checkpoint()      # the final totals are worth keeping
             return self._finish_locked(status)
 
+    @property
+    def spend_totals(self) -> dict:
+        """Cost as the spend detector sees it — the only place it is complete.
+
+        The monitor's own ``total_cost`` only ever sums ``event.cost_usd``, which
+        callers rarely populate. The detector additionally prices events from the
+        model, so it is the authority; reporting the monitor's figure alongside
+        it would print ``$0.00`` next to a real number.
+        """
+        for d in self.detectors:
+            if d.name == "spend" and hasattr(d, "totals"):
+                return d.totals
+        return {"tokens": self.total_tokens, "cost_usd": round(self.total_cost, 4),
+                "unpriced_tokens": 0, "cost_is_complete": False}
+
     def _finish_locked(self, status: str) -> dict:
+        spend = self.spend_totals
         totals = {
             "status": status,
             "steps": self.history[-1].step if self.history else 0,
             "total_tokens": self.total_tokens,
-            "total_cost_usd": round(self.total_cost, 4),
+            "total_cost_usd": spend.get("cost_usd", round(self.total_cost, 4)),
+            # A non-zero value means the dollar figure above is a FLOOR.
+            "unpriced_tokens": spend.get("unpriced_tokens", 0),
+            "cost_is_complete": spend.get("cost_is_complete", False),
             "trips": self.tracer.trips,
             "recoveries": self.tracer.recoveries,
             "steers_verified_working": self.steers_that_worked,
