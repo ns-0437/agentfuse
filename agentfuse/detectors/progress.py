@@ -21,6 +21,26 @@ as activity rather than progress.
 Tool calls are weighted more heavily than reasoning turns. An agent that thinks
 for several turns before acting is deliberating, which is normal and healthy;
 an agent that *acts* repeatedly and changes nothing is stuck.
+
+Never judge a call before its result arrives
+--------------------------------------------
+The threshold is tested **only on a tool result**, never on the call or the model
+turn that precedes it. Weight still accumulates on those events; what changes is
+when the verdict is allowed to happen.
+
+This is not a detail. A tool step emits ``llm_call -> tool_call -> tool_result``,
+so evaluating on the call meant the counter could cross patience on the
+``tool_call`` and halt the run **one event before the result that would have
+reset it**. Measured: every benign retry-then-success scenario tripped on the
+final, successful attempt — the agent had already issued the call that fixed
+everything, and the supervisor killed it in the gap before the answer came back.
+16 false positives, all on runs that were about to succeed.
+
+The loop detector learned this same lesson earlier and independently (see its
+module docstring: a pure call-counter "fires on that third call *before its
+result arrives*, killing a run that was about to work"). Two detectors, the same
+mistake, found twice — so it is written down here as a rule rather than a fix:
+**a supervisor must not act on an action whose outcome it has not yet seen.**
 """
 
 from __future__ import annotations
@@ -68,11 +88,17 @@ class NoProgressDetector(Detector):
             self._work_since_progress += _TOOL_WEIGHT
             self._actions_since_progress += 1
             self._tools_since_progress += 1
+            return None          # the outcome of this call is not known yet
         elif event.type is EventType.LLM_CALL:
             self._work_since_progress += _THINK_WEIGHT
             self._actions_since_progress += 1
-        else:
+            return None          # a model turn is a decision, not an outcome
+        elif event.type is not EventType.TOOL_RESULT:
             return None
+
+        # Only a tool result is a moment where the outcome is known. Reaching
+        # here means the result carried no state advance (that case returned
+        # above), so the work counted so far genuinely produced nothing.
 
         effective = (self.calibrator.stall_patience(self.patience)
                      if self.calibrator else self.patience)
