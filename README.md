@@ -6,6 +6,10 @@
 
 **▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser.
 
+**📄 [Full project report](REPORT.md)** — every result to date, phase status, and an
+honest readiness assessment, including the measurement showing the deterministic
+templates currently beat the only real model tested.
+
 Long-running agents (hours → days, hundreds of steps) don't usually fail with a
 crash. They fail *quietly*: an infinite tool loop, a slow drift from the original
 objective, a logical trap where the model reasons flawlessly from a false premise,
@@ -388,6 +392,76 @@ never leaves the machine. Drift-family recall went **76.2% → 90.0%**.
 
 `AGENTFUSE_OFFLINE` disables only the *hosted* backend; a local model spends
 nothing, so treating it as "offline" would force the weakest signal for no gain.
+
+### Does the reasoning model actually beat a template? (measured — no)
+
+This is the project's central premise: a **separate reasoning model** writes better
+corrections than a fixed rule could. Until now it had never been tested. Every
+recovery number came from the offline mock — a deterministic template picked by
+rung, scored by a rubric written alongside those templates.
+
+It is testable for free. `AGENTFUSE_LLM_BASE_URL` points the supervisor at any
+OpenAI-compatible endpoint, so a local model on the same machine costs nothing:
+
+```bash
+pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+python -m llama_cpp.server --model models/qwen2.5-3b-instruct-q4_k_m.gguf --n_ctx 4096 --port 8080
+python evals/real_model.py --n 4 --base-url http://127.0.0.1:8080/v1
+```
+
+Paired on identical trip snapshots, **Qwen2.5-3B-Instruct Q4** against the templates:
+
+| | mock (templates) | real (Qwen 3B) |
+|---|---:|---:|
+| **usable rate** | **100%** | **25%** |
+| mean quality | 89.2% | 74.2% |
+| actionable | 100% | 60% |
+| goal-anchored | 100% | 60% |
+| diagnostic | 35% | 25% |
+| latency | ~0 ms | 19.3 s |
+
+**The templates win, decisively.** A bias was found on each side and fixed before
+publishing this, because a result this unflattering deserves a real attempt to
+overturn it:
+
+- **Our prompt was wrong.** The model wrote *about* the intervention — `inject a
+  new task to check if…` — addressed to the supervisor rather than to the agent.
+  That instruction is pasted verbatim into the agent's conversation, so it is
+  incoherent by the time anything reads it.
+- **Our rubric was biased.** `_ACTIONABLE` matched `realign` but not `re-align`,
+  and scored `do not repeat any previous actions involving searching files` — an
+  explicit, named prohibition — as prescribing no action at all. It was
+  recognising its own authors' vocabulary.
+
+Both fixes helped (usable 15% → 20% → 25%). **The direction never changed.**
+
+One failure mode is worse than being unhelpful. Told to forbid the failing
+action, the model forbade *the objective*:
+
+> "Do not repeat any steps involving credential rotation or updating app config
+> until you receive further instructions from a human."
+
+A weak supervisor does not merely fail to help — it can instruct the agent to
+abandon its task.
+
+**What this does and does not establish.** It does *not* show that
+reasoning-model steering is a bad idea: a 3B Q4 model is the floor of what could
+plausibly work, and the reasoning models the design assumes are untested. The
+mock's 100% also remains circular. What it does establish is that **the ladder
+templates have been carrying the recovery numbers all along**, and that the
+central premise is still unproven rather than supported.
+
+Getting an honest number needed three pieces of engineering, each found by
+running it: self-hosted servers speak `/v1/chat/completions`, not the Responses
+API; **grammar-constrained JSON** is mandatory (unconstrained, the same prompt
+gave valid JSON one call and garbage the next, ~1 in 8 — constrained, 0/20
+malformed); and `max_tokens` must be explicit or servers truncate mid-JSON. A
+malformed real response now **raises** instead of quietly substituting the
+template, because otherwise a broken backend is indistinguishable from a working
+one and every number measures the templates again.
+
+Still simulated: whether the agent *obeys* the steer, which comes from the
+scenario's synthetic `responds_to`. This closes the supervisor half only.
 
 ### Ablation — which detectors carry the signal
 
