@@ -141,7 +141,12 @@ jobs:
   deploy-dashboard:
     name: rebuild + publish dashboard
     needs: [test, benchmark, demos]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Any deliberate run against main publishes: a push, or a manual dispatch.
+    # The first version required event_name == 'push', which silently skipped
+    # the whole job on workflow_dispatch — so the one way to re-publish by hand
+    # was the one way that could not. Pull requests are still excluded: they
+    # must never write to main.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write        # to commit the rebuilt page back to main
