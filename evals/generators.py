@@ -733,15 +733,35 @@ def gen_long_polling_benign(rng: random.Random, idx: int) -> Scenario:
 
 
 def gen_long_sparse_benign(rng: random.Random, idx: int) -> Scenario:
-    """Healthy work with wide, consistent gaps between state advances."""
+    """Healthy work with wide, consistent gaps between state advances.
+
+    The "varied work" between milestones has to actually be varied, and for a
+    long time it was not. Each domain offers 4 tools and only **4 distinct
+    argument dicts**, so drawing them at random produced 3+ *identical*
+    ``(tool, args, result)`` triples in 199 of 200 runs — worst case, the same
+    call repeated 11 times with no state change, labelled healthy.
+
+    That is not a hard negative, it is a loop with a benign label, and scoring
+    the detector against it was the benchmark lying rather than the detector
+    misfiring. It cost 14 false positives that no amount of detector tuning
+    could have legitimately removed. The identical judgement was already made
+    for ``gen_long_polling_benign`` above; this generator was simply missed.
+
+    Each unit of work now carries its own subject, so the run tests what it
+    claims to test — wide gaps between advances — instead of accidentally
+    testing whether an 11x identical call counts as a loop. It does.
+    """
     d = rng.choice(DOMAINS)
     steps: list[StepSpec] = []
+    unit = 0
     for _ in range(rng.randint(5, 8)):
-        for _ in range(rng.randint(4, 6)):   # a lot of work per advance
+        for _ in range(rng.randint(4, 6)):   # a lot of DISTINCT work per advance
             ti, to = _tokens(rng)
-            steps.append(tool(rng.choice(d["tools"]), d["args"](rng),
-                              result="partial", progress=False,
-                              tokens_in=ti, tokens_out=to))
+            unit += 1
+            args = dict(d["args"](rng)); args["chunk"] = unit
+            steps.append(tool(rng.choice(d["tools"]), args,
+                              result=f"partial: section {unit} scanned",
+                              progress=False, tokens_in=ti, tokens_out=to))
         ti, to = _tokens(rng)
         steps.append(tool(rng.choice(d["tools"]), d["args"](rng), result="milestone",
                           progress=True, tokens_in=ti, tokens_out=to))
