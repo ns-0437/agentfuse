@@ -22,8 +22,8 @@ The design principle: **the thing judging the run is never the thing performing
 it.** An agent in a logical trap is the worst available judge of its own trap.
 
 Five detectors, one engine, three runtime adapters (OpenAI AgentKit via real
-`RunHooks`, plain OpenAI SDK, LangGraph) — though only the AgentKit adapter has
-tests; see §8.3.
+`RunHooks`, plain OpenAI SDK, LangGraph), all three tested — adding those tests
+found four bugs, §4.10.
 
 ---
 
@@ -70,7 +70,7 @@ trips at our frequency reaches F1 62.4%.
 
 ---
 
-## 3. Three results that should temper the headline
+## 3. Four results that should temper the headline
 
 ### 3.1 The benchmark is saturated
 
@@ -96,24 +96,6 @@ toward 1 by construction. The suite gained **one** generator family, 20 → 21.
 Quote the **family count**, never the effective *n*. A separate measured result:
 sweeping scenarios-per-generator across 40/20/10/5 moved effective *n* only 13→14
 — **only more independent families buy statistical power.**
-
-### 3.4 A measured signal that must not ship
-
-Phase 4 Tier 1 reads the model's own token logprobs. Measured against
-Qwen2.5-3B-Instruct-Q4, n=14 per condition:
-
-| condition | mean logprob | gap vs healthy | Cohen d | |
-|---|---:|---:|---:|---|
-| on_task | −0.686 (sd 0.068) | — | — | baseline |
-| stuck_loop | −0.775 | +0.089 | 0.87 | separates |
-| offtopic | −0.830 | +0.144 | 1.44 | separates |
-| trap | −0.842 | +0.156 | 1.68 | separates |
-| **ambiguous** *(control)* | −0.707 | +0.022 | 0.28 | **control holds** |
-
-The signal is real and it tracks *failure*, not *difficulty* — the healthy-but-hard
-control did not drop. **And the detector is still harmful**: ablation puts it at
-**ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
-ships off by default. See §4.11 for why, because the reason generalises.
 
 ### 3.3 The central premise is unproven
 
@@ -150,6 +132,24 @@ human."* A weak supervisor can instruct the agent to abandon its task.
 the floor of what could work. It proves the **ladder templates have been carrying
 the recovery numbers all along**, and that the premise is untested rather than
 supported.
+
+### 3.4 A measured signal that must not ship
+
+Phase 4 Tier 1 reads the model's own token logprobs. Measured against
+Qwen2.5-3B-Instruct-Q4, n=14 per condition:
+
+| condition | mean logprob | gap vs healthy | Cohen d | |
+|---|---:|---:|---:|---|
+| on_task | −0.686 (sd 0.068) | — | — | baseline |
+| stuck_loop | −0.775 | +0.089 | 0.87 | separates |
+| offtopic | −0.830 | +0.144 | 1.44 | separates |
+| trap | −0.842 | +0.156 | 1.68 | separates |
+| **ambiguous** *(control)* | −0.707 | +0.022 | 0.28 | **control holds** |
+
+The signal is real and it tracks *failure*, not *difficulty* — the healthy-but-hard
+control did not drop. **And the detector is still harmful**: ablation puts it at
+**ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
+ships off by default. See §4.11 for why, because the reason generalises.
 
 ---
 
