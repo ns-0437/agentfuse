@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 58 commits · 115 tests green · 936 benchmark scenarios
+**As of 2026-08-13** · 61 commits · 121 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -186,7 +186,40 @@ The 33M model ranks gradual drift as *more* similar to the goal than on-task
 text — any threshold built on it fires backwards. **110M is the floor; a billion
 parameters buys nothing here.** Runs locally, free, ~4 ms/sentence.
 
-### 4.5 A backspace that disabled a security defence
+### 4.5 A concurrency bug that needed no concurrency
+
+`LoopDetector` held **one** `_pending` slot for the call awaiting its result.
+That assumes calls and results strictly alternate — false the moment an agent
+issues parallel tool calls, which the OpenAI Agents SDK does by default. The
+sequence `call(a) → call(b) → result(a)` paired A's *outcome* with B's
+*signature*.
+
+Measured by restoring the old logic and driving that exact sequence — **no
+threads, no timing:**
+
+| | trips detected | mis-attributed |
+|---|---:|---:|
+| old (single slot) | 4 | **4 of 4 (100%)** |
+| fixed (per-lane) | **8** | 0 |
+
+The harm is not a bad label. Trip evidence feeds the steering instruction, so a
+loop on `search_files` produced a correction telling the agent to **stop calling
+`fetch_invoice`** — a tool it had used correctly. And the old code found only
+*half* the loops, because clobbered pairings never reached the threshold.
+
+Under threads it was worse: `RuntimeError: deque mutated during iteration` raised
+straight out of the detector. These adapters raise into the agent's call stack,
+so a detector exception **takes down the run the supervisor exists to protect.**
+
+`observe()`, `finish()` and `JSONMemory` are now serialised; `_pending` is keyed
+by call id or `(node, tool)`.
+
+**Why a suite scoring 98.1% F1 never saw any of this:** the replay harness emits
+strictly sequential events, so it *cannot* produce interleaving. The same
+structural blind spot hid the `LoopDetector` reset bug (§4.2). A benchmark only
+tests the event orders it knows how to generate.
+
+### 4.6 A backspace that disabled a security defence
 
 A shell heredoc wrote a literal `\x08` where `\b` was intended in an
 injection-detection regex — invisible to grep, editors, and file reads, and it
@@ -204,9 +237,9 @@ All sources are now scanned for control characters by a test.
 | **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — §3.3)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
 | **4 — Signal ladder** | logprobs, self-probe, activation probes | ❌ Not started |
-| **5 — Productionisation** | injection hardening ✅ · SQLite checkpoints ❌ · real cost table ❌ · webhook escalation ❌ · thread-safety ❌ · PyPI ❌ | 🟡 1 of 6 |
+| **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ❌ · real cost table ❌ · webhook escalation ❌ · PyPI ❌ | 🟡 2 of 6 |
 
-**3 of 5 complete.**
+**3 of 5 complete.** Phase 5 is in progress: thread-safety landed 2026-08-13.
 
 ---
 
@@ -219,7 +252,7 @@ Verified against the code, not asserted:
 | Detection quality | **Strong** — but on a saturated, self-authored suite |
 | Steering quality | **Unproven** — templates beat the only real model tested |
 | Persistence / checkpoints | **None.** In-memory only; a supervisor restart loses all state |
-| Thread / async safety | **None.** No locks anywhere; `observe()` mutates shared state, unsafe for the parallel multi-agent runs the project is pitched at |
+| Thread / async safety | **Fixed 2026-08-13** (§4.6). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
 | Real-model validation | Supervisor half only, with a 3B model; agent obedience still synthetic |
 | Prompt-injection hardening | Done — sanitise, fence, trust-boundary clause, 15 tests |
@@ -257,7 +290,7 @@ python evals/run_eval.py --generated 40 --json    # full suite + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
 python evals/real_model.py --base-url …           # templates vs a real model
-pytest evals/ -q                                  # 115-test CI gate
+pytest evals/ -q                                  # 121-test CI gate
 ```
 
 No API key required, nothing billed. `evals/baseline.json` records every floor,
