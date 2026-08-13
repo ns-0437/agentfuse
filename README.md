@@ -274,7 +274,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 164-test CI gate
+pytest evals/ -q                                  # 198-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,
@@ -604,6 +604,7 @@ agentfuse/
   memory.py            what was steered, and whether it worked
   checkpoint.py        durable run state — a restart keeps its ceiling
   pricing.py           token -> USD, and never prices the unknown at zero
+  redact.py            credentials stripped on every path text can escape
   notify.py            escalation that reaches a human, and says if it didn't
   strategies.py        the escalating ladder of interventions
   calibration.py       per-run thresholds learned from healthy stretches

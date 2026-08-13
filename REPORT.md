@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 69 commits · 164 tests green · 936 benchmark scenarios
+**As of 2026-08-13** · 73 commits · 198 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -315,7 +315,40 @@ That question is now the project's standing check on anything described as a
 safety mechanism, and it is why each fix above ships with a test that drives the
 guard to its firing point rather than asserting its configuration.
 
-### 4.10 A backspace that disabled a security defence
+### 4.10 Four bugs in twenty minutes, from testing what was never tested
+
+`openai_sdk` and `langgraph` were advertised in the README and had never been
+executed by a test. Writing that coverage found four defects almost immediately,
+three of them in shipped code:
+
+1. **`LoopDetector` was inert behind both adapters.** It cleared its counters on
+   the mere *presence* of `event.state`. Both adapters attach `state` to **every**
+   tool result, because they cannot know whether a call achieved anything — so
+   the detector reset after every result, never formed a pair, and never fired.
+   Measured: 11 identical calls returning identical results, `_pairs` still 0.
+   The progress detector caught those runs as a backstop and named the wrong
+   cause, so the steer said *"you are busy but the task is not moving"* instead
+   of *"stop calling `search_files`"*. **Presence is not progress.**
+2. **`openai_sdk` discarded the directive from `TOOL_RESULT`** — which is exactly
+   where the loop detector now fires, since it waits for the outcome. Steering
+   was generated, written to the trace, and never applied. The observability
+   showed a recovery the agent never received.
+3. **`langgraph`'s `on_tool_end` emitted no tool name**, so a result could not be
+   matched to its call and no trip could name the offending tool.
+4. One of mine, introduced while fixing #2: I added the SDK `call_id` to the
+   result event but not the call, breaking lane matching.
+
+**Why the 936-scenario benchmark missed all of it:** the replay harness only
+emits `state` on steps it has labelled as genuine progress, so it never produced
+the event shape that breaks the contract. Eval numbers were **unchanged** by the
+fix — which is the point. A benchmark only tests the event orders it knows how to
+generate.
+
+One of my tests was wrong and the adapter was right: `supervisor_node` returning
+a partial dict is correct LangGraph convention. I corrected the test, not the
+code.
+
+### 4.11 A backspace that disabled a security defence
 
 A shell heredoc wrote a literal `\x08` where `\b` was intended in an
 injection-detection regex — invisible to grep, editors, and file reads, and it
@@ -351,9 +384,9 @@ Verified against the code, not asserted:
 | Thread / async safety | **Fixed 2026-08-13** (§4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
 | Real-model validation | Supervisor half only, with a 3B model that LOST to the templates; agent obedience still synthetic (§8.1, §8.2) |
-| Adapter coverage | **1 of 3.** `openai_sdk` and `langgraph` have no tests at all (§8.3) |
-| CI / portability | **None.** One Windows machine, one Python version (§8.4) |
-| Secret redaction | **None.** Credentials in tool output reach disk and the webhook (§8.5) |
+| Adapter coverage | **3 of 3** — fixing the two untested ones found 4 bugs (§4.10) |
+| CI / portability | **3 OS × 3 Python versions**, plus demos and benchmark floors (§8.4) |
+| Secret redaction | **All three egress paths** — with a stated residual gap (§8.5) |
 | Prompt-injection hardening | Done — sanitise, fence, trust-boundary clause, 15 tests |
 | Cost safety | Done — `AGENTFUSE_OFFLINE`, $0 ever spent on this project |
 
@@ -412,35 +445,30 @@ agent half never has been. `steering_usable = 100%` also remains circular by
 construction — the rubric was written alongside the templates it scores — and no
 human has ever assessed steering quality.
 
-### 8.3 Two of the three advertised runtimes are untested
+### 8.3 Two of the three advertised runtimes were untested — **CLOSED**
 
-The README says *"One engine. Three runtimes."* Verified test coverage:
+`openai_sdk` and `langgraph` had never been executed by any test. Writing those
+tests found **four real bugs in about twenty minutes**, three in shipped code —
+see §4.10. Both adapters now have coverage.
 
-| Adapter | Tests |
-|---|---|
-| `agentkit_hooks` | ✅ `test_adapters.py`, 6 real-SDK tests |
-| `openai_sdk` | ❌ **none** |
-| `langgraph` | ❌ **none** |
+### 8.4 No CI, one machine, one Python — **CLOSED**
 
-Both untested adapters are advertised in the README and neither has ever been
-executed. That is the single largest gap between what is claimed and what is
-demonstrated.
+CI now runs the suite on **3.9 / 3.11 / 3.13 × Linux / Windows / macOS**, plus a
+stdlib-only import check, the benchmark floors from `baseline.json`, and the
+three offline demos. The matrix is deliberately the *claim* (`requires-python
+>=3.9`) rather than a convenient subset.
 
-### 8.4 No CI, one machine, one Python
+### 8.5 Secrets were not redacted anywhere — **CLOSED**
 
-There is no `.github/workflows`. Every test result in this report comes from a
-**single Windows machine on Python 3.11**. The library claims `requires-python
->=3.9` and has never been run on 3.9, 3.10, 3.12, Linux, or macOS.
+`agentfuse/redact.py` now strips credentials on all three egress paths: the JSONL
+trace, the supervisor prompt, and the escalation webhook. Redaction runs *before*
+truncation, so a secret cut in half by a length limit cannot escape as a
+fragment.
 
-### 8.5 Secrets are not redacted anywhere
-
-`sanitize.py` defends against prompt injection. It does **not** redact
-credentials. Tool results flow verbatim into the JSONL trace on disk and, since
-webhook escalation landed, into an outbound HTTP POST. An agent that reads an API
-key, a token, or a connection string will write it to both. `escalation_include_agent_text=False`
-is the only mitigation and it is all-or-nothing.
-
-This is the most serious open item in this section.
+**The residual risk is real and stated:** a credential with no recognisable
+format, no naming context, and under 32 characters is indistinguishable from
+ordinary text and **will survive**. `escalation_include_agent_text=False` remains
+the only complete answer for a sensitive deployment.
 
 ### 8.6 Known rough edges, unaddressed
 
@@ -488,7 +516,7 @@ python evals/run_eval.py --generated 40 --json    # full suite + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
 python evals/real_model.py --base-url …           # templates vs a real model
-pytest evals/ -q                                  # 164-test CI gate
+pytest evals/ -q                                  # 198-test CI gate
 ```
 
 No API key required, nothing billed. `evals/baseline.json` records every floor,
