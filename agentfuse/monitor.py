@@ -34,10 +34,12 @@ agent run** remains the supported model, and is what every adapter here builds.
 from __future__ import annotations
 
 import threading
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from .checkpoint import SQLiteCheckpointStore, load_state_dict, state_dict
 from .events import AgentEvent, EventType, ExecutionSnapshot
 from .detectors import (Detector, LoopDetector, DriftDetector, SpendDetector,
                         NoProgressDetector, RateOfProgressDetector)
@@ -91,6 +93,16 @@ class MonitorConfig:
     # Learn per-run baselines from demonstrably healthy stretches and widen
     # thresholds to match this workload. Never tightens them.
     adaptive: bool = True
+    # Durable run state. Without it a restart resets every counter — including
+    # the spend ceiling, which means a runaway run comes back with a brand new
+    # budget and the guard that exists to bound it has been rearmed rather than
+    # enforced. Set a path to survive restarts; None keeps the old behaviour.
+    checkpoint_path: Optional[str] = None
+    # Events between saves. Bounds how much is lost to a hard kill; the write is
+    # a single small sqlite transaction, so this can be low.
+    checkpoint_every: int = 20
+    # Identifies the run to resume. Generated when not supplied.
+    run_id: Optional[str] = None
 
 
 class CircuitBreakerMonitor:
@@ -143,6 +155,10 @@ class CircuitBreakerMonitor:
         # Re-entrant: _handle_trip runs inside observe, and a tracer or detector
         # callback could re-enter. A plain Lock would deadlock on that path.
         self._lock = threading.RLock()
+        self.run_id = config.run_id or f"run-{uuid.uuid4().hex[:12]}"
+        self._store = (SQLiteCheckpointStore(config.checkpoint_path)
+                       if config.checkpoint_path else None)
+        self._events_since_checkpoint = 0
         self.history: list[AgentEvent] = []
         self.route_history: list[str] = []
         self.total_tokens = 0
@@ -153,6 +169,72 @@ class CircuitBreakerMonitor:
         self._pending_steer = None
         self.steers_that_worked = 0
         self.steers_that_failed = 0
+
+    # ------------------------------------------------- durable run state
+    def state(self) -> dict:
+        """Everything a resumed run needs in order to keep counting."""
+        return {
+            "run_id": self.run_id,
+            "totals": {
+                "total_tokens": self.total_tokens,
+                "total_cost": self.total_cost,
+                "recovery_count": self.recovery_count,
+                "steers_that_worked": self.steers_that_worked,
+                "steers_that_failed": self.steers_that_failed,
+                "route_history": list(self.route_history),
+                "current_goal": self.current_goal,
+                "last_step": self.history[-1].step if self.history else 0,
+            },
+            "calibrator": state_dict(self.calibrator),
+            "baseline": state_dict(self.calibrator.baseline),
+            # Keyed by detector name, so reordering or adding a detector cannot
+            # silently load one detector's counters into another.
+            "detectors": {d.name: state_dict(d) for d in self.detectors},
+        }
+
+    def checkpoint(self) -> None:
+        """Persist now. Safe to call at any time; a no-op without a store."""
+        if self._store is None:
+            return
+        with self._lock:
+            snap = self.state()
+            try:
+                self._store.save(self.run_id, snap, step=snap["totals"]["last_step"])
+                self._events_since_checkpoint = 0
+            except Exception:
+                # A checkpoint failure must never take down the run being
+                # supervised — the same rule the recovery engine follows.
+                pass
+
+    def restore(self, run_id: Optional[str] = None) -> bool:
+        """Reload a previous run's counters. Returns whether anything was found.
+
+        Detector state is matched **by name**, so a detector that is absent from
+        the checkpoint simply starts fresh rather than inheriting a stranger's
+        counters.
+        """
+        if self._store is None:
+            return False
+        saved = self._store.load(run_id or self.run_id)
+        if not saved:
+            return False
+        with self._lock:
+            totals = saved.get("totals", {})
+            self.total_tokens = totals.get("total_tokens", 0)
+            self.total_cost = totals.get("total_cost", 0.0)
+            self.recovery_count = totals.get("recovery_count", 0)
+            self.steers_that_worked = totals.get("steers_that_worked", 0)
+            self.steers_that_failed = totals.get("steers_that_failed", 0)
+            self.route_history = list(totals.get("route_history", []))
+            self.current_goal = totals.get("current_goal")
+            load_state_dict(self.calibrator, saved.get("calibrator", {}))
+            load_state_dict(self.calibrator.baseline, saved.get("baseline", {}))
+            by_name = saved.get("detectors", {})
+            for d in self.detectors:
+                if d.name in by_name:
+                    load_state_dict(d, by_name[d.name])
+            self.run_id = saved.get("run_id", self.run_id)
+        return True
 
     # ------------------------------------------------------------------
     def _verify_pending(self, event: AgentEvent, new_trip: bool = False) -> None:
@@ -183,7 +265,16 @@ class CircuitBreakerMonitor:
     def observe(self, event: AgentEvent) -> Directive:
         """Ingest one event; return what the agent should do next."""
         with self._lock:
-            return self._observe_locked(event)
+            directive = self._observe_locked(event)
+            self._events_since_checkpoint += 1
+            # Always save on a trip, whatever the interval: that is the state a
+            # crash is most likely to follow and the state most expensive to
+            # lose, since it carries the recovery ladder's position.
+            if self._store is not None and (
+                    directive.kind is not DirectiveKind.CONTINUE
+                    or self._events_since_checkpoint >= self.config.checkpoint_every):
+                self.checkpoint()
+            return directive
 
     def _observe_locked(self, event: AgentEvent) -> Directive:
         self.history.append(event)
@@ -258,6 +349,7 @@ class CircuitBreakerMonitor:
     # ------------------------------------------------------------------
     def finish(self, status: str = "complete") -> dict:
         with self._lock:
+            self.checkpoint()      # the final totals are worth keeping
             return self._finish_locked(status)
 
     def _finish_locked(self, status: str) -> dict:
