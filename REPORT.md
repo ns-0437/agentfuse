@@ -504,12 +504,76 @@ production-grade, and the headline claim is still unvalidated.
 
 ---
 
+## 6.5 The ESR merge — what was borrowed, and what was missed
+
+The premise of adopting AE Studio's ESR work was **complementarity**: their signal
+is *internal* (the model's own consistency monitoring), ours is *external* (an
+independent supervisor watching behaviour). The stated goal was to combine them.
+That has **not** happened, and being precise about why is more useful than the
+parts that did.
+
+### What was taken
+
+**The experimental methodology, and only that** — leave-one-out ablation plus a
+rate-matched random control (`evals/ablation.py`, attributed in
+[CITATION.md](CITATION.md)). It has been the single highest-value borrow in the
+project. It is what measured the confidence detector at **ΔF1 +10.8 for removal**
+and what exposed the loop detector as net-harmful before it was fixed. Without a
+random control, a system that simply trips often posts a respectable F1.
+
+### What was not
+
+- **SAE latents.** Tier 2 used raw hidden states with a linear probe, not sparse
+  autoencoder features.
+- **Zero-ablation of model internals.** We ablate *detectors*; ESR ablates
+  *latents*.
+- **The phenomenon itself** — models *resisting* steering.
+
+### The miss
+
+`evals/captured/real_7b_supervised.jsonl` **is a direct observation of endogenous
+steering resistance, and it was not recognised as one.** The breaker caught the
+loop three times and injected a correction three times. The agent ignored all
+three and kept calling the same tool.
+
+That reframes §3.3. The conclusion there was *"model-written steering is worse
+than the templates."* There is a second explanation, ESR-shaped, that the data
+cannot rule out: **perhaps the author of the correction is not the variable at
+all, and the agent resists correction regardless of who writes it.** Every
+experiment run so far varied *who wrote the steer*. None measured *whether the
+agent was receptive to any steer*. Those are different questions and only the
+first was asked.
+
+### What the merge should actually be
+
+Internal signals were put into **detection**, and measured losing twice: Tier 1
+harmful (§3.4), Tier 2 beaten 19,000× by a string comparison (§4.11). That was
+the wrong socket for them.
+
+Detection already works externally at 98.1% F1. The thing an external supervisor
+**cannot** see is whether a correction will land — and that is an internal state,
+which is exactly what ESR studies.
+
+> **External supervisor → detects the failure.
+> Internal signal → predicts whether the steer will be resisted, and therefore
+> whether to INJECT or ESCALATE.**
+
+This is motivated by our own measurements rather than by the paper's framing, and
+it does **not** require the internal signal to be a good detector — which is
+precisely what two experiments established it is not. It has never been built or
+measured, and it is now the highest-value open direction in the project.
+
+---
+
 ## 7. What would move it forward, in order
 
 0. **Test the two untested adapters** (§8.3) and **redact secrets** (§8.5).
    These are the gaps between what the README claims and what is demonstrated,
    and they are cheap.
-1. **Settle §3.3 with a larger model.** If a 7B closes the gap it is a model-size
+1. **Build the ESR merge** (§6.5) — use an internal signal to predict *steering
+   resistance*, not to detect failures. Untested, and the one idea our own data
+   argues for rather than borrows.
+2. **Settle §3.3 with a larger model.** If a 7B closes the gap it is a model-size
    problem; if it does not, the honest product is the *deterministic ladder plus
    detectors* — simpler, and still valuable. Everything downstream depends on
    which. `evals/real_model.py --base-url …` already runs this.
