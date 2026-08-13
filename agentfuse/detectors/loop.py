@@ -80,6 +80,23 @@ def looks_like_error(text: Optional[str]) -> bool:
     return bool(_ERROR_SHAPED.search(text or ""))
 
 
+def _lane(event: AgentEvent) -> str:
+    """Which in-flight call this event belongs to.
+
+    An explicit call id from the adapter is authoritative. Failing that,
+    ``(node, tool)`` separates parallel calls to *different* tools and different
+    agents, which covers the cases that actually occur. Two concurrent calls to
+    the SAME tool on the same node remain genuinely ambiguous without an id from
+    the runtime, and the later call wins — stated rather than hidden, because it
+    is a limit of the event stream, not something a detector can resolve.
+    """
+    meta = event.meta or {}
+    call_id = meta.get("call_id") or meta.get("tool_call_id")
+    if call_id:
+        return str(call_id)
+    return f"{event.node or ''}:{event.tool_name or ''}"
+
+
 class LoopDetector(Detector):
     name = "loop"
 
@@ -95,8 +112,15 @@ class LoopDetector(Detector):
         self.retry_multiplier = retry_multiplier  # slack when the result is an error
         self._pairs: deque[str] = deque(maxlen=window)      # (call + result) fingerprints
         self._signatures: deque[str] = deque(maxlen=window)  # call-only fingerprints
-        self._pending: Optional[str] = None                  # call awaiting its result
-        self._pending_meta: dict = {}
+        # Calls awaiting their results, keyed by lane rather than held in a
+        # single slot. A single slot assumes calls and results strictly
+        # alternate, which is false the moment an agent issues parallel tool
+        # calls: call(a), call(b), result(a) paired A's OUTCOME with B's
+        # SIGNATURE. Measured consequence was a trip that named a tool the agent
+        # never called — and a steer built from that evidence tells the agent to
+        # stop using something it never used.
+        self._pending: dict[str, str] = {}
+        self._pending_meta: dict[str, dict] = {}
         self._last_progress_step = 0
 
     # ------------------------------------------------------------------
@@ -114,7 +138,8 @@ class LoopDetector(Detector):
             self._last_progress_step = event.step
             self._pairs.clear()
             self._signatures.clear()
-            self._pending = None
+            self._pending.clear()
+            self._pending_meta.clear()
             return None
 
         if event.type == EventType.TOOL_CALL:
@@ -129,9 +154,10 @@ class LoopDetector(Detector):
         if sig is None:
             return None
 
-        self._pending = sig
-        self._pending_meta = {"tool": event.tool_name, "args": event.tool_args,
-                              "step": event.step}
+        lane = _lane(event)
+        self._pending[lane] = sig
+        self._pending_meta[lane] = {"tool": event.tool_name, "args": event.tool_args,
+                                    "step": event.step}
         self._signatures.append(sig)
         # No verdict here. The fallback is counted on the call and *judged* on
         # the result, so this detector never halts an action whose outcome it
@@ -140,21 +166,23 @@ class LoopDetector(Detector):
 
     def _on_result(self, event: AgentEvent) -> Optional[Trip]:
         """Pair the result with the call that produced it, then count repeats."""
-        if self._pending is None:
+        lane = _lane(event)
+        sig = self._pending.pop(lane, None)
+        if sig is None:
             return None
+        meta = self._pending_meta.pop(lane, {})
 
-        sig = self._pending
         pair = f"{sig}->{stable_hash(_normalise(event.text))}"
-        self._pending = None
         self._pairs.append(pair)
 
         # Fallback, judged here rather than on the call: the same call repeated
         # well past the threshold with no progress is a loop even if its output
         # keeps changing slightly. Checked first — it is the stronger evidence.
+        # list() so a concurrent append cannot raise "deque mutated during
+        # iteration" — measured, not hypothetical: it crashed the supervisor.
         blind_limit = self._effective_threshold() * self.blind_multiplier
-        sig_repeats = sum(1 for s in self._signatures if s == sig)
+        sig_repeats = sum(1 for s in list(self._signatures) if s == sig)
         if sig_repeats >= blind_limit:
-            meta = self._pending_meta
             return Trip(
                 detector=self.name,
                 severity=Severity.TRIP,
@@ -175,9 +203,8 @@ class LoopDetector(Detector):
 
         is_error = looks_like_error(event.text)
         effective = self._effective_threshold(is_error=is_error)
-        repeats = sum(1 for p in self._pairs if p == pair)
+        repeats = sum(1 for p in list(self._pairs) if p == pair)
         if repeats >= effective:
-            meta = self._pending_meta
             return Trip(
                 detector=self.name,
                 severity=Severity.TRIP,
@@ -215,7 +242,8 @@ class LoopDetector(Detector):
     def reset(self) -> None:
         self._pairs.clear()
         self._signatures.clear()
-        self._pending = None
+        self._pending.clear()
+        self._pending_meta.clear()
 
 
 def _normalise(text: Optional[str]) -> str:
