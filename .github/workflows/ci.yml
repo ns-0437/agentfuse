@@ -1,0 +1,102 @@
+# Every number in REPORT.md came from one Windows machine on Python 3.11,
+# against a package declaring requires-python >=3.9. This makes that claim
+# testable instead of aspirational.
+#
+# The matrix is deliberately the CLAIM, not a convenient subset: if the metadata
+# says 3.9 through 3.13 on three operating systems, CI has to say so too, or the
+# metadata is a guess.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} · py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false      # one platform failing must not hide the others
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.9", "3.11", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      # The core is stdlib-only and that is a load-bearing claim, not a slogan:
+      # it is why the demos always run and why CI needs no service containers.
+      # A dependency creeping into the core would break it silently, so it is
+      # checked before anything that installs extras.
+      - name: Core imports with zero third-party packages
+        run: python -c "import agentfuse; from agentfuse import CircuitBreakerMonitor, MonitorConfig; print('stdlib-only core OK')"
+
+      - name: Tests
+        env:
+          AGENTFUSE_OFFLINE: "1"    # belt and braces: never bill anyone from CI
+        run: pytest evals/ -q --durations=10
+
+  # Runs once rather than per-matrix-cell: the benchmark is deterministic, so
+  # nine identical replays would burn CI minutes to learn one thing.
+  benchmark:
+    name: benchmark gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[embeddings]"
+          pip install pytest
+
+      # Asserts the measured floors in evals/baseline.json. A regression in
+      # recall, precision, FPR or recovery fails the build rather than being
+      # noticed later in a report nobody re-reads.
+      - name: Detection floors
+        env:
+          AGENTFUSE_OFFLINE: "1"
+        run: pytest evals/test_eval.py -q
+
+      - name: Full suite + ablation
+        env:
+          AGENTFUSE_OFFLINE: "1"
+        run: python -m evals.run_eval --generated 20 --seed 20260812 --no-ablation
+
+  demos:
+    name: demos still run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      # The README's first promise is "clone and run, no API key". If these
+      # break, the project's front door is broken, and no unit test covers that.
+      - name: Offline demos
+        env:
+          AGENTFUSE_OFFLINE: "1"
+        run: |
+          python examples/demo_loop_trap.py
+          python examples/demo_drift.py
+          python examples/demo_escalation.py
