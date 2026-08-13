@@ -102,6 +102,11 @@ def load_captured() -> list[Scenario]:
     out: list[Scenario] = []
     for spec_path in sorted(CAPTURED_DIR.glob("*.json")):
         spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        # Skip anything in this directory that is not a label spec. Capture runs
+        # also write summaries here, and a stray JSON file should not be able to
+        # crash the whole eval with a TypeError — which is exactly what happened.
+        if not isinstance(spec, dict) or "trace" not in spec:
+            continue
         trace = Path(spec["trace"])
         if not trace.is_absolute():
             trace = CAPTURED_DIR / trace

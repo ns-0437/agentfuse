@@ -24,6 +24,7 @@ def guarded_tool_loop(
     tool_router: Callable[[str, dict], Any],
     max_turns: int = 40,
     monitor: Optional[CircuitBreakerMonitor] = None,
+    tool_choice: Any = "auto",
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
@@ -41,9 +42,18 @@ def guarded_tool_loop(
     step = 0
     for _ in range(max_turns):
         step += 1
-        resp = client.chat.completions.create(
-            model=model, messages=messages, tools=tools,
-        )
+        # tool_choice is sent explicitly rather than left to the default.
+        # OpenAI itself defaults to "auto" when tools are present, so this
+        # changes nothing there — but other OpenAI-compatible servers do not.
+        # llama.cpp's chatml-function-calling handler returns NO tool calls at
+        # all unless it is set, which makes a tool-using agent look like one
+        # that simply chose to answer in prose. Found by pointing this adapter
+        # at a real local model and watching it never call a tool.
+        kwargs = {"model": model, "messages": messages}
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = tool_choice
+        resp = client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
         usage = getattr(resp, "usage", None)
         tin = getattr(usage, "prompt_tokens", 0) if usage else 0
@@ -54,7 +64,24 @@ def guarded_tool_loop(
             type=EventType.LLM_CALL, step=step, text=msg.content or "",
             tokens_in=tin, tokens_out=tout, goal=msg.content or None,
         ))
-        messages.append(msg.model_dump())
+        # Append a CLEAN assistant message rather than the raw model_dump().
+        #
+        # model_dump() carries provider-specific extras — refusal, audio,
+        # annotations, a legacy function_call — and `content: None`. OpenAI's own
+        # API accepts all of that back. Other OpenAI-compatible servers do not:
+        # llama.cpp's returns a 500 with seven Pydantic validation errors,
+        # because its schema requires assistant content to be a string. Echoing
+        # a provider's response verbatim assumes only that provider will ever
+        # read it, which is the opposite of what an adapter is for.
+        assistant: dict = {"role": "assistant", "content": msg.content or ""}
+        if getattr(msg, "tool_calls", None):
+            assistant["tool_calls"] = [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.function.name,
+                              "arguments": tc.function.arguments}}
+                for tc in msg.tool_calls
+            ]
+        messages.append(assistant)
 
         if _apply_directive(mon, directive, messages) == "stop":
             return mon.finish("escalated")
