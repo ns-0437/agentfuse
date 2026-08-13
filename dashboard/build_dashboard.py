@@ -42,6 +42,18 @@ CATALOG = {
     "escalation.jsonl": ("Human Escalation", "An unrecoverable failure; the breaker hands control to a human.", "escalate"),
     "real_agentkit.jsonl": ("Real AgentKit Run", "Live openai-agents Runner + real hooks — a real run that self-healed.", "real"),
     "real_gpt.jsonl": ("Real GPT Run", "Live GPT model driving a real agent; supervised and self-healed.", "real"),
+    # The only run here the breaker did NOT rescue, and it stays on the
+    # dashboard for that reason. A real Qwen2.5-7B, given a tool result that
+    # answered its question, called the same tool with the same arguments ten
+    # times. The breaker caught it three times and steered three times; the
+    # model ignored every correction. That is consistent with the measured
+    # finding that model-written steering underperforms the deterministic
+    # templates, and showing only the runs that end well would be a demo rather
+    # than an observability tool.
+    "real_7b_supervised.jsonl": (
+        "Real 7B Loop (steering ignored)",
+        "A real Qwen2.5-7B loops on one tool; caught 3x, steered 3x, never recovers.",
+        "real"),
 }
 
 TITLE = "AgentFuse — Observability Dashboard"

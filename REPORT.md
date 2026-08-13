@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-14** · 85 commits · 212 tests green · 936 benchmark scenarios
+**As of 2026-08-14** · 90 commits · 212 tests green · 936 synthetic scenarios + 5 captured real traces
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -574,18 +574,24 @@ format, no naming context, and under 32 characters is indistinguishable from
 ordinary text and **will survive**. `escalation_include_agent_text=False` remains
 the only complete answer for a sensitive deployment.
 
-### 8.6 The public face of the project is a month stale
+### 8.6 The public face was a month stale — **CLOSED**
 
-The dashboard linked at the top of the README was last rebuilt on **2026-07-19**
-and the demo GIF on **2026-07-18**. Everything since — the rate detector,
-checkpoints, cost accounting, escalation delivery, secret redaction, and every
-detector fix — is invisible in both. The GIF still advertises `o4-mini` steering,
-which §3.3 now shows losing to the deterministic templates.
+The dashboard and GIF were rebuilt on **2026-08-14** after a month of drift, and
+rebuilding them immediately found a real bug that a green test suite never would
+have: the dashboard rendered **"Goal Drift — 0 TRIP · 0 HEAL"**.
 
-Anyone arriving at this repo sees a system that no longer exists, described by a
-report that does. That is a documentation failure of exactly the kind §4.13
-records in the code: an artifact that was true when written and stopped being
-true without anyone noticing.
+`demo_drift.py` had not tripped since local embeddings landed. It hard-coded
+`drift_threshold=0.45`, which is unreachable once similarities come from
+embeddings (0.6–0.8) — **the identical mistake already found and fixed in the
+eval harness, never fixed in the demo.** It exited 0 the whole time, so CI was
+green while one of the three headline demos demonstrated nothing. CI now requires
+each demo to actually print a trip.
+
+The dashboard also now carries **a real Qwen2.5-7B run the breaker did not
+rescue**: caught three times, steered three times, ignored every time. It stays on
+the front page because it ends badly — that is consistent with §3.3, and a
+dashboard showing only the runs that end well is a demo, not an observability
+tool.
 
 ### 8.7 Known rough edges, unaddressed
 

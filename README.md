@@ -4,7 +4,7 @@
 
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
-**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. *(Last rebuilt 2026-07-19; it predates the rate detector, checkpoints, cost accounting, escalation delivery and secret redaction — see [REPORT.md §8.6](REPORT.md).)*
+**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. Rebuilt 2026-08-14, and it now includes a **real Qwen2.5-7B run that the breaker caught three times and never rescued** — the failures are on the dashboard too, not just the successes.
 
 **📄 [Full project report](REPORT.md)** — every result to date, phase status, and an
 honest readiness assessment, including the measurement showing the deterministic
@@ -81,7 +81,7 @@ breaker code are byte-for-byte identical.
 ┌── ⚡ CIRCUIT BREAKER TRIPPED - LOOP (trip) ──────────────────────────────┐
 │ Tool 'search_files' called with identical arguments 3x, no state progress │
 └───────────────────────────────────────────────────────────────────────────┘
-┌── 🧭 STEERING RECOVERY - action=inject (via o4-mini) ─────────────────────┐
+┌── 🧭 STEERING RECOVERY - action=inject (deterministic ladder) ────────────┐
 │ STOP repeating `search_files`… re-read your objective… try another path.  │
 └───────────────────────────────────────────────────────────────────────────┘
 ▶️  step 3  resume      steering injected; agent resuming with corrected plan

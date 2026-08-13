@@ -126,25 +126,36 @@ TASKS = {
 }
 
 
-def capture(task: str, base_url: str, model: str, max_turns: int) -> dict:
+def capture(task: str, base_url: str, model: str, max_turns: int,
+            armed: bool = False, out_dir: Path = CAPTURED) -> dict:
+    """Drive one real run. ``armed`` decides what the trace is EVIDENCE OF.
+
+    Disarmed (the default) is what scoring needs: the trace records what the
+    unsupervised agent did, so detectors can be replayed against behaviour they
+    did not influence. Armed is what a demo needs: it shows the breaker actually
+    intervening in a real run. The two must never be confused — scoring an armed
+    trace would be grading a detector on a trace it had already changed.
+    """
     prompt, world = TASKS[task]
     router, calls = make_router(world)
-    trace_path = CAPTURED / f"real_{task}.jsonl"
+    trace_path = out_dir / (f"real_{task}.jsonl" if not armed
+                            else f"real_{task}_supervised.jsonl")
 
     from openai import OpenAI
     client = OpenAI(base_url=base_url, api_key=os.getenv("AGENTFUSE_LLM_API_KEY")
                     or "not-needed")
 
-    # DISARMED. Thresholds beyond reach so the trace is of the UNSUPERVISED
-    # agent; a supervised run would have been altered by the very detectors we
-    # then want to score against it.
-    mon = CircuitBreakerMonitor(
-        MonitorConfig(original_goal=prompt, echo=False, loop_threshold=10_000,
-                      stall_patience=10_000, rate_patience=None,
-                      drift_threshold=0.0, max_tokens=10_000_000,
-                      max_recoveries=0, adaptive=False,
-                      jsonl_path=str(trace_path)),
-        tracer=Tracer(jsonl_path=str(trace_path), echo=False))
+    cfg = (MonitorConfig(original_goal=prompt, echo=False, loop_threshold=3,
+                         max_recoveries=3, jsonl_path=str(trace_path))
+           if armed else
+           # Thresholds beyond reach: the trace is of the UNSUPERVISED agent.
+           MonitorConfig(original_goal=prompt, echo=False, loop_threshold=10_000,
+                         stall_patience=10_000, rate_patience=None,
+                         drift_threshold=0.0, max_tokens=10_000_000,
+                         max_recoveries=0, adaptive=False,
+                         jsonl_path=str(trace_path)))
+    mon = CircuitBreakerMonitor(cfg, tracer=Tracer(jsonl_path=str(trace_path),
+                                                  echo=False))
 
     summary = guarded_tool_loop(
         client, model=model, system_prompt=prompt, user_input=prompt,
@@ -165,6 +176,10 @@ def main() -> int:
     ap.add_argument("--model", default=os.getenv("AGENTFUSE_RECOVERY_MODEL", "local"))
     ap.add_argument("--max-turns", type=int, default=12)
     ap.add_argument("--task", default=None, help="capture one task only")
+    ap.add_argument("--armed", action="store_true",
+                    help="run WITH the breaker active (for demos, never for scoring)")
+    ap.add_argument("--out-dir", default=None,
+                    help="where to write traces (defaults to evals/captured)")
     ap.add_argument("--review", action="store_true",
                     help="print each trace so a human can assign the label")
     args = ap.parse_args()
@@ -172,6 +187,8 @@ def main() -> int:
         print("Set --base-url. A local llama.cpp server costs nothing.")
         return 2
 
+    out_dir = Path(args.out_dir) if args.out_dir else CAPTURED
+    out_dir.mkdir(parents=True, exist_ok=True)
     CAPTURED.mkdir(parents=True, exist_ok=True)
     tasks = [args.task] if args.task else list(TASKS)
 
@@ -182,7 +199,9 @@ def main() -> int:
     for name in tasks:
         print(f"\n-- {name} ...", flush=True)
         try:
-            r = capture(name, args.base_url, args.model, args.max_turns)
+            r = capture(name, args.base_url, args.model, args.max_turns,
+                        armed=args.armed,
+                        out_dir=Path(args.out_dir) if args.out_dir else CAPTURED)
         except Exception as e:                      # noqa: BLE001
             print(f"   FAILED: {type(e).__name__}: {e}")
             continue
@@ -191,7 +210,8 @@ def main() -> int:
               f"tool_calls={r['tool_calls']} distinct={r['distinct_calls']} "
               f"max_identical={r['max_identical_calls']} tools={r['tools_used']}")
 
-    out = CAPTURED / "real_runs_summary.json"
+    out = out_dir / ("real_runs_supervised_summary.json" if args.armed
+                     else "real_runs_summary.json")
     out.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {len(results)} traces + {out.name}")
     print("\nNEXT: read each trace and write its label spec by hand. The label is "
