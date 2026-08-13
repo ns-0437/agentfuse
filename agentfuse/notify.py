@@ -47,6 +47,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Protocol, Sequence
 
+from .redact import redact
 from .sanitize import sanitize
 
 #: Free-text fields are cut to this before leaving the process.
@@ -70,7 +71,11 @@ class Notification:
     def payload(self, include_agent_text: bool = True) -> dict:
         """JSON body. Agent-produced text is sanitised, truncated, or omitted."""
         def clean(text: str) -> str:
-            return sanitize(str(text or ""))[:MAX_TEXT]
+            # Redact before sanitize and before truncation. A credential cut in
+            # half by the length limit is no longer matchable and would leave
+            # the machine as a fragment. This is the most exposed of the three
+            # egress paths — an outbound POST to a third party.
+            return sanitize(redact(str(text or "")))[:MAX_TEXT]
 
         body: dict[str, Any] = {
             "source": "agentfuse",

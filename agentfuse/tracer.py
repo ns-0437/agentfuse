@@ -17,6 +17,7 @@ import sys
 import time
 from typing import Optional
 
+from .redact import redact_obj
 from .events import AgentEvent, EventType
 from .detectors.base import Trip
 from .recovery import SteeringPath
@@ -97,7 +98,12 @@ class Tracer:
 
     def _write(self, record: dict) -> None:
         if self._fh:
-            self._fh.write(json.dumps(record, default=str) + "\n")
+            # Credentials are stripped on the way to disk, not on the way out of
+            # it. The trace is durable and often shipped to a log backend, so a
+            # secret written here is a secret written permanently and in a place
+            # nobody re-reads. `redact_obj` walks the whole record because tool
+            # ARGUMENTS carry secrets at least as often as tool results.
+            self._fh.write(json.dumps(redact_obj(record), default=str) + "\n")
             self._fh.flush()
 
     def meta(self, record: dict) -> None:

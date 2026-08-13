@@ -122,7 +122,17 @@ class ExecutionSnapshot:
         not from the agent, and it is the one thing the supervisor must be able
         to trust completely.
         """
+        from .redact import redact
         from .sanitize import contains_injection_attempt, fence, sanitize
+
+        # Redact BEFORE sanitize, because sanitize truncates: a credential cut
+        # in half by a length limit is no longer recognisable to a pattern and
+        # would survive as a fragment. Both are needed and they answer different
+        # questions — sanitize asks "can this text control the supervisor",
+        # redact asks "is this text safe to transmit". This path posts the
+        # agent's tool output to a model provider, so it is egress like any other.
+        def safe(text, limit: int = 200) -> str:
+            return sanitize(redact(str(text or "")), limit)
 
         hostile = any(
             contains_injection_attempt(e.get("text")) or
@@ -132,12 +142,12 @@ class ExecutionSnapshot:
 
         lines = [
             f"ORIGINAL OBJECTIVE (system prompt): {self.original_goal}",
-            f"AGENT'S CURRENT INTERPRETED GOAL: {sanitize(self.current_goal) or '(unchanged)'}",
+            f"AGENT'S CURRENT INTERPRETED GOAL: {safe(self.current_goal) or '(unchanged)'}",
             f"STEP: {self.step} | TOKENS: {self.total_tokens} | COST: ${self.total_cost_usd:.4f}",
             f"RECENT GRAPH ROUTE: {' -> '.join(self.route_history[-8:])}",
             f"BREAKER TRIPPED BY: {self.trip_detector}",
-            f"REASON: {self.trip_reason}",
-            f"EVIDENCE: {json.dumps(self.trip_evidence, default=str)}",
+            f"REASON: {redact(str(self.trip_reason))}",
+            f"EVIDENCE: {redact(json.dumps(self.trip_evidence, default=str))}",
         ]
         if hostile:
             lines.append(
@@ -149,9 +159,9 @@ class ExecutionSnapshot:
         for e in self.recent_events[-8:]:
             tn = e.get("tool_name")
             if tn:
-                args = sanitize(json.dumps(e.get("tool_args") or {}, default=str), 200)
-                body.append(f"  - step {e.get('step')}: called {sanitize(tn, 60)}({args})")
+                args = safe(json.dumps(e.get("tool_args") or {}, default=str), 200)
+                body.append(f"  - step {e.get('step')}: called {safe(tn, 60)}({args})")
             elif e.get("text"):
-                body.append(f"  - step {e.get('step')}: {sanitize(e.get('text'), 200)}")
+                body.append(f"  - step {e.get('step')}: {safe(e.get('text'), 200)}")
         lines.append(fence("AGENT ACTIVITY", "\n".join(body)))
         return "\n".join(lines)
