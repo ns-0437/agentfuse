@@ -194,6 +194,28 @@ Off by default. Always checkpoints on a trip regardless of interval, since that'
 the state a crash most often follows and the costliest to lose — it carries the
 recovery ladder's position.
 
+### Spending real money
+
+`max_cost_usd` needs to know what your tokens cost. **Pass `model=`, or the
+ceiling cannot be enforced** — and it will say so rather than silently reporting
+`$0.00`:
+
+```python
+MonitorConfig(original_goal=GOAL, max_cost_usd=25.0, model="gpt-4.1")
+```
+
+An unknown model is **never priced at zero**. Unpriced tokens are counted
+separately, `cost_is_complete` goes false, and an unenforceable ceiling warns at
+construction. Prices go stale, so the bundled table is a dated convenience
+default — override it with no code change:
+
+```bash
+AGENTFUSE_PRICING_FILE=my_prices.json   # {"gpt-4.1": {"input_per_1m": 2.0, "output_per_1m": 8.0}}
+```
+
+These are guardrail estimates, not billing figures; they will not reconcile with
+an invoice.
+
 ### Low-level (any runtime)
 
 ```python
@@ -216,7 +238,7 @@ if d.kind is DirectiveKind.INJECT:
 | `DriftDetector` | Goal drift | Semantic similarity to the original objective drops below threshold for K turns (real embeddings, or offline lexical fallback) |
 | `NoProgressDetector` | Logical trap / stall | Many actions, zero change to working-state hash |
 | `RateOfProgressDetector` | Zeno trap — advancing every step, arriving never | A run of formally identical advances where one reported quantity is pinned while another climbs past it, and nothing counts down or approaches a total |
-| `SpendDetector` | Runaway cost | Cumulative token/$ ceiling (→ escalate) or burn-rate spike (→ steer) |
+| `SpendDetector` | Runaway cost | Cumulative token/$ ceiling (→ escalate) or burn-rate spike (→ steer). Pass `model=` so tokens can be priced — see below |
 
 ---
 
@@ -230,7 +252,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 135-test CI gate
+pytest evals/ -q                                  # 148-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,
@@ -559,6 +581,7 @@ agentfuse/
   embedding.py         local ONNX first, hosted second, lexical last
   memory.py            what was steered, and whether it worked
   checkpoint.py        durable run state — a restart keeps its ceiling
+  pricing.py           token -> USD, and never prices the unknown at zero
   strategies.py        the escalating ladder of interventions
   calibration.py       per-run thresholds learned from healthy stretches
   sanitize.py          agent/tool output is untrusted input

@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 63 commits · 135 tests green · 936 benchmark scenarios
+**As of 2026-08-13** · 66 commits · 148 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -246,7 +246,33 @@ now prove itself `json.dumps`-able individually, and `default=` coercion is gone
 dropping a value costs a counter that restarts, writing a corrupted one costs a
 supervisor that appears to restore and then breaks the run.
 
-### 4.7 A backspace that disabled a security defence
+### 4.7 The dollar ceiling was decorative
+
+`SpendDetector` has accepted `max_cost_usd` since the first commit. **Nothing ever
+populated `AgentEvent.cost_usd`**, so `_total_cost` stayed at 0.0 for the life of
+every run and the ceiling could not fire.
+
+Measured before the fix: a monitor with `max_cost_usd=1.0` burned **11,940,000
+tokens** without tripping once, reporting `$0.00` throughout. An operator who set
+a dollar budget got no protection at all, and nothing said so.
+
+The design decision that matters is what an *unknown* model costs. Returning
+`0.0` is convenient and rebuilds the bug exactly — spend accumulating at zero
+under a ceiling that never fires. So `estimate_cost` returns `None`, unpriced
+tokens are counted separately, `cost_is_complete` goes false, and an
+unenforceable ceiling **warns at construction**, while it can still be fixed.
+
+| Same workload, `max_cost_usd=1.0` | Result |
+|---|---|
+| no model (old behaviour) | no trip, `$0.00`, silent |
+| no model (now) | no trip, but **23,940,000 unpriced tokens**, `cost_is_complete=False` |
+| `model="gpt-4.1"` | **trips at step 6, $1.08**, 0 unpriced |
+
+The bundled table is a convenience default, not a source of truth: it carries an
+as-of date, `AGENTFUSE_PRICING_FILE` overrides it with no code change, and the
+figures are guardrail estimates that will not reconcile with an invoice.
+
+### 4.8 A backspace that disabled a security defence
 
 A shell heredoc wrote a literal `\x08` where `\b` was intended in an
 injection-detection regex — invisible to grep, editors, and file reads, and it
@@ -264,9 +290,9 @@ All sources are now scanned for control characters by a test.
 | **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — §3.3)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
 | **4 — Signal ladder** | logprobs, self-probe, activation probes | ❌ Not started |
-| **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ❌ · webhook escalation ❌ · PyPI ❌ | 🟡 3 of 6 |
+| **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ❌ · PyPI ❌ | 🟡 4 of 6 |
 
-**3 of 5 complete.** Phase 5 is in progress: thread-safety and SQLite checkpoints landed 2026-08-13.
+**3 of 5 complete.** Phase 5 is in progress: thread-safety, SQLite checkpoints and real cost accounting landed 2026-08-13.
 
 ---
 
@@ -317,7 +343,7 @@ python evals/run_eval.py --generated 40 --json    # full suite + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
 python evals/real_model.py --base-url …           # templates vs a real model
-pytest evals/ -q                                  # 135-test CI gate
+pytest evals/ -q                                  # 148-test CI gate
 ```
 
 No API key required, nothing billed. `evals/baseline.json` records every floor,
