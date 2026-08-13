@@ -21,7 +21,8 @@ from enum import Enum
 from typing import Optional
 
 from .events import AgentEvent, EventType, ExecutionSnapshot
-from .detectors import Detector, LoopDetector, DriftDetector, SpendDetector, NoProgressDetector
+from .detectors import (Detector, LoopDetector, DriftDetector, SpendDetector,
+                        NoProgressDetector, RateOfProgressDetector)
 from .calibration import AdaptiveCalibrator
 from .detectors.base import Severity
 from .recovery import RecoveryEngine, SteeringPath, RecoveryAction
@@ -56,6 +57,10 @@ class MonitorConfig:
     # Set an explicit float to override. See evals/results/REPORT.md.
     drift_threshold: Optional[float] = None
     stall_patience: int = 6
+    # Consecutive formally-identical state advances tolerated before a run that
+    # advances every step but converges on nothing is called out. Set to None to
+    # disable the rate detector entirely.
+    rate_patience: Optional[int] = 8
     max_tokens: Optional[int] = None
     max_cost_usd: Optional[float] = None
     burst_window: int = 6
@@ -86,6 +91,14 @@ class CircuitBreakerMonitor:
                 burst_tokens=config.burst_tokens,
             ),
         ]
+        # Last in the default list deliberately: it and SpendDetector can both
+        # have a claim on a run that advances every step while burning tokens,
+        # and on a tie the budget breach is the more actionable diagnosis.
+        # Only added when the caller took the defaults — appending a sensor to a
+        # hand-picked detector list would override an explicit choice, which is
+        # different from wiring up a detector the caller did ask for.
+        if detectors is None and config.rate_patience is not None:
+            self.detectors.append(RateOfProgressDetector(patience=config.rate_patience))
         # Calibration is owned by the monitor and injected into whatever
         # detectors it ends up with — including a caller-supplied list. Wiring it
         # only into the default-constructed set meant any custom detector list
@@ -103,6 +116,7 @@ class CircuitBreakerMonitor:
                 "loop_threshold": config.loop_threshold,
                 "drift_threshold": config.drift_threshold,
                 "stall_patience": config.stall_patience,
+                "rate_patience": config.rate_patience,
                 "max_tokens": config.max_tokens,
                 "max_cost_usd": config.max_cost_usd,
                 "max_recoveries": config.max_recoveries,
