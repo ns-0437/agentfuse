@@ -97,11 +97,12 @@ Quote the **family count**, never the effective *n*. A separate measured result:
 sweeping scenarios-per-generator across 40/20/10/5 moved effective *n* only 13→14
 — **only more independent families buy statistical power.**
 
-### 3.3 The central premise is unproven
+### 3.3 The central premise is disproven at every size we can test
 
 The project's claim is that a *separate reasoning model* writes better
-corrections than a fixed rule. Tested for the first time on 2026-08-13, paired on
-identical trip snapshots, against a local Qwen2.5-3B-Instruct Q4:
+corrections than a fixed rule. **It does not** — not at 3B, and not at 7B.
+First tested 2026-08-13, paired on identical trip snapshots, against a local
+Qwen2.5-3B-Instruct Q4:
 
 | | mock (templates) | real (Qwen 3B) |
 |---|---:|---:|
