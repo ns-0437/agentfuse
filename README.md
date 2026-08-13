@@ -4,7 +4,7 @@
 
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
-**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. Rebuilt 2026-08-14, and it now includes a **real Qwen2.5-7B run that the breaker caught three times and never rescued** — the failures are on the dashboard too, not just the successes.
+**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. Rebuilt automatically by CI on every green push, and it includes a **real Qwen2.5-7B run the breaker caught three times and never rescued** — the failures are on the dashboard too, not just the successes.
 
 **📄 [Full project report](REPORT.md)** — every result to date, phase status, and an
 honest readiness assessment, including the measurement showing the deterministic

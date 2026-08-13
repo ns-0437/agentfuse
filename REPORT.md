@@ -594,6 +594,18 @@ the front page because it ends badly — that is consistent with §3.3, and a
 dashboard showing only the runs that end well is a demo, not an observability
 tool.
 
+Rebuilding it also caught a **false claim**: the page advertised *"Real GPT Run —
+Live GPT model driving a real agent; supervised and self-healed."* That trace has
+**two records**, a header and one route event — the run that died on `429
+insufficient_quota`. No GPT model has ever driven an agent here. Removed.
+
+**It is no longer rebuilt by hand.** CI regenerates and publishes the dashboard on
+every push to main that passes the test matrix, the benchmark floors and the demo
+gate, committing only when the page actually changed. Making that safe required
+fixing determinism twice — embedded wall-clock timestamps, then CRLF/LF — both
+invisible while rebuilds were manual, both load-bearing the moment a machine
+started committing the output.
+
 ### 8.7 Known rough edges, unaddressed
 
 - **Checkpoints lose recent history.** `state()` saves counters, not the event
