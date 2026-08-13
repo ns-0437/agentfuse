@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 73 commits · 198 tests green · 936 benchmark scenarios
+**As of 2026-08-13** · 76 commits · 212 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -96,6 +96,24 @@ toward 1 by construction. The suite gained **one** generator family, 20 → 21.
 Quote the **family count**, never the effective *n*. A separate measured result:
 sweeping scenarios-per-generator across 40/20/10/5 moved effective *n* only 13→14
 — **only more independent families buy statistical power.**
+
+### 3.4 A measured signal that must not ship
+
+Phase 4 Tier 1 reads the model's own token logprobs. Measured against
+Qwen2.5-3B-Instruct-Q4, n=14 per condition:
+
+| condition | mean logprob | gap vs healthy | Cohen d | |
+|---|---:|---:|---:|---|
+| on_task | −0.686 (sd 0.068) | — | — | baseline |
+| stuck_loop | −0.775 | +0.089 | 0.87 | separates |
+| offtopic | −0.830 | +0.144 | 1.44 | separates |
+| trap | −0.842 | +0.156 | 1.68 | separates |
+| **ambiguous** *(control)* | −0.707 | +0.022 | 0.28 | **control holds** |
+
+The signal is real and it tracks *failure*, not *difficulty* — the healthy-but-hard
+control did not drop. **And the detector is still harmful**: ablation puts it at
+**ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
+ships off by default. See §4.11 for why, because the reason generalises.
 
 ### 3.3 The central premise is unproven
 
@@ -348,7 +366,32 @@ One of my tests was wrong and the adapter was right: `supervisor_node` returning
 a partial dict is correct LangGraph convention. I corrected the test, not the
 code.
 
-### 4.11 A backspace that disabled a security defence
+### 4.11 A large effect size is not a usable detector
+
+Phase 4 Tier 1 produced the cleanest example in the project of a measurement that
+was necessary and nowhere near sufficient.
+
+Against a real model, all three failure modes separated from healthy reasoning
+beyond their 95% intervals, and the ambiguous-but-healthy control did *not* drop —
+so the signal genuinely tracks failure rather than difficulty (§3.4). By the usual
+standards that is a good result: Cohen's d up to 1.68.
+
+Then leave-one-out put it at **ΔF1 +10.8 for removing it.** Recall was identical
+(97.6% either way — it caught nothing the behavioural detectors missed) and it
+cost **118 extra false positives**, FPR 1.2% → 26.7%.
+
+**Why:** d ≈ 1.4 still leaves heavy per-turn overlap. A controlled comparison
+aggregates over a whole generation; a detector must decide on *every turn*, and
+across a long run even a three-consecutive-turn requirement fires constantly on
+healthy work. **Base rate and run length dominate effect size.**
+
+Two of my own errors were corrected en route. The default threshold was an
+absolute 0.6 nats against real gaps of 0.09–0.16, so it could never have fired —
+a detector tuned above its own effect size, the same defect `NoProgressDetector`
+had. And the first analysis compared two means against a flat cut-off and called
+a 0.16 gap "usable" at n=6 with sd 0.10–0.16.
+
+### 4.12 A backspace that disabled a security defence
 
 A shell heredoc wrote a literal `\x08` where `\b` was intended in an
 injection-detection regex — invisible to grep, editors, and file reads, and it
@@ -488,7 +531,12 @@ the only complete answer for a sensitive deployment.
 - **Async is untested under load.** `observe()` is synchronous and called from
   async hooks. It works; it has never been profiled with concurrent agents.
 
-### 8.7 Phase 4 does not exist
+### 8.7 Phase 4 — Tier 1 built and measured, Tier 2 blocked
+
+**Tier 1 (token logprobs) is built, measured, and deliberately shipped OFF.** The
+result is in §3.4. Tier 2 (activation probes, ESR's actual method) needs
+open-weight internals and `torch` is broken in this environment — a genuine block,
+not a choice.
 
 The signal ladder — logprob-based confidence, self-probing, activation probes —
 has **zero lines of code**. It was deferred deliberately: it layers a research
@@ -516,7 +564,7 @@ python evals/run_eval.py --generated 40 --json    # full suite + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
 python evals/real_model.py --base-url …           # templates vs a real model
-pytest evals/ -q                                  # 198-test CI gate
+pytest evals/ -q                                  # 212-test CI gate
 ```
 
 No API key required, nothing billed. `evals/baseline.json` records every floor,
