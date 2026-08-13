@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
+from ..confidence import _token_logprobs, summarize
 from ..events import AgentEvent, EventType
 from ..monitor import CircuitBreakerMonitor, MonitorConfig, DirectiveKind
 
@@ -25,6 +26,7 @@ def guarded_tool_loop(
     max_turns: int = 40,
     monitor: Optional[CircuitBreakerMonitor] = None,
     tool_choice: Any = "auto",
+    logprobs: bool = False,
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
@@ -53,6 +55,13 @@ def guarded_tool_loop(
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = tool_choice
+        if logprobs:
+            # top_logprobs is not redundant: llama.cpp's server returns
+            # logprobs=None unless it is set, which makes a live signal look
+            # absent. Off by default — most callers do not want the extra
+            # payload, and a detector that reads it is opt-in too.
+            kwargs["logprobs"] = True
+            kwargs["top_logprobs"] = 1
         resp = client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
         usage = getattr(resp, "usage", None)
@@ -60,9 +69,19 @@ def guarded_tool_loop(
         tout = getattr(usage, "completion_tokens", 0) if usage else 0
 
         msg = choice.message
+        # The agent's own confidence on THIS turn, attached to the event so a
+        # supervisor can read it. This is the only place it can be captured —
+        # once the response is discarded the signal is gone — and it is what
+        # makes the internal/external merge measurable at all.
+        meta: dict = {}
+        if logprobs:
+            stats = summarize(_token_logprobs(getattr(choice, "logprobs", None)))
+            if stats:
+                meta["confidence"] = stats
         directive = mon.observe(AgentEvent(
             type=EventType.LLM_CALL, step=step, text=msg.content or "",
             tokens_in=tin, tokens_out=tout, goal=msg.content or None,
+            meta=meta,
         ))
         # Append a CLEAN assistant message rather than the raw model_dump().
         #
