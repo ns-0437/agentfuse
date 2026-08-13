@@ -46,14 +46,23 @@ class FuseCallbackHandler:
     def on_tool_start(self, serialized: dict, input_str: str, **kwargs: Any) -> None:
         self._step += 1
         name = (serialized or {}).get("name", "tool")
+        # LangChain's on_tool_end does not tell us which tool finished, so the
+        # name is carried over from the start callback. Without it the result
+        # event had tool_name=None: the loop detector could not match the result
+        # to the call that produced it, so it never formed a pair and never
+        # fired, and no trip could ever name the offending tool.
+        self._inflight_tool = name
+        self._inflight_node = kwargs.get("name", "agent")
         self._observe(AgentEvent(
             type=EventType.TOOL_CALL, step=self._step, tool_name=name,
-            tool_args={"input": input_str}, node=kwargs.get("name", "agent"),
+            tool_args={"input": input_str}, node=self._inflight_node,
         ))
 
     def on_tool_end(self, output: Any, **kwargs: Any) -> None:
         self._observe(AgentEvent(
             type=EventType.TOOL_RESULT, step=self._step, text=str(output)[:200],
+            tool_name=getattr(self, "_inflight_tool", None),
+            node=getattr(self, "_inflight_node", "agent"),
             state={"tool_output": str(output)[:200]},
         ))
 

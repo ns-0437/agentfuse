@@ -122,6 +122,7 @@ class LoopDetector(Detector):
         self._pending: dict[str, str] = {}
         self._pending_meta: dict[str, dict] = {}
         self._last_progress_step = 0
+        self._last_state_hash: Optional[str] = None
 
     # ------------------------------------------------------------------
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
@@ -134,7 +135,23 @@ class LoopDetector(Detector):
         # this detector never reset on genuine progress — a real bug the
         # benchmark could not see, because the benchmark emitted the event the
         # detector happened to want.
-        if event.state is not None:
+        # A CHANGED state hash — not the mere presence of a state payload.
+        #
+        # This distinction is the whole bug. Adapters attach `state` to every
+        # tool result they emit, because they cannot know whether the call
+        # achieved anything. Clearing on presence therefore reset this detector
+        # after every single tool result, so `_on_result` never ran, no pair was
+        # ever formed, and the loop detector was INERT in production: measured at
+        # 11 identical calls returning identical results with `_pairs` still 0.
+        # The progress detector caught those runs as a backstop and named the
+        # wrong cause, so the steer said "you are busy but not moving" instead of
+        # "stop calling search_files".
+        #
+        # Presence is not progress. An identical result yields an identical hash,
+        # which is exactly the signal that nothing advanced.
+        h = event.state_hash
+        if h is not None and h != self._last_state_hash:
+            self._last_state_hash = h
             self._last_progress_step = event.step
             self._pairs.clear()
             self._signatures.clear()
@@ -155,6 +172,14 @@ class LoopDetector(Detector):
             return None
 
         lane = _lane(event)
+        # Bound the in-flight map. With an explicit call id every lane is unique,
+        # so a call that never produces a result leaks one entry — harmless once,
+        # unbounded across a run measured in days. Dicts keep insertion order, so
+        # the oldest unmatched call is the one to drop.
+        if len(self._pending) >= self.window * 4:
+            oldest = next(iter(self._pending))
+            self._pending.pop(oldest, None)
+            self._pending_meta.pop(oldest, None)
         self._pending[lane] = sig
         self._pending_meta[lane] = {"tool": event.tool_name, "args": event.tool_args,
                                     "step": event.step}

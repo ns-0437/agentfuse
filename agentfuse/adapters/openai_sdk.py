@@ -70,16 +70,30 @@ def guarded_tool_loop(
             d = mon.observe(AgentEvent(
                 type=EventType.TOOL_CALL, step=step,
                 tool_name=tc.function.name, tool_args=args,
+                # The SDK's own call id, carried on both the call and its
+                # result. It is what lets the breaker pair them exactly when the
+                # model issues several tool calls in one turn, which it does by
+                # default. It must be on both events or the pair never matches.
+                meta={"call_id": tc.id},
             ))
             if _apply_directive(mon, d, messages) == "stop":
                 return mon.finish("escalated")
 
             result = tool_router(tc.function.name, args)
-            mon.observe(AgentEvent(
+            d = mon.observe(AgentEvent(
                 type=EventType.TOOL_RESULT, step=step,
                 tool_name=tc.function.name, text=str(result)[:200],
                 state={"last_tool": tc.function.name, "result": str(result)[:200]},
+                meta={"call_id": tc.id},
             ))
+            # The directive from the RESULT was previously discarded. That is
+            # where the loop detector now fires — it deliberately waits for the
+            # outcome rather than judging a call it has not seen the result of —
+            # so dropping it meant steering was generated, logged, and never
+            # actually applied. The trace showed a recovery; the agent never
+            # received one.
+            if _apply_directive(mon, d, messages) == "stop":
+                return mon.finish("escalated")
             messages.append({
                 "role": "tool", "tool_call_id": tc.id, "content": str(result),
             })
