@@ -35,6 +35,7 @@ from agentfuse import (  # noqa: E402
 )
 from agentfuse.detectors import (  # noqa: E402
     Detector, LoopDetector, DriftDetector, NoProgressDetector, SpendDetector,
+    RateOfProgressDetector,
 )
 from agentfuse.recovery import RecoveryEngine  # noqa: E402
 
@@ -55,6 +56,7 @@ DEFAULT_CONFIG = {
     # model failure rather than a config bug.
     "drift_threshold": None,
     "stall_patience": 6,
+    "rate_patience": 8,
     "max_tokens": 100_000,
     "max_cost_usd": None,
     "burst_window": 6,
@@ -108,6 +110,11 @@ def build_detectors(scenario: Scenario, cfg: dict,
                                    max_cost_usd=cfg["max_cost_usd"],
                                    burst_window=cfg["burst_window"],
                                    burst_tokens=cfg["burst_tokens"]))
+    # Last, mirroring MonitorConfig's default ordering: on an event both this and
+    # the spend detector could claim, the budget breach is the more actionable
+    # diagnosis. Ablation keys on the name, so "rate" can be dropped like any other.
+    if "rate" not in disabled and cfg.get("rate_patience") is not None:
+        built.append(RateOfProgressDetector(patience=cfg["rate_patience"]))
     if extra:
         built.extend(extra)
     return built
@@ -264,6 +271,7 @@ def run_scenario(scenario: Scenario,
                              loop_threshold=cfg["loop_threshold"],
                              drift_threshold=cfg["drift_threshold"],
                              stall_patience=cfg["stall_patience"],
+                             rate_patience=cfg["rate_patience"],
                              max_tokens=cfg["max_tokens"],
                              max_cost_usd=cfg["max_cost_usd"],
                              burst_window=cfg["burst_window"],

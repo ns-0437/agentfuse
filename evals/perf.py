@@ -145,10 +145,10 @@ def run_latency_suite(n_per_generator: int = 8, seed: int = 20260812) -> list[La
     scenarios = generate_suite(n_per_generator=n_per_generator, seed=seed)
     measure("warmup", scenarios[:20])  # prime imports/caches before timing
     out = [measure("all detectors", scenarios)]
-    for name in ("loop", "drift", "progress", "spend"):
+    for name in ("loop", "drift", "progress", "rate", "spend"):
         out.append(measure(f"without {name}", scenarios, disabled={name}))
     out.append(measure("monitor only (no detectors)", scenarios,
-                       disabled={"loop", "drift", "progress", "spend"}))
+                       disabled={"loop", "drift", "progress", "rate", "spend"}))
     # The rare path, measured separately: a trip runs the whole recovery engine.
     out.append(measure("TRIP handling (rare path)", scenarios, include_trips=True))
     return out

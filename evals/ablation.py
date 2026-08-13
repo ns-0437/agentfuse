@@ -41,7 +41,7 @@ from .metrics import Metrics, score
 from .runner import run_suite
 from .schema import CostModel, DEFAULT_COST, Scenario
 
-DETECTOR_NAMES = ["loop", "drift", "progress", "spend"]
+DETECTOR_NAMES = ["loop", "drift", "progress", "rate", "spend"]
 
 
 class RandomControlDetector(Detector):

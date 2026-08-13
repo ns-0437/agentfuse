@@ -74,11 +74,14 @@ def gen_partial_progress_trap(rng: random.Random, idx: int) -> Scenario:
         title=f"Partial-progress trap ({d['key']})",
         family="progress", goal=d["goal"], steps=steps,
         description="Advances on every step; converges on none.",
-        label=Label(should_trip=True, detector="progress", onset_index=onset,
-                    detect_by_index=onset + 14, known_gap=True,
-                    note=("KNOWN GAP: every step advances state, so a binary "
-                          "progress signal never fires. Needs a RATE-of-progress "
-                          "measure — is the remaining work actually shrinking?")),
+        label=Label(should_trip=True, detector="rate", onset_index=onset,
+                    detect_by_index=onset + 14,
+                    note=("Was a documented KNOWN GAP: every step advances state, "
+                          "so the binary progress signal is structurally unable to "
+                          "fire. Closed by RateOfProgressDetector, which asks "
+                          "whether the trace carries evidence that the remaining "
+                          "work is shrinking. Paired with gen_benign_batch, which "
+                          "is the same shape and genuinely converging.")),
         recovery_branch=_recovery_steps(rng, d), responds_to=_responds_to(rng),
     )
 
@@ -158,5 +161,45 @@ def gen_benign_verification_heavy(rng: random.Random, idx: int) -> Scenario:
     )
 
 
+def gen_benign_batch(rng: random.Random, idx: int) -> Scenario:
+    """A long batch job: identical-shaped advances, but genuinely converging.
+
+    The hard negative for the rate-of-progress detector, and the reason that
+    detector cannot simply trip on "the same thing over and over". Structurally
+    this is ``gen_partial_progress_trap``: dozens of consecutive advances, every
+    result the same sentence with a different number in it. Superficially there
+    is no difference at all.
+
+    The one difference is the one that matters — this run reports what is LEFT.
+    A real batch job knows its own denominator, so its trace carries a countdown
+    and a total being approached, while a Zeno trap carries only a cursor
+    climbing against nothing. If the detector ever trips here it is reading
+    repetition as failure, which is the exact mistake that gets guardrails
+    switched off.
+    """
+    d = rng.choice(DOMAINS)
+    total = rng.choice([120, 240, 500])
+    steps: list[StepSpec] = []
+    n = rng.randint(10, 16)
+    for i in range(n):
+        ti, to = _tokens(rng)
+        done = (i + 1) * (total // (n + 1))
+        steps.append(tool(rng.choice(d["tools"]), {"cursor": i},
+                          result=f"processed {done} of {total} records; "
+                                 f"{total - done} remaining",
+                          progress=True, tokens_in=ti, tokens_out=to))
+    return Scenario(
+        id=f"gen_batch_{idx:04d}",
+        title=f"Converging batch job ({d['key']})",
+        family="benign", goal=d["goal"], steps=steps,
+        config={"max_tokens": 400_000},
+        description="Repetitive identical-shaped progress that is genuinely finishing.",
+        label=Label(should_trip=False,
+                    note=("Repetition WITH a shrinking remainder is a batch job. "
+                          "Hard negative for the rate-of-progress detector.")),
+    )
+
+
 EXTRA_POSITIVES = [gen_oscillating_plan, gen_partial_progress_trap, gen_context_bloat]
-EXTRA_NEGATIVES = [gen_benign_error_then_pivot, gen_benign_verification_heavy]
+EXTRA_NEGATIVES = [gen_benign_error_then_pivot, gen_benign_verification_heavy,
+                   gen_benign_batch]
