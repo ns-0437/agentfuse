@@ -22,7 +22,8 @@ The design principle: **the thing judging the run is never the thing performing
 it.** An agent in a logical trap is the worst available judge of its own trap.
 
 Five detectors, one engine, three runtime adapters (OpenAI AgentKit via real
-`RunHooks`, plain OpenAI SDK, LangGraph).
+`RunHooks`, plain OpenAI SDK, LangGraph) — though only the AgentKit adapter has
+tests; see §8.3.
 
 ---
 
@@ -349,7 +350,10 @@ Verified against the code, not asserted:
 | Persistence / checkpoints | **Fixed 2026-08-13** (§4.7). SQLite checkpoints; a resumed run keeps its spend ceiling, loop counters and calibration baseline |
 | Thread / async safety | **Fixed 2026-08-13** (§4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
-| Real-model validation | Supervisor half only, with a 3B model; agent obedience still synthetic |
+| Real-model validation | Supervisor half only, with a 3B model that LOST to the templates; agent obedience still synthetic (§8.1, §8.2) |
+| Adapter coverage | **1 of 3.** `openai_sdk` and `langgraph` have no tests at all (§8.3) |
+| CI / portability | **None.** One Windows machine, one Python version (§8.4) |
+| Secret redaction | **None.** Credentials in tool output reach disk and the webhook (§8.5) |
 | Prompt-injection hardening | Done — sanitise, fence, trust-boundary clause, 15 tests |
 | Cost safety | Done — `AGENTFUSE_OFFLINE`, $0 ever spent on this project |
 
@@ -363,6 +367,9 @@ production-grade, and the headline claim is still unvalidated.
 
 ## 7. What would move it forward, in order
 
+0. **Test the two untested adapters** (§8.3) and **redact secrets** (§8.5).
+   These are the gaps between what the README claims and what is demonstrated,
+   and they are cheap.
 1. **Settle §3.3 with a larger model.** If a 7B closes the gap it is a model-size
    problem; if it does not, the honest product is the *deterministic ladder plus
    detectors* — simpler, and still valuable. Everything downstream depends on
@@ -378,7 +385,103 @@ production-grade, and the headline claim is still unvalidated.
 
 ---
 
-## 8. Reproducing everything here
+## 8. What has NOT been done
+
+Written deliberately, because a report that only lists what was built is a sales
+document. Each entry below was verified against the code while writing this, not
+recalled.
+
+### 8.1 The central premise is still unproven
+
+The claim is that a *separate reasoning model* writes better corrections than a
+fixed rule. One model has ever been tested — a local 3B — and **it lost to the
+templates, 100% usable vs 25%** (§3.3). The reasoning models the design actually
+assumes have never been run: no `o4-mini`, no 7B, nothing.
+
+This is **not** a hardware limitation, and it would be convenient to pretend it
+was. The 3B ran on **CPU**; the GPU was never involved. The machine has 15.2 GB
+of RAM and a 7B-Q4 needs ~4.4 GB, so the decisive experiment fits and costs
+nothing but ~25 minutes. It is undone because we chose to move on, not because we
+couldn't.
+
+### 8.2 Half the recovery loop has never been real
+
+Even in the one real-model test, whether the agent **obeys** a steer came from the
+scenario's synthetic `responds_to` field. The supervisor half is now real; the
+agent half never has been. `steering_usable = 100%` also remains circular by
+construction — the rubric was written alongside the templates it scores — and no
+human has ever assessed steering quality.
+
+### 8.3 Two of the three advertised runtimes are untested
+
+The README says *"One engine. Three runtimes."* Verified test coverage:
+
+| Adapter | Tests |
+|---|---|
+| `agentkit_hooks` | ✅ `test_adapters.py`, 6 real-SDK tests |
+| `openai_sdk` | ❌ **none** |
+| `langgraph` | ❌ **none** |
+
+Both untested adapters are advertised in the README and neither has ever been
+executed. That is the single largest gap between what is claimed and what is
+demonstrated.
+
+### 8.4 No CI, one machine, one Python
+
+There is no `.github/workflows`. Every test result in this report comes from a
+**single Windows machine on Python 3.11**. The library claims `requires-python
+>=3.9` and has never been run on 3.9, 3.10, 3.12, Linux, or macOS.
+
+### 8.5 Secrets are not redacted anywhere
+
+`sanitize.py` defends against prompt injection. It does **not** redact
+credentials. Tool results flow verbatim into the JSONL trace on disk and, since
+webhook escalation landed, into an outbound HTTP POST. An agent that reads an API
+key, a token, or a connection string will write it to both. `escalation_include_agent_text=False`
+is the only mitigation and it is all-or-nothing.
+
+This is the most serious open item in this section.
+
+### 8.6 Known rough edges, unaddressed
+
+- **Checkpoints lose recent history.** `state()` saves counters, not the event
+  list, so after a restore the supervisor's first snapshot has an empty
+  `recent_events` and reasons with less context than it would have had.
+- **No checkpoint retention.** The SQLite file grows without bound; nothing
+  prunes finished runs.
+- **`JSONMemory._flush()` rewrites the entire file on every write** — O(n) per
+  record. Fine at hundreds, not at hundreds of thousands.
+- **`QdrantMemory` is barely exercised** — it had two never-executed bugs when
+  first run, and it is still only lightly covered.
+- **No webhook authentication** beyond custom headers — no HMAC signing, so a
+  receiver cannot verify the escalation came from us.
+- **Shared-monitor multi-agent is unsolved.** Locks made it safe; they did not
+  make it meaningful. One monitor per agent run is still the only supported model.
+- **Async is untested under load.** `observe()` is synchronous and called from
+  async hooks. It works; it has never been profiled with concurrent agents.
+
+### 8.7 Phase 4 does not exist
+
+The signal ladder — logprob-based confidence, self-probing, activation probes —
+has **zero lines of code**. It was deferred deliberately: it layers a research
+direction on top of the steering premise in §8.1, which is unproven.
+
+### 8.8 Genuinely blocked by this environment
+
+Short, and worth separating from the above so the distinction stays honest:
+
+- **No OpenAI credits.** A money constraint, not a hardware one. $0 has ever been
+  spent on this project.
+- **`torch` is broken** (DLL load failure), so `sentence-transformers` and
+  anything requiring it — EmbeddingGemma among them — cannot run. Worked around
+  with ONNX via `fastembed`.
+- **A 70B-class model will not run** on 15.2 GB of RAM.
+
+Everything else in §8 is a choice, not a limit.
+
+---
+
+## 9. Reproducing everything here
 
 ```bash
 python evals/run_eval.py --generated 40 --json    # full suite + ablation
