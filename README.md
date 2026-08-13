@@ -484,7 +484,10 @@ Paired on identical trip snapshots, **Qwen2.5-3B-Instruct Q4** against the templ
 | diagnostic | 35% | 25% |
 | latency | ~0 ms | 19.3 s |
 
-**The templates win, decisively.** A bias was found on each side and fixed before
+**The templates win, decisively — and scaling the model does not fix it.** A 7B
+was run to test the obvious defence that 3B is simply too small: usable rate went
+25% → 30% (native chat format) or 40% (function-calling format), against the
+templates' 100%. Five to fifteen points against a seventy-point deficit. A bias was found on each side and fixed before
 publishing this, because a result this unflattering deserves a real attempt to
 overturn it:
 
@@ -508,12 +511,13 @@ action, the model forbade *the objective*:
 A weak supervisor does not merely fail to help — it can instruct the agent to
 abandon its task.
 
-**What this does and does not establish.** It does *not* show that
-reasoning-model steering is a bad idea: a 3B Q4 model is the floor of what could
-plausibly work, and the reasoning models the design assumes are untested. The
-mock's 100% also remains circular. What it does establish is that **the ladder
-templates have been carrying the recovery numbers all along**, and that the
-central premise is still unproven rather than supported.
+**What this establishes.** The ladder templates have been carrying the recovery
+numbers all along, and **scaling the model does not change that**. The driver is
+`actionable`: asked for a concrete correction, the 7B restates the objective
+(*"Rotate the production database credential and update the app config."*), which
+prescribes nothing. The honest product is the deterministic ladder plus the
+detectors. Frontier reasoning models remain untested — for want of credits, not
+for want of trying — and the mock's 100% is still circular by construction.
 
 Getting an honest number needed three pieces of engineering, each found by
 running it: self-hosted servers speak `/v1/chat/completions`, not the Responses

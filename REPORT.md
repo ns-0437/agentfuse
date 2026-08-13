@@ -128,10 +128,29 @@ model forbade the *objective*: *"Do not repeat any steps involving credential
 rotation or updating app config until you receive further instructions from a
 human."* A weak supervisor can instruct the agent to abandon its task.
 
-**This does not prove reasoning-model steering is a bad idea** — a 3B Q4 model is
-the floor of what could work. It proves the **ladder templates have been carrying
-the recovery numbers all along**, and that the premise is untested rather than
-supported.
+**Settled 2026-08-14 by scaling the model.** The obvious defence of the 3B result
+was that 3B is simply too small. It is not the explanation:
+
+| | usable | quality | actionable |
+|---|---:|---:|---:|
+| templates (mock) | **100%** | 89.2% | 100% |
+| Qwen2.5-3B-Q4 | 25% | 74.2% | 60% |
+| Qwen2.5-7B-Q4 *(native format)* | 30% | 75.0% | **35%** |
+| Qwen2.5-7B-Q4 *(fn-calling format)* | 40% | 78.3% | 50% |
+
+Both 7B chat formats were run on purpose: the first showed bare goal
+restatements, which could have been an artifact of running under a tool-calling
+handler with a JSON grammar. They agree.
+
+**The driver is `actionable`.** Asked for a concrete corrective instruction, the
+7B answers with a restatement of the objective — *"Rotate the production database
+credential and update the app config."* — which prescribes nothing. That is not a
+rubric artifact; `_ACTIONABLE` was already widened once to remove template bias.
+
+**So the ladder templates have been carrying the recovery numbers all along, and
+scaling does not change that.** The honest product is the deterministic ladder
+plus the detectors. Frontier reasoning models remain untested for want of
+credits.
 
 ### 3.4 A measured signal that must not ship
 
@@ -510,18 +529,17 @@ Written deliberately, because a report that only lists what was built is a sales
 document. Each entry below was verified against the code while writing this, not
 recalled.
 
-### 8.1 The central premise is still unproven
+### 8.1 The central premise is disproven at every size we can test — **SETTLED**
 
 The claim is that a *separate reasoning model* writes better corrections than a
-fixed rule. One model has ever been tested — a local 3B — and **it lost to the
-templates, 100% usable vs 25%** (§3.3). The reasoning models the design actually
-assumes have never been run: no `o4-mini`, no 7B, nothing.
+fixed rule. Both a 3B and a 7B have now been run, and **both lost to the
+templates** (§3.3). Scaling bought 5–15 points against a 70-point deficit.
 
-This is **not** a hardware limitation, and it would be convenient to pretend it
-was. The 3B ran on **CPU**; the GPU was never involved. The machine has 15.2 GB
-of RAM and a 7B-Q4 needs ~4.4 GB, so the decisive experiment fits and costs
-nothing but ~25 minutes. It is undone because we chose to move on, not because we
-couldn't.
+The honest product is therefore **the deterministic ladder plus the detectors**.
+The reasoning-model layer does not earn its place at any size testable here.
+
+Still genuinely open: frontier reasoning models, for want of credits rather than
+want of trying.
 
 ### 8.2 Half the recovery loop has never been real
 
