@@ -105,10 +105,20 @@ jobs:
       - run: pip install -e .
       # The README's first promise is "clone and run, no API key". If these
       # break, the project's front door is broken, and no unit test covers that.
-      - name: Offline demos
+      #
+      # Exit code is NOT enough, and that is not hypothetical: demo_drift.py
+      # hard-coded drift_threshold=0.45, which is unreachable once similarities
+      # come from embeddings (0.6-0.8). It exited 0 for weeks while tripping
+      # nothing — a demo of nothing, passing CI. Each demo must now prove it
+      # actually TRIPPED.
+      - name: Offline demos actually demonstrate something
         env:
           AGENTFUSE_OFFLINE: "1"
         run: |
-          python examples/demo_loop_trap.py
-          python examples/demo_drift.py
-          python examples/demo_escalation.py
+          set -e
+          for d in demo_loop_trap demo_drift demo_escalation; do
+            echo "--- $d"
+            python "examples/$d.py" | tee "/tmp/$d.out"
+            grep -q "CIRCUIT BREAKER TRIPPED" "/tmp/$d.out" \
+              || { echo "::error::$d ran but never tripped the breaker"; exit 1; }
+          done

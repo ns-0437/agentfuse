@@ -48,7 +48,14 @@ def main() -> None:
     print(f"OBJECTIVE: {GOAL}\n")
 
     monitor = CircuitBreakerMonitor(MonitorConfig(
-        original_goal=GOAL, drift_threshold=0.45, max_recoveries=3,
+        # No drift_threshold here on purpose: None lets the detector pick the
+        # value for whichever mode it resolves to. This demo hard-coded 0.45,
+        # which was right for the lexical fallback and IMPOSSIBLE for embeddings
+        # — those similarities sit around 0.6-0.8, so 0.45 can never be crossed.
+        # The demo therefore stopped tripping the moment local embeddings landed
+        # and quietly became a demo of nothing. Exactly the same mistake had
+        # already been found and fixed in the eval harness; nobody checked here.
+        original_goal=GOAL, max_recoveries=3,
         jsonl_path="runs/drift.jsonl",
     ))
 
