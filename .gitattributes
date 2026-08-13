@@ -1,0 +1,25 @@
+# Normalise line endings to LF in the repository.
+#
+# Not cosmetic. The dashboard is now rebuilt and committed by CI on every green
+# push to main. CI runs on Linux and writes LF; a Windows checkout writes CRLF.
+# Without this the two disagree on 301 lines of an otherwise BYTE-IDENTICAL
+# file, so every CI run commits "changes" that are nothing but line endings, and
+# every local rebuild commits them straight back — an endless ping-pong of no-op
+# commits, and the real signal ("did the dashboard actually change?") lost
+# inside it. That happened once, in e96d907, which is why this file exists.
+* text=auto eol=lf
+
+# Generated artefacts that must be byte-identical across platforms, since the
+# publish step compares them.
+*.html text eol=lf
+*.jsonl text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+
+# Never touch these.
+*.gif binary
+*.png binary
+*.gguf binary
+*.db binary

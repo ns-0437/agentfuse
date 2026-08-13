@@ -406,10 +406,16 @@ def main() -> None:
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n"
             f"<title>{TITLE}</title>\n{STYLE}\n</head>\n<body>\n{BODY}\n{script}\n</body>\n</html>\n")
     OUT_FULL.parent.mkdir(parents=True, exist_ok=True)
-    OUT_FULL.write_text(full, encoding="utf-8")
-    OUT_ARTIFACT.write_text(inner, encoding="utf-8")
+    # LF on every write, explicitly. Python translates "\n" to "\r\n" on
+    # Windows by default, so identical source produced different BYTES on
+    # Windows and Linux. Now that CI rebuilds this file and commits it when
+    # it changes, that difference alone made every CI run commit 301 line
+    # endings and every local rebuild commit them straight back.
+    # .gitattributes papers over it; writing LF at the source is the fix.
+    OUT_FULL.write_text(full, encoding="utf-8", newline="\n")
+    OUT_ARTIFACT.write_text(inner, encoding="utf-8", newline="\n")
     OUT_PAGES.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PAGES.write_text(full, encoding="utf-8")
+    OUT_PAGES.write_text(full, encoding="utf-8", newline="\n")
     total = sum(len(r["records"]) for r in runs)
     print(f"Standalone : {OUT_FULL}")
     print(f"Artifact   : {OUT_ARTIFACT}")
