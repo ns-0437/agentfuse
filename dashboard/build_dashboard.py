@@ -41,7 +41,13 @@ CATALOG = {
     "drift.jsonl": ("Goal Drift", "Agent wanders off-objective; the breaker re-anchors it.", "drift"),
     "escalation.jsonl": ("Human Escalation", "An unrecoverable failure; the breaker hands control to a human.", "escalate"),
     "real_agentkit.jsonl": ("Real AgentKit Run", "Live openai-agents Runner + real hooks — a real run that self-healed.", "real"),
-    "real_gpt.jsonl": ("Real GPT Run", "Live GPT model driving a real agent; supervised and self-healed.", "real"),
+    # "real_gpt.jsonl" is deliberately ABSENT, and its removal is the single
+    # most important edit in this file. It was captioned "Live GPT model driving
+    # a real agent; supervised and self-healed." The trace contains TWO records:
+    # a header and one route event. The run died immediately on a 429
+    # insufficient_quota and no GPT model has ever driven an agent in this
+    # project. The dashboard was asserting, on the front page, a result that
+    # never happened. Stale is bad; untrue is worse.
     # The only run here the breaker did NOT rescue, and it stays on the
     # dashboard for that reason. A real Qwen2.5-7B, given a tool result that
     # answered its question, called the same tool with the same arguments ten
@@ -368,9 +374,18 @@ def load_runs() -> list[dict]:
             if not line:
                 continue
             try:
-                records.append(json.loads(line))
+                rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            # Drop wall-clock timestamps before embedding. Nothing in the page
+            # reads them, and leaving them in made the build NON-DETERMINISTIC:
+            # rebuilding an unchanged project produced a different file every
+            # time. That matters now the dashboard is rebuilt by CI on every
+            # push — without this, every push would commit a "change" that was
+            # nothing but the clock, and the one signal worth having (did the
+            # dashboard actually change?) would be buried.
+            rec.pop("ts", None)
+            records.append(rec)
         if not records:
             continue
         title, subtitle, kind = CATALOG.get(
