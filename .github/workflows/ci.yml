@@ -112,6 +112,7 @@ jobs:
       # nothing — a demo of nothing, passing CI. Each demo must now prove it
       # actually TRIPPED.
       - name: Offline demos actually demonstrate something
+        id: demos
         env:
           AGENTFUSE_OFFLINE: "1"
         run: |
@@ -122,3 +123,75 @@ jobs:
             grep -q "CIRCUIT BREAKER TRIPPED" "/tmp/$d.out" \
               || { echo "::error::$d ran but never tripped the breaker"; exit 1; }
           done
+
+  # ---------------------------------------------------------------- deploy
+  # The dashboard is the project's front page, and it silently went a MONTH
+  # stale — long enough that rebuilding it surfaced a demo which had not
+  # tripped since local embeddings landed. Nothing caught that, because the
+  # rebuild was a command someone had to remember to run.
+  #
+  # So it is no longer a command anyone has to remember. Every push to main
+  # that passes tests, benchmark floors and the demo gate regenerates the
+  # dashboard from freshly executed runs and publishes it.
+  #
+  # Deliberately NOT here: publishing to PyPI. A release is irreversible —
+  # the version number can never be reused — and "every green push" is the
+  # wrong trigger for something that cannot be taken back. That stays manual
+  # and tag-driven.
+  deploy-dashboard:
+    name: rebuild + publish dashboard
+    needs: [test, benchmark, demos]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # to commit the rebuilt page back to main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+
+      # runs/ is gitignored — generated traces do not belong in version
+      # control — so the demo runs are regenerated here from current code.
+      # That is the point: the dashboard can never again show a system older
+      # than the commit that produced it.
+      - name: Generate demo runs
+        env:
+          AGENTFUSE_OFFLINE: "1"
+        run: |
+          python examples/demo_loop_trap.py > /dev/null
+          python examples/demo_drift.py > /dev/null
+          python examples/demo_escalation.py > /dev/null
+
+      # The captured REAL model traces are committed artifacts, not generated
+      # ones — no model runs in CI — so they are copied in rather than rebuilt.
+      # Without this the dashboard would quietly lose the real 7B run, which is
+      # the most informative thing on it.
+      - name: Include captured real traces
+        run: |
+          mkdir -p runs
+          cp evals/captured/real_7b_supervised.jsonl runs/ 2>/dev/null || true
+          cp evals/captured/agentkit_loop.jsonl runs/real_agentkit.jsonl 2>/dev/null || true
+          ls -la runs/
+
+      - name: Build dashboard
+        run: python dashboard/build_dashboard.py
+
+      # Commits only when the page actually changed. The build is deterministic
+      # — wall-clock timestamps are stripped before embedding — so an unchanged
+      # project produces an identical file and no commit at all. Without that,
+      # every push would commit the clock and bury the real signal.
+      - name: Publish if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- docs/index.html dashboard/; then
+            echo "dashboard unchanged — nothing to publish"
+            exit 0
+          fi
+          git add docs/index.html dashboard/index.html dashboard/artifact.html
+          # [skip ci] so publishing does not retrigger this workflow forever.
+          git commit -m "chore(dashboard): rebuild from ${GITHUB_SHA::7} [skip ci]"
+          git push
+          echo "published — GitHub Pages will serve it from main:/docs"
