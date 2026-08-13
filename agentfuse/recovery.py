@@ -60,6 +60,22 @@ SUPERVISOR_SYSTEM = (
     "state and the reason its execution was tripped. Diagnose the root cause and "
     "produce a single, concrete steering instruction that will realign the agent "
     "with its ORIGINAL objective and break it out of the failure mode. "
+    # The three rules below were added after measuring a real model against this
+    # prompt. Every one of them corrects a failure it actually produced: it wrote
+    # *about* the intervention ("inject a new task to check..."), it never named
+    # the tool that was stuck, and it never forbade the action that was failing.
+    # The instruction is pasted verbatim into the agent's conversation, so
+    # commentary addressed to the supervisor is not merely unhelpful — it is
+    # incoherent by the time the agent reads it.
+    "WRITE THE INSTRUCTION AS THE WORDS THE AGENT WILL READ, addressed directly "
+    "to it as 'you'. Do NOT describe what should be done, do not refer to 'the "
+    "agent' in the third person, and never say that something should be injected "
+    "or steered - you are writing the injection itself. "
+    "NAME THE SPECIFIC FAILING THING: if a tool is stuck, use its exact name; if "
+    "the objective drifted, say what it drifted to. A correction the agent cannot "
+    "map onto its own last action changes nothing. "
+    "PRESCRIBE A CONCRETE NEXT ACTION, and where the failure is a repeated action, "
+    "explicitly forbid repeating it. "
     "Prefer 'inject' when a corrective nudge can plausibly recover the run; use "
     "'escalate' when human judgment or credentials are required; use 'abort' only "
     "when the objective is impossible or unsafe to continue. "

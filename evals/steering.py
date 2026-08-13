@@ -39,9 +39,24 @@ _VAGUE = re.compile(
     r"do your best|be careful|think harder)\b", re.I)
 
 # Phrases that signal a concrete change of course.
+#
+# This list was widened after it was caught scoring its own authors' vocabulary.
+# The original set was written alongside the deterministic templates, so it
+# matched their exact wording and missed semantically identical phrasings from a
+# real model: `realign` matched but `re-align` did not, and "do not repeat any
+# previous actions involving searching files" — an explicit, named prohibition —
+# contained no listed keyword at all and scored as prescribing no action.
+#
+# That is measurement bias in favour of the templates, in a comparison whose
+# entire purpose is templates-versus-model. Measured effect of the fix on the
+# local 3B model: actionable 55% -> 80%. The templates are unaffected, since
+# they already matched.
 _ACTIONABLE = re.compile(
     r"\b(stop|different|instead|another|alternative|switch|discard|abandon|"
-    r"re-read|realign|verify|list your assumptions|choose|halt|escalat)", re.I)
+    r"re-?read|re-?align|re-?anchor|verify|list your assumptions|choose|halt|"
+    r"escalat|avoid|refrain|cease|rather than|no longer|"
+    r"(do not|don't|never)\s+(repeat|call|use|invoke|retry|attempt|continue))",
+    re.I)
 
 
 def _content_words(text: str) -> set[str]:
