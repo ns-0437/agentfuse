@@ -100,6 +100,7 @@ breaker code are byte-for-byte identical.
         │    • LoopDetector        repetitive tool signatures   │
         │    • DriftDetector       goal vs. system-prompt dist. │
         │    • NoProgressDetector  activity w/ no state change  │
+        │    • RateOfProgressDet.  state moving, never arriving │
         │    • SpendDetector       token/$ ceiling + burn rate  │
         └────────────────────────┬──────────────────────────────┘
                      trip!        │  freeze ExecutionSnapshot
@@ -190,6 +191,7 @@ if d.kind is DirectiveKind.INJECT:
 | `LoopDetector` | Infinite / repetitive tool loop | Same `(tool, args)` signature N× in a window with no state progress |
 | `DriftDetector` | Goal drift | Semantic similarity to the original objective drops below threshold for K turns (real embeddings, or offline lexical fallback) |
 | `NoProgressDetector` | Logical trap / stall | Many actions, zero change to working-state hash |
+| `RateOfProgressDetector` | Zeno trap — advancing every step, arriving never | A run of formally identical advances where one reported quantity is pinned while another climbs past it, and nothing counts down or approaches a total |
 | `SpendDetector` | Runaway cost | Cumulative token/$ ceiling (→ escalate) or burn-rate spike (→ steer) |
 
 ---
@@ -201,49 +203,55 @@ with ground truth, confidence intervals, and a significance test — and the
 numbers are published, including the unflattering ones.
 
 ```bash
-python evals/run_eval.py --generated 40 --json    # 880 scenarios + ablation
+python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 94-test CI gate
+pytest evals/ -q                                  # 114-test CI gate
 ```
 
-**880 scenarios** from **20 parameterised generator families** across 6 domains,
-with ground truth true *by construction*. 440 are genuine failures; **440 are
+**936 scenarios** from **21 parameterised generator families** across 6 domains,
+with ground truth true *by construction*. 449 are genuine failures; **487 are
 hard negatives** — healthy runs that look like failures: a legitimate retry,
 polling that really is progressing, a sub-goal that reads as drift, a
-**paraphrased objective**, an error followed by a competent pivot. Hard negatives
-are what make the false-positive rate measurable, and that rate decides whether
-anyone leaves a guardrail switched on. Everything replays deterministically in
-~30s — no API key, no cost.
+**paraphrased objective**, an error followed by a competent pivot, a batch job
+that repeats itself forever and is genuinely finishing. Hard negatives are what
+make the false-positive rate measurable, and that rate decides whether anyone
+leaves a guardrail switched on. Everything replays deterministically in ~30s —
+no API key, no cost.
 
-### Current baseline (2026-08-12, replay mode, local embeddings)
+### Current baseline (2026-08-13, replay mode, local embeddings)
 
-| Metric | Value | Read as |
-|---|---:|---|
-| Recall | **88.4%** | real failures caught |
-| Precision | **90.9%** | can you trust a trip |
-| F1 | **89.6%** | |
-| False-positive rate | **8.9%** | healthy runs halted |
-| Recovery rate | **71.7%** | caught failures put back on track |
-| **Recall, cluster-adjusted** | **84.6% [57.8–95.7]** | ← **the honest interval** |
+| Metric | Value | Prev | Read as |
+|---|---:|---:|---|
+| Recall | **97.6%** | 88.4% | real failures caught |
+| Precision | **91.8%** | 90.9% | can you trust a trip |
+| F1 | **94.6%** | 89.6% | |
+| False-positive rate | **8.0%** | 8.9% | healthy runs halted |
+| Attribution | **84.0%** | 84.0% | right detector named |
+| Recovery rate | **67.6%** | 71.7% | caught failures put back on track |
+| **Recall, cluster-adjusted** | **97.7% [94.8–99.0]** | 84.6% [57.8–95.7] | ← see the warning below |
 
-**Read the last row, not the first.** Scenarios generated from one template
-behave near-identically, so they are not independent samples. The measured design
-effect is ~17–33×, putting the **effective sample size near 13** against a
-nominal 880. Nominal Wilson intervals are roughly seven times too narrow. A
-consequence worth knowing: *adding scenarios per generator buys no statistical
-power at all* — sweeping 40/20/10/5 per family (total 880→110) moved effective n
-only 13→14. Only more independent **families** narrow the interval.
+**⚠ The interval narrowed for the wrong reason.** Design effect fell 16.9× → 2.0×
+and ICC 0.407 → 0.048, moving effective n from 13 to 222. That is a **ceiling
+artifact, not new evidence**: 18 of 20 recall clusters are now all-successes, so
+between-cluster variance has nowhere to live and the design effect collapses
+toward 1 by construction. The suite went from 20 generator families to **21** —
+that is the honest measure of how much independent evidence was added, and it is
+one. Expect the interval to widen again the moment any family regresses.
+
+The older lesson still holds: *adding scenarios per generator buys no statistical
+power* — sweeping 40/20/10/5 per family moved effective n only 13→14. Only more
+independent **families** narrow the interval.
 
 ### Against trivial baselines
 
-Four detectors, a steering ladder, a memory and a calibrator have to beat "stop
+Five detectors, a steering ladder, a memory and a calibrator have to beat "stop
 after N steps" or the complexity is unjustified:
 
 | System | Recall | Precision | F1 |
 |---|---:|---:|---:|
-| **AgentFuse** | 88.4% | **90.9%** | **89.6%** |
-| step cap = 12 | **96.2%** | 54.0% | 69.2% |
+| **AgentFuse** | 97.6% | **91.8%** | **94.6%** |
+| step cap = 12 | 96.2% | 54.0% | 69.2% |
 | naive repeat counter | 49.1% | 66.2% | 56.4% |
 
 Note what this actually says: **a dumb step cap gets 96% recall.** What AgentFuse
@@ -251,16 +259,58 @@ buys is *precision* — not noticing failures, but not halting healthy runs.
 
 **What's still broken, stated plainly:**
 
-- **Partial-progress traps are missed** (`progress` family 67%). An agent that
-  advances state on *every* step while converging on none starves a binary
-  progress signal. Needs a rate-of-progress measure.
+- **The loop detector is now net-negative.** Leave-one-out puts *ablate-loop* at
+  **F1 +1.8** — removing it improves the system. It produces all 33 remaining
+  loop-family false positives while the progress detector catches the same loops
+  as a backstop, so its marginal recall contribution is zero. It is kept only
+  because it is the one detector that names the offending *tool*, which is what
+  makes `alternate-action` steering specific. An open design question, not a knob.
 - **Sparse-progress workloads still false-positive at ~42%** — down from 100%
   with calibration off, but the first cycle trips before any baseline exists.
+  Now the single largest FP source (17 of 39).
+- **A Zeno trap reporting a bare cursor is undetectable** — see below.
 - **`steering_usable = 100%` is circular** — that rubric scores instructions
   built from templates written alongside it. It is not evidence and is flagged as
   such in `baseline.json`.
 - **Everything is synthetic** except one captured trace, which validates event
   *shape* against production, not the failure *distribution*.
+
+### Closing the Zeno trap — and what it cost to do honestly
+
+The binary progress test asks *did the state advance?* An agent that advances on
+**every** step and converges on none answers yes forever, so the stall counter is
+reset every step and its trip condition is **structurally unreachable** — no value
+of `stall_patience` reaches it. That capped the `progress` family at 67% and was
+carried as a documented known gap rather than hidden.
+
+`RateOfProgressDetector` closes it by asking whether the trace carries its own
+evidence of converging. Two things silence it: a **countdown** (`214 remaining` →
+`213 remaining`) or a **bounded approach** (`processed 7 of 240`, or any rising
+percentage, which carries its ceiling in its unit).
+
+The first version tripped on any unbounded rising counter — and the benchmark
+immediately produced the counter-example:
+
+| Trace | Verdict |
+|---|---|
+| `batch 0 done` … `batch 9 done` | healthy expensive work |
+| `processed 1 of many (offset 9)` | Zeno trap |
+
+Those are the *same evidence*: one climbing number against no ceiling. Firing on
+it cost **44 false positives on healthy runs (FPR 8.9% → 17.0%)** and dropped
+attribution to 69.8%. That is not a tuning problem, it is an **identifiability**
+problem, so the detector now abstains there and fires only on the two-quantity
+signature: one quantity *pinned* while another climbs past it — an agent
+reporting, in its own output, that what it accomplishes per step is not growing.
+
+The concession, stated rather than buried: **a Zeno trap that reports nothing but
+a bare cursor will be missed.** That is a narrower claim than "the gap is closed",
+and it is the one the evidence supports. `gen_benign_batch` — same shape as the
+trap, genuinely converging — is the hard negative that keeps it honest.
+
+Net effect: `progress` family **67% → 100%**, recall **88.4% → 97.6%**, F1
+**89.6% → 94.6%**, FPR **8.9% → 8.0%**. Ablation puts its causal contribution at
+**ΔF1 −4.8**, third largest of the five detectors.
 
 ### What the benchmark already changed
 
@@ -310,6 +360,20 @@ detector rate-matched to our own trip frequency and run across 25 seeds.
 Without the control, a system that simply trips often would post a respectable
 F1. It is the control that makes the headline number mean anything.
 
+| Variant | Recall | Precision | F1 | ΔF1 |
+|---|---:|---:|---:|---:|
+| full system | 97.6% | 91.8% | 94.6% | |
+| ablate `progress` | 78.8% | 90.1% | 84.1% | **−10.5** |
+| ablate `spend` | 80.2% | 90.2% | 84.9% | −9.7 |
+| ablate `drift` | 81.1% | 91.7% | 86.1% | −8.5 |
+| ablate `rate` | 88.6% | 91.1% | 89.8% | −4.8 |
+| ablate `loop` | 97.6% | 95.2% | 96.4% | **+1.8** ⚠ |
+| random control (rate-matched) | 82.4% | 49.8% | 62.1% | −32.5 |
+
+The random control is the row that makes the rest mean anything: a detector that
+simply trips at our frequency reaches F1 62.1%. The `loop` row is the one to sit
+with — it is the only detector whose removal *helps*.
+
 ### Honest limitations of the benchmark itself
 
 - **Synthetic.** The generators encode *my* model of agent failure, so they fix
@@ -320,10 +384,14 @@ F1. It is the control that makes the headline number mean anything.
 - **Notional token savings.** We assume halting saves everything downstream, and
   charge a flat 1,500 tokens per steering call.
 
+- **A ceiling effect now flatters the intervals.** With 18 of 20 clusters at
+  100%, the clustering correction has almost nothing to correct, so the honest
+  interval and the naive one have converged. Read the **family count (21)**, not
+  the effective n (222).
+
 For scale context: AE Studio's ESR baseline ran **7,892 trials**. This suite runs
-880 — but its *effective* sample size is around 13, because the scenarios are
-clustered by generator. That is the number to reason about, and it is not enough
-to call anything settled.
+936 across 21 independent families. Twenty-one is the number to reason about, and
+it is not enough to call anything settled.
 
 ### Prior work
 
@@ -344,7 +412,7 @@ agentfuse/
   monitor.py           CircuitBreakerMonitor — the engine
   recovery.py          RecoveryEngine — separate reasoning-model steering (real + mock)
   tracer.py            live console trace + JSONL observability
-  detectors/           loop · drift · progress · spend
+  detectors/           loop · drift · progress · rate · spend
   adapters/            agentkit · agentkit_hooks (real RunHooks) · openai_sdk · langgraph
   embedding.py         local ONNX first, hosted second, lexical last
   memory.py            what was steered, and whether it worked
