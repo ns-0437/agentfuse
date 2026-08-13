@@ -24,28 +24,75 @@ something different are not loops. Two signals:
 
 Any genuine state advance clears both counters: an agent making headway is not
 looping, regardless of what it repeats.
+
+Two measured corrections, added after leave-one-out ablation showed this detector
+was **net-harmful** — removing it improved system F1 by 1.8 points, because it
+produced every remaining false positive while the progress detector caught the
+same loops as a backstop. Both causes turned out to be specific and fixable:
+
+  1. **An identical ERROR is not an identical answer.** ``HTTP 503`` three times
+     is the signature of a healthy retry against a flaky endpoint, and the
+     detector was halting those runs on the third attempt — one step before the
+     success that was about to arrive. An error result is an explicit invitation
+     to retry, so error-shaped results get ``retry_multiplier`` times the
+     patience. An agent still retrying a permanently-broken endpoint six times
+     over is caught; one that succeeds on the fourth attempt is not.
+
+  2. **The rest was the benchmark, not the detector.** The other 14 false
+     positives came from ``gen_long_sparse_benign``, which drew its "varied
+     work" from a pool of 4 tools and 4 argument dicts and so emitted the *same
+     call with the same result* up to 11 times running, with no state change,
+     labelled healthy. That is a loop with a benign label. The generator was
+     fixed; no detector change was warranted or made.
+
+     A first-cycle grace period was tried here first, mirroring the bounded one
+     in ``NoProgressDetector``. Once the generator was corrected it measured
+     **exactly zero effect** — identical recall, F1, FPR and attribution with it
+     on and off — while costing slower detection on runs that loop from their
+     very first call. It was removed rather than shipped. Recorded because
+     "harmless and inert" is still a cost, and because the fix that looked
+     obvious was aimed at the wrong component.
 """
 
 from __future__ import annotations
 
+import re
 from collections import deque
 from typing import Optional
 
 from ..events import AgentEvent, EventType, stable_hash
 from .base import Detector, Trip, Severity
 
+#: Result text that reads as a transient failure rather than an answer. Kept
+#: deliberately narrow: matching too eagerly would hand extra patience to loops
+#: whose output merely *mentions* an error, and the cost of a miss here is a
+#: later trip, while the cost of over-matching is a missed loop entirely.
+_ERROR_SHAPED = re.compile(
+    r"\b(error|exception|traceback|failed|failure|timed?[ -]?out|timeout|"
+    r"unavailable|refused|denied|unauthori[sz]ed|forbidden|throttled|"
+    r"rate[ -]?limit(ed)?|too many requests|try again|retry|"
+    r"http[ /]?[45]\d\d|\b[45]\d\d\s+(service|internal|bad|gateway|not))\b",
+    re.IGNORECASE)
+
+
+def looks_like_error(text: Optional[str]) -> bool:
+    """Is this result a transient failure the agent is entitled to retry?"""
+    return bool(_ERROR_SHAPED.search(text or ""))
+
 
 class LoopDetector(Detector):
     name = "loop"
 
     def __init__(self, threshold: int = 3, window: int = 12,
-                 blind_multiplier: int = 2, calibrator=None):
+                 blind_multiplier: int = 2, retry_multiplier: int = 2,
+                 calibrator=None):
         # Optional per-run calibration. Widens the threshold for workloads that
         # legitimately repeat calls (polling, retrying) — never tightens it.
         self.calibrator = calibrator
         self.threshold = threshold          # identical (call, result) repeats before tripping
         self.window = window                # how many recent calls we remember
         self.blind_multiplier = blind_multiplier  # slack for the result-varying fallback
+        self.retry_multiplier = retry_multiplier  # slack when the result is an error
         self._pairs: deque[str] = deque(maxlen=window)      # (call + result) fingerprints
         self._signatures: deque[str] = deque(maxlen=window)  # call-only fingerprints
         self._pending: Optional[str] = None                  # call awaiting its result
@@ -86,31 +133,9 @@ class LoopDetector(Detector):
         self._pending_meta = {"tool": event.tool_name, "args": event.tool_args,
                               "step": event.step}
         self._signatures.append(sig)
-
-        # Fallback: the same call repeated well past the threshold with no
-        # progress is a loop even if its output keeps changing slightly.
-        effective = (self.calibrator.loop_threshold(self.threshold)
-                     if self.calibrator else self.threshold)
-        blind_limit = effective * self.blind_multiplier
-        repeats = sum(1 for s in self._signatures if s == sig)
-        if repeats >= blind_limit:
-            return Trip(
-                detector=self.name,
-                severity=Severity.TRIP,
-                reason=(
-                    f"Tool '{event.tool_name}' called with identical arguments "
-                    f"{repeats}x with no state progress since step "
-                    f"{self._last_progress_step}, despite varying results."
-                ),
-                evidence={
-                    "tool": event.tool_name,
-                    "args": event.tool_args,
-                    "repeats": repeats,
-                    "signature": sig,
-                    "signal": "call-only fallback",
-                    "steps_without_progress": event.step - self._last_progress_step,
-                },
-            )
+        # No verdict here. The fallback is counted on the call and *judged* on
+        # the result, so this detector never halts an action whose outcome it
+        # has not seen. See the module docstring.
         return None
 
     def _on_result(self, event: AgentEvent) -> Optional[Trip]:
@@ -118,12 +143,38 @@ class LoopDetector(Detector):
         if self._pending is None:
             return None
 
-        pair = f"{self._pending}->{stable_hash(_normalise(event.text))}"
+        sig = self._pending
+        pair = f"{sig}->{stable_hash(_normalise(event.text))}"
         self._pending = None
         self._pairs.append(pair)
 
-        effective = (self.calibrator.loop_threshold(self.threshold)
-                     if self.calibrator else self.threshold)
+        # Fallback, judged here rather than on the call: the same call repeated
+        # well past the threshold with no progress is a loop even if its output
+        # keeps changing slightly. Checked first — it is the stronger evidence.
+        blind_limit = self._effective_threshold() * self.blind_multiplier
+        sig_repeats = sum(1 for s in self._signatures if s == sig)
+        if sig_repeats >= blind_limit:
+            meta = self._pending_meta
+            return Trip(
+                detector=self.name,
+                severity=Severity.TRIP,
+                reason=(
+                    f"Tool '{meta.get('tool')}' called with identical arguments "
+                    f"{sig_repeats}x with no state progress since step "
+                    f"{self._last_progress_step}, despite varying results."
+                ),
+                evidence={
+                    "tool": meta.get("tool"),
+                    "args": meta.get("args"),
+                    "repeats": sig_repeats,
+                    "signature": sig,
+                    "signal": "call-only fallback",
+                    "steps_without_progress": event.step - self._last_progress_step,
+                },
+            )
+
+        is_error = looks_like_error(event.text)
+        effective = self._effective_threshold(is_error=is_error)
         repeats = sum(1 for p in self._pairs if p == pair)
         if repeats >= effective:
             meta = self._pending_meta
@@ -142,10 +193,24 @@ class LoopDetector(Detector):
                     "repeats": repeats,
                     "result": (event.text or "")[:120],
                     "signal": "call+result",
+                    "error_shaped_result": is_error,
                     "steps_without_progress": event.step - self._last_progress_step,
                 },
             )
         return None
+
+    # ------------------------------------------------------------------
+    def _effective_threshold(self, is_error: bool = False) -> float:
+        """The bar this run has to clear, after calibration, retries and grace."""
+        base = (self.calibrator.loop_threshold(self.threshold)
+                if self.calibrator else self.threshold)
+        if is_error:
+            # An identical error is the signature of a legitimate retry, not of
+            # an agent re-asking a question it already has the answer to.
+            # Measured: without this, FP 6 -> 22 and FPR 1.25% -> 4.58%, with
+            # recall and attribution unchanged. It buys precision, nothing else.
+            base *= self.retry_multiplier
+        return base
 
     def reset(self) -> None:
         self._pairs.clear()
