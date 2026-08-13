@@ -206,7 +206,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 114-test CI gate
+pytest evals/ -q                                  # 115-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,
@@ -224,12 +224,23 @@ no API key, no cost.
 | Metric | Value | Prev | Read as |
 |---|---:|---:|---|
 | Recall | **97.6%** | 88.4% | real failures caught |
-| Precision | **91.8%** | 90.9% | can you trust a trip |
-| F1 | **94.6%** | 89.6% | |
-| False-positive rate | **8.0%** | 8.9% | healthy runs halted |
-| Attribution | **84.0%** | 84.0% | right detector named |
+| Precision | **98.6%** | 90.9% | can you trust a trip |
+| F1 | **98.1%** | 89.6% | |
+| False-positive rate | **1.2%** | 8.9% | healthy runs halted |
+| Attribution | **83.8%** | 84.0% | right detector named |
 | Recovery rate | **67.6%** | 71.7% | caught failures put back on track |
-| **Recall, cluster-adjusted** | **97.7% [94.8–99.0]** | 84.6% [57.8–95.7] | ← see the warning below |
+| **Recall, cluster-adjusted** | **97.7% [94.8–99.0]** | 84.6% [57.8–95.7] | ← see the warnings below |
+
+> **⚠ Do not read 98.1% F1 as "nearly production ready."** A benchmark you score
+> 98% on has stopped being a measuring instrument. Six false positives and eleven
+> false negatives is the entire remaining signal — it can no longer distinguish a
+> good change from a neutral one. Part of this run's gain came from **fixing a
+> generator that was wrong**: a legitimate correction with evidence (below), but
+> making the test easier is exactly how benchmarks stop meaning anything, so it
+> stays visible. These generators encode *one person's* model of agent failure,
+> so what is measured here is self-consistency, not real-world coverage. The
+> honest next move is harder and more realistic scenarios — ideally captured from
+> real runs — not more tuning against this suite.
 
 **⚠ The interval narrowed for the wrong reason.** Design effect fell 16.9× → 2.0×
 and ICC 0.407 → 0.048, moving effective n from 13 to 222. That is a **ceiling
@@ -250,30 +261,59 @@ after N steps" or the complexity is unjustified:
 
 | System | Recall | Precision | F1 |
 |---|---:|---:|---:|
-| **AgentFuse** | 97.6% | **91.8%** | **94.6%** |
+| **AgentFuse** | 97.6% | **98.6%** | **98.1%** |
 | step cap = 12 | 96.2% | 54.0% | 69.2% |
 | naive repeat counter | 49.1% | 66.2% | 56.4% |
 
 Note what this actually says: **a dumb step cap gets 96% recall.** What AgentFuse
 buys is *precision* — not noticing failures, but not halting healthy runs.
 
+### The rule that cost the most to learn
+
+**A supervisor must not act on an action whose outcome it has not yet seen.**
+
+A tool step emits `llm_call → tool_call → tool_result`. A detector that tests its
+threshold on the *call* can halt a run one event before the result that would
+have cleared it. This shipped in **two detectors independently**, and a test
+written afterwards immediately found a **third** instance. Every time, the runs
+it killed were ones that were **about to succeed** — an agent retrying a flaky
+endpoint, halted on the final successful attempt.
+
+That is the worst failure mode a guardrail has: not missing a problem, but
+destroying work that was fine. It is now asserted for every stateful detector in
+`evals/test_rate.py`. Fixing the progress-detector instance alone moved FPR from
+7.4% to 4.1%.
+
 **What's still broken, stated plainly:**
 
-- **The loop detector is now net-negative.** Leave-one-out puts *ablate-loop* at
-  **F1 +1.8** — removing it improves the system. It produces all 33 remaining
-  loop-family false positives while the progress detector catches the same loops
-  as a backstop, so its marginal recall contribution is zero. It is kept only
-  because it is the one detector that names the offending *tool*, which is what
-  makes `alternate-action` steering specific. An open design question, not a knob.
-- **Sparse-progress workloads still false-positive at ~42%** — down from 100%
-  with calibration off, but the first cycle trips before any baseline exists.
-  Now the single largest FP source (17 of 39).
+- **The benchmark is saturated** — 6 FPs and 11 FNs out of 936. It cannot measure
+  further improvement, and that is now the top constraint on the project.
+- **Subtle drift is the main real miss** (8 of 11 FNs, `gen_driftsub`), plus 6 FPs
+  where a legitimate sub-goal reads as drift. Both sit on the ±0.043 embedding
+  separation gap — the thinnest signal in the system.
 - **A Zeno trap reporting a bare cursor is undetectable** — see below.
+- **Domain packs have 4 tools and 4 argument dicts.** That low entropy makes every
+  scenario less representative than it looks, and it silently corrupted one
+  generator (below). The others have not been audited for the same problem.
 - **`steering_usable = 100%` is circular** — that rubric scores instructions
   built from templates written alongside it. It is not evidence and is flagged as
   such in `baseline.json`.
 - **Everything is synthetic** except one captured trace, which validates event
   *shape* against production, not the failure *distribution*.
+
+### When the benchmark was the thing that was wrong
+
+`gen_long_sparse_benign` was meant to be a healthy run with wide gaps between
+milestones. Because each domain offers only 4 tools and 4 argument dicts, drawing
+its "varied work" at random produced **3+ identical `(tool, args, result)` triples
+in 199 of 200 runs** — worst case, the same call repeated **11 times** with no
+state change, labelled healthy. That is a loop with a benign label, and it
+accounted for 14 false positives no legitimate detector change could remove.
+
+I tried a detector fix first — a first-cycle grace period on the loop detector.
+After correcting the generator it measured **exactly zero effect**, so it was
+removed rather than shipped. Both the correction and the discarded fix are
+recorded, because "we made the test easier" is a claim that has to be auditable.
 
 ### Closing the Zeno trap — and what it cost to do honestly
 
@@ -362,17 +402,25 @@ F1. It is the control that makes the headline number mean anything.
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
-| full system | 97.6% | 91.8% | 94.6% | |
-| ablate `progress` | 78.8% | 90.1% | 84.1% | **−10.5** |
-| ablate `spend` | 80.2% | 90.2% | 84.9% | −9.7 |
-| ablate `drift` | 81.1% | 91.7% | 86.1% | −8.5 |
-| ablate `rate` | 88.6% | 91.1% | 89.8% | −4.8 |
-| ablate `loop` | 97.6% | 95.2% | 96.4% | **+1.8** ⚠ |
-| random control (rate-matched) | 82.4% | 49.8% | 62.1% | −32.5 |
+| full system | 97.6% | 98.6% | 98.1% | |
+| ablate `progress` | 78.8% | 98.3% | 87.5% | **−10.6** |
+| ablate `spend` | 80.2% | 98.4% | 88.3% | −9.8 |
+| ablate `drift` | 81.1% | 100.0% | 89.5% | −8.6 |
+| ablate `rate` | 88.6% | 98.5% | 93.3% | −4.8 |
+| ablate `loop` | 97.6% | 98.6% | 98.1% | **+0.0** |
+| random control (rate-matched) | 82.9% | 50.0% | 62.4% | −35.7 |
 
 The random control is the row that makes the rest mean anything: a detector that
-simply trips at our frequency reaches F1 62.1%. The `loop` row is the one to sit
-with — it is the only detector whose removal *helps*.
+simply trips at our frequency reaches F1 62.4%.
+
+**The `loop` row deserves its own explanation.** It was at **+1.8** — removing it
+*improved* the system — and is now exactly neutral after the fixes above. It still
+detects nothing unique: recall is identical with and without it. It is kept for a
+measured reason, not a sentimental one. Removing it drops **attribution from 84.1%
+to 56.2%**, because it is the only detector that names the offending *tool*. The
+product claim here is *steering*, and `stop calling search_files` is actionable
+where `you seem stuck` is not — so 28 points of attribution is worth more than the
+0.0 F1 it now costs.
 
 ### Honest limitations of the benchmark itself
 

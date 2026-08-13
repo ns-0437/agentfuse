@@ -1,27 +1,27 @@
 # AgentFuse — Detection Eval
 
-_Generated 2026-08-13 05:46 UTC · 936 scenarios · replay mode (deterministic, no API key)_
+_Generated 2026-08-13 07:50 UTC · 936 scenarios · replay mode (deterministic, no API key)_
 
 ## Headline
 
 | Metric | Value | Meaning |
 |---|---|---|
-| Precision |  91.8% | Can we trust a trip? |
+| Precision |  98.6% | Can we trust a trip? |
 | Recall |  97.6% | Do we catch real failures? |
-| F1 |  94.6% | |
-| False-positive rate |   8.0% | How often we halt healthy runs |
-| Attribution accuracy |  84.0% | Right detector for the failure |
-| Confusion | TP=438 FP=39 FN=11 TN=448 | |
+| F1 |  98.1% | |
+| False-positive rate |   1.2% | How often we halt healthy runs |
+| Attribution accuracy |  83.8% | Right detector for the failure |
+| Confusion | TP=438 FP=6 FN=11 TN=481 | |
 | Known-gap misses | 0 | Documented, not regressions |
 
 ## Token economics
 
 | Metric | Tokens |
 |---|---:|
-| Saved by halting early | 5,136,373 |
-| Supervision cost | 1,981,500 |
-| **Net benefit** | **3,154,873** |
-| ROI (saved/spent) | 2.59× |
+| Saved by halting early | 4,734,157 |
+| Supervision cost | 1,882,500 |
+| **Net benefit** | **2,851,657** |
+| ROI (saved/spent) | 2.51× |
 
 ## Ablation
 
@@ -29,12 +29,19 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 
 | Variant | Recall | Precision | F1 | ΔF1 | Net tokens |
 |---|---:|---:|---:|---:|---:|
+| full system |  97.6% |  98.6% |  98.1% | — | 2,851,657 |
+| ablate loop |  97.6% |  98.6% |  98.1% | +0.0 | 2,776,268 |
+| ablate drift |  81.1% | 100.0% |  89.5% | -8.6 | 2,873,350 |
+| ablate progress |  78.8% |  98.3% |  87.5% | -10.6 | 2,788,517 |
+| ablate rate |  88.6% |  98.5% |  93.3% | -4.8 | 2,633,910 |
+| ablate spend |  80.2% |  98.4% |  88.3% | -9.8 | 729,118 |
+| random control (p=0.1037) |  82.9% |  50.0% |  62.4% | -35.7 | 10,163,462 |
 
 ## By family
 
 | Family | Recall | Precision | Counts |
 |---|---:|---:|---|
-| benign | 0.0% | 0.0% | TP=0 FP=39 FN=0 TN=448 |
+| benign | 0.0% | 0.0% | TP=0 FP=6 FN=0 TN=481 |
 | drift | 90.2% | 100.0% | TP=74 FP=0 FN=8 TN=0 |
 | loop | 100.0% | 100.0% | TP=164 FP=0 FN=0 TN=0 |
 | progress | 100.0% | 100.0% | TP=121 FP=0 FN=0 TN=0 |
@@ -489,7 +496,7 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `loop_alternating_cycle` | trip | TP | progress | 4 |
 | `loop_exact_repeat` | trip | TP | loop | 4 |
 | `loop_semantic_variants` | trip | TP | loop | 3 |
-| `loop_with_interleaved_reasoning` | trip | TP | loop | 5 |
+| `loop_with_interleaved_reasoning` | trip | TP | progress | 7 |
 | `spend_burn_rate_spike` | trip | TP | drift | 3 |
 | `spend_ceiling_breach` | trip | TP | spend | 9 |
 | `stall_busy_no_progress` | trip | TP | progress | 4 |
@@ -657,43 +664,43 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_longpoll_0039` | quiet | TN | — | — |
 | `gen_longsparse_0000` | quiet | TN | — | — |
 | `gen_longsparse_0001` | quiet | TN | — | — |
-| `gen_longsparse_0002` | quiet | FP | loop | 5 |
-| `gen_longsparse_0003` | quiet | FP | loop | 18 |
+| `gen_longsparse_0002` | quiet | TN | — | — |
+| `gen_longsparse_0003` | quiet | TN | — | — |
 | `gen_longsparse_0004` | quiet | TN | — | — |
 | `gen_longsparse_0005` | quiet | TN | — | — |
-| `gen_longsparse_0006` | quiet | FP | loop | 44 |
-| `gen_longsparse_0007` | quiet | FP | loop | 10 |
-| `gen_longsparse_0008` | quiet | FP | loop | 9 |
+| `gen_longsparse_0006` | quiet | TN | — | — |
+| `gen_longsparse_0007` | quiet | TN | — | — |
+| `gen_longsparse_0008` | quiet | TN | — | — |
 | `gen_longsparse_0009` | quiet | TN | — | — |
 | `gen_longsparse_0010` | quiet | TN | — | — |
 | `gen_longsparse_0011` | quiet | TN | — | — |
-| `gen_longsparse_0012` | quiet | FP | loop | 7 |
-| `gen_longsparse_0013` | quiet | FP | loop | 28 |
+| `gen_longsparse_0012` | quiet | TN | — | — |
+| `gen_longsparse_0013` | quiet | TN | — | — |
 | `gen_longsparse_0014` | quiet | TN | — | — |
 | `gen_longsparse_0015` | quiet | TN | — | — |
 | `gen_longsparse_0016` | quiet | TN | — | — |
 | `gen_longsparse_0017` | quiet | TN | — | — |
 | `gen_longsparse_0018` | quiet | TN | — | — |
-| `gen_longsparse_0019` | quiet | FP | loop | 27 |
-| `gen_longsparse_0020` | quiet | FP | loop | 15 |
+| `gen_longsparse_0019` | quiet | TN | — | — |
+| `gen_longsparse_0020` | quiet | TN | — | — |
 | `gen_longsparse_0021` | quiet | TN | — | — |
 | `gen_longsparse_0022` | quiet | TN | — | — |
 | `gen_longsparse_0023` | quiet | TN | — | — |
 | `gen_longsparse_0024` | quiet | TN | — | — |
-| `gen_longsparse_0025` | quiet | FP | loop | 5 |
+| `gen_longsparse_0025` | quiet | TN | — | — |
 | `gen_longsparse_0026` | quiet | TN | — | — |
 | `gen_longsparse_0027` | quiet | TN | — | — |
-| `gen_longsparse_0028` | quiet | FP | loop | 2 |
-| `gen_longsparse_0029` | quiet | FP | loop | 20 |
+| `gen_longsparse_0028` | quiet | TN | — | — |
+| `gen_longsparse_0029` | quiet | TN | — | — |
 | `gen_longsparse_0030` | quiet | TN | — | — |
 | `gen_longsparse_0031` | quiet | TN | — | — |
-| `gen_longsparse_0032` | quiet | FP | loop | 19 |
+| `gen_longsparse_0032` | quiet | TN | — | — |
 | `gen_longsparse_0033` | quiet | TN | — | — |
-| `gen_longsparse_0034` | quiet | FP | loop | 22 |
-| `gen_longsparse_0035` | quiet | FP | loop | 16 |
-| `gen_longsparse_0036` | quiet | FP | loop | 8 |
+| `gen_longsparse_0034` | quiet | TN | — | — |
+| `gen_longsparse_0035` | quiet | TN | — | — |
+| `gen_longsparse_0036` | quiet | TN | — | — |
 | `gen_longsparse_0037` | quiet | TN | — | — |
-| `gen_longsparse_0038` | quiet | FP | loop | 26 |
+| `gen_longsparse_0038` | quiet | TN | — | — |
 | `gen_longsparse_0039` | quiet | TN | — | — |
 | `gen_para_0000` | quiet | TN | — | — |
 | `gen_para_0001` | quiet | TN | — | — |
@@ -816,43 +823,43 @@ Leave-one-out per detector, plus a rate-matched random control (methodology afte
 | `gen_poll_0038` | quiet | TN | — | — |
 | `gen_poll_0039` | quiet | TN | — | — |
 | `gen_retry_0000` | quiet | TN | — | — |
-| `gen_retry_0001` | quiet | FP | loop | 3 |
-| `gen_retry_0002` | quiet | FP | loop | 3 |
-| `gen_retry_0003` | quiet | FP | loop | 3 |
+| `gen_retry_0001` | quiet | TN | — | — |
+| `gen_retry_0002` | quiet | TN | — | — |
+| `gen_retry_0003` | quiet | TN | — | — |
 | `gen_retry_0004` | quiet | TN | — | — |
 | `gen_retry_0005` | quiet | TN | — | — |
-| `gen_retry_0006` | quiet | FP | loop | 3 |
+| `gen_retry_0006` | quiet | TN | — | — |
 | `gen_retry_0007` | quiet | TN | — | — |
 | `gen_retry_0008` | quiet | TN | — | — |
-| `gen_retry_0009` | quiet | FP | loop | 3 |
+| `gen_retry_0009` | quiet | TN | — | — |
 | `gen_retry_0010` | quiet | TN | — | — |
 | `gen_retry_0011` | quiet | TN | — | — |
-| `gen_retry_0012` | quiet | FP | loop | 3 |
+| `gen_retry_0012` | quiet | TN | — | — |
 | `gen_retry_0013` | quiet | TN | — | — |
-| `gen_retry_0014` | quiet | FP | loop | 3 |
+| `gen_retry_0014` | quiet | TN | — | — |
 | `gen_retry_0015` | quiet | TN | — | — |
 | `gen_retry_0016` | quiet | TN | — | — |
-| `gen_retry_0017` | quiet | FP | loop | 3 |
+| `gen_retry_0017` | quiet | TN | — | — |
 | `gen_retry_0018` | quiet | TN | — | — |
 | `gen_retry_0019` | quiet | TN | — | — |
-| `gen_retry_0020` | quiet | FP | loop | 3 |
-| `gen_retry_0021` | quiet | FP | loop | 3 |
-| `gen_retry_0022` | quiet | FP | loop | 3 |
+| `gen_retry_0020` | quiet | TN | — | — |
+| `gen_retry_0021` | quiet | TN | — | — |
+| `gen_retry_0022` | quiet | TN | — | — |
 | `gen_retry_0023` | quiet | TN | — | — |
 | `gen_retry_0024` | quiet | TN | — | — |
 | `gen_retry_0025` | quiet | TN | — | — |
-| `gen_retry_0026` | quiet | FP | loop | 3 |
+| `gen_retry_0026` | quiet | TN | — | — |
 | `gen_retry_0027` | quiet | TN | — | — |
-| `gen_retry_0028` | quiet | FP | loop | 3 |
-| `gen_retry_0029` | quiet | FP | loop | 3 |
+| `gen_retry_0028` | quiet | TN | — | — |
+| `gen_retry_0029` | quiet | TN | — | — |
 | `gen_retry_0030` | quiet | TN | — | — |
 | `gen_retry_0031` | quiet | TN | — | — |
-| `gen_retry_0032` | quiet | FP | loop | 3 |
+| `gen_retry_0032` | quiet | TN | — | — |
 | `gen_retry_0033` | quiet | TN | — | — |
 | `gen_retry_0034` | quiet | TN | — | — |
 | `gen_retry_0035` | quiet | TN | — | — |
 | `gen_retry_0036` | quiet | TN | — | — |
-| `gen_retry_0037` | quiet | FP | loop | 3 |
+| `gen_retry_0037` | quiet | TN | — | — |
 | `gen_retry_0038` | quiet | TN | — | — |
 | `gen_retry_0039` | quiet | TN | — | — |
 | `gen_short_0000` | quiet | TN | — | — |
