@@ -6,33 +6,37 @@
   "generated_suite": {
     "n_per_generator": 40,
     "seed": 20260812,
-    "scenarios": 880,
+    "scenarios": 936,
     "floor": {
-      "recall": 0.85,
-      "precision": 0.87,
-      "f1": 0.86,
+      "recall": 0.94,
+      "precision": 0.88,
+      "f1": 0.91,
       "attribution_accuracy": 0.8,
       "net_tokens": 700000,
       "roi": 1.5,
-      "recovery_rate": 0.68,
+      "recovery_rate": 0.63,
       "steering_quality": 0.85,
       "steering_usable_rate": 0.9,
-      "recall_clustered_low": 0.55
+      "recall_clustered_low": 0.7
     },
     "ceiling": {
-      "false_positive_rate": 0.12,
+      "false_positive_rate": 0.1,
       "detected_premature": 5
     },
     "known_weak_families": {
       "drift": "90% with LOCAL embeddings (bge-base-en-v1.5, 110M params, free, offline), up from 76% on the lexical fallback. Model size has a hard floor here: bge-small (33M) is not merely weaker, it ranks gradual drift as MORE similar to the goal than genuinely on-task text, so any threshold built on it fires backwards.",
       "attribution": "84% - reworded-argument loops are caught by PROGRESS as a backstop rather than by LOOP, so the steering advice is blunter than ideal. Needs semantic argument comparison to fix properly.",
       "roi": "1.70x, down from 3.85x - the closed-loop measurement charges every steering attempt, and climbing a ladder costs more calls than giving up after one. The old figure only ever charged for a single attempt.",
-      "long_sparse": "42.5% FPR on workloads with wide gaps between state advances, down from 100% with calibration off. Not solved - the first cycle still trips before any baseline exists.",
-      "progress": "67% - two new families are missed. gen_zeno (partial-progress trap) advances state on EVERY step, so a binary progress signal never fires; it needs a rate-of-progress measure. gen_oscillate flips between plans, which is a failure of intent rather than of action."
+      "long_sparse": "42.5% FPR on workloads with wide gaps between state advances, down from 100% with calibration off. Not solved - the first cycle still trips before any baseline exists. Now the single largest FP source: 17 of the 39 remaining false positives, all fired by LOOP.",
+      "progress": "100%, up from 67%. Both gaps closed: gen_oscillate by the rewritten stall detector, gen_zeno by the new RateOfProgressDetector.",
+      "loop_detector_is_net_negative": "MEASURED, and uncomfortable: leave-one-out ablation now shows ablate-loop at F1 +1.8 (94.6 -> 96.4). Removing the loop detector IMPROVES the system. It contributes all 33 of the remaining loop-family false positives (gen_retry 16, gen_longsparse 17) while the progress detector catches the same loops as a backstop, so its marginal recall contribution is 0.0 and its marginal precision contribution is negative. It is kept for now because it is the only detector that names the offending TOOL, which is what makes alternate-action steering specific, and attribution would fall without it. This is a genuine open design question, not a tuning knob.",
+      "zeno_bare_cursor": "The rate detector needs TWO quantities - one pinned, one climbing past it. A Zeno trap that reports only a bare cursor ('batch 7 done') is NOT detectable and will be missed, because that is character-for-character what a healthy batch job emits. Measured cost of ignoring this: the first version fired on any unbounded rising counter and produced 44 FPs on healthy runs (FPR 8.9 -> 17.0). The narrower claim is the one the evidence supports."
     },
     "recovery_note": "recovery_rate DROPPED 95.0 -> 75.2 on 2026-08-12 because the old number was CIRCULAR, not because the system got worse. It unlocked the recovery branch whenever our own rubric approved our own instruction - but the rubric and the ladder's templates were written together, so it always approved them, and every rung unlocked the same branch (making the ladder's value unmeasurable). Scenarios now declare responds_to: the single rung that agent actually obeys, ground truth independent of anything we generate. 75.2% is the first recovery number that could have come out wrong. steering_usable=100% remains circular by construction and should NOT be read as evidence. Fell again 75.2 -> 71.7 when three harder positive families were added; the suite got harder, the system did not regress.",
     "suite_note": "Three LONG-RUN generators added 2026-08-12 (gen_long_then_loop, gen_long_polling_benign, gen_long_sparse_benign). The suite had a median length of 7 steps, which is a poor proxy for 'hours of autonomous execution' and made adaptive calibration untestable - only 39% of scenarios ever accumulated enough healthy samples for it to engage. The floors here are lower than the pre-2026-08-12 numbers because the SUITE GOT HARDER, not because the system regressed: FPR 5.2% was measured before long sparse-progress workloads were represented at all.",
-    "generators": 20
+    "generators": 21,
+    "rate_detector_note": "RATE-OF-PROGRESS DETECTOR added 2026-08-13, closing the last documented known gap. The binary progress test asks 'did the state advance?', so an agent that advances on EVERY step and converges on none resets the stall counter every step and its trip condition is unreachable - no value of stall_patience reaches it. Measured on the full suite: recall 88.4 -> 97.6, F1 89.6 -> 94.6, FPR 8.9 -> 8.0, progress family 67 -> 100%. Ablation puts its causal contribution at dF1 -4.8, third largest of five detectors. Two findings came out of building it. (1) The first version tripped on any unbounded rising counter and cost 44 false positives on healthy runs (FPR 8.9 -> 17.0) - 'batch 7 done' is the same evidence as 'processed 1 of many (offset 7)', so a lone climbing counter is NOT identifiable and the detector now abstains on it. (2) Attribution fell 84 -> 69.8 in that same version because gen_bloat (a spend scenario) matched the loose signature; requiring the two-quantity signature fixed both at once, which is what a shared root cause looks like. Spend family recall fell 100 -> 96.3 (3 FNs) because the rate detector is no longer covering for the spend detector on gen_bloat - a pre-existing spend weakness that was previously hidden, not a new regression.",
+    "clustering_ceiling_effect_warning": "DO NOT quote the effective sample size from the 2026-08-13 run as evidence of a better-powered benchmark. Design effect fell 16.9x -> 2.02x and ICC 0.407 -> 0.048, moving effective n from 13 to 222 and narrowing the clustered recall interval from [57.8-95.7] to [94.8-99.0]. That is a CEILING ARTIFACT: 18 of 20 recall clusters are now all-successes, so between-cluster variance has nowhere to live and DEFF collapses toward 1 by construction. The suite did not gain independent evidence - it went from 20 generator families to 21. The number of independent families remains the only real measure of statistical power, and the interval will widen again the moment any family regresses. recall_clustered_low is deliberately floored at 0.70 rather than near the measured 0.948 for exactly this reason: a small regression will re-inflate ICC and blow through a tight floor for statistical rather than behavioural reasons."
   },
   "handwritten_suite": {
     "scenarios": 16,
