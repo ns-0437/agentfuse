@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field, asdict
+import threading
 from pathlib import Path
 from typing import Optional, Protocol
 
@@ -115,6 +116,12 @@ class JSONMemory:
     """
 
     def __init__(self, path: Optional[str] = None, max_records: int = 5000):
+        # One memory is deliberately shareable across runs — that is the point
+        # of it — so it cannot rely on the monitor's lock. _flush() rewrites the
+        # WHOLE file, so two concurrent remember() calls can truncate each
+        # other's output, and every read here iterates _records while another
+        # thread may be appending.
+        self._lock = threading.RLock()
         self.path = Path(path) if path else None
         self.max_records = max_records
         self._records: list[RecoveryRecord] = []
@@ -146,29 +153,33 @@ class JSONMemory:
 
     # -- interface ------------------------------------------------------
     def remember(self, record: RecoveryRecord) -> str:
-        self._records.append(record)
-        self._by_id[record.record_id] = record
-        if len(self._records) > self.max_records:
-            dropped = self._records.pop(0)
-            self._by_id.pop(dropped.record_id, None)
-        self._flush()
-        return record.record_id
+        with self._lock:
+            self._records.append(record)
+            self._by_id[record.record_id] = record
+            if len(self._records) > self.max_records:
+                dropped = self._records.pop(0)
+                self._by_id.pop(dropped.record_id, None)
+            self._flush()
+            return record.record_id
 
     def recall(self, signature: str, limit: int = 5) -> list[RecoveryRecord]:
         """Most recent attempts against this failure shape, newest first."""
-        hits = [r for r in self._records if r.signature == signature]
+        with self._lock:
+            hits = [r for r in self._records if r.signature == signature]
         return sorted(hits, key=lambda r: r.ts, reverse=True)[:limit]
 
     def mark_outcome(self, record_id: str, worked: bool) -> None:
-        rec = self._by_id.get(record_id)
-        if rec is not None:
-            rec.worked = worked
-            self._flush()
+        with self._lock:
+            rec = self._by_id.get(record_id)
+            if rec is not None:
+                rec.worked = worked
+                self._flush()
 
     def failed_instructions(self, signature: str, limit: int = 5) -> list[str]:
         """Steering that has already been tried here and demonstrably failed."""
-        failed = [r for r in self._records
-                  if r.signature == signature and r.worked is False]
+        with self._lock:
+            failed = [r for r in self._records
+                      if r.signature == signature and r.worked is False]
         failed.sort(key=lambda r: r.ts, reverse=True)
         return [r.instruction for r in failed[:limit]]
 
@@ -180,18 +191,21 @@ class JSONMemory:
         aged out and the ladder silently restarted from the bottom, retrying
         corrections already known not to work.
         """
-        return {r.strategy for r in self._records
-                if r.signature == signature and r.worked is False}
+        with self._lock:
+            return {r.strategy for r in self._records
+                    if r.signature == signature and r.worked is False}
 
     def strategies_tried(self, signature: str) -> set[str]:
-        return {r.strategy for r in self._records if r.signature == signature}
+        with self._lock:
+            return {r.strategy for r in self._records if r.signature == signature}
 
     def __len__(self) -> int:
         return len(self._records)
 
     @property
     def stats(self) -> dict:
-        verified = [r for r in self._records if r.worked is not None]
+        with self._lock:
+            verified = [r for r in self._records if r.worked is not None]
         worked = [r for r in verified if r.worked]
         return {
             "records": len(self._records),

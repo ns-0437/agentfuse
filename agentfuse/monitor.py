@@ -12,10 +12,28 @@ the monitor runs every detector, and on a trip it:
 The monitor never runs the agent itself; it only observes and directs. That
 separation is the whole point: the thing judging the run is not the thing
 performing it.
+
+Concurrency
+-----------
+``observe`` is serialised by a re-entrant lock. This is not defensive
+programming; the unguarded version was measured failing. Driving one monitor
+from two threads with the GIL switch interval lowered to expose the window
+produced both mis-attributed trips — a trip naming a tool the agent never
+called, which then becomes a steering instruction telling it to stop using
+that tool — and an outright ``RuntimeError: deque mutated during iteration``
+from inside a detector. A supervisor that crashes the run it is supervising is
+worse than no supervisor, and this project's own adapters raise into the agent's
+call stack.
+
+The lock makes each event atomic. It does **not** make interleaved events from
+*different agents* semantically meaningful: detector counters are per-monitor, so
+two agents sharing one monitor still blend their histories. **One monitor per
+agent run** remains the supported model, and is what every adapter here builds.
 """
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -122,6 +140,9 @@ class CircuitBreakerMonitor:
                 "max_recoveries": config.max_recoveries,
             },
         })
+        # Re-entrant: _handle_trip runs inside observe, and a tracer or detector
+        # callback could re-enter. A plain Lock would deadlock on that path.
+        self._lock = threading.RLock()
         self.history: list[AgentEvent] = []
         self.route_history: list[str] = []
         self.total_tokens = 0
@@ -161,6 +182,10 @@ class CircuitBreakerMonitor:
 
     def observe(self, event: AgentEvent) -> Directive:
         """Ingest one event; return what the agent should do next."""
+        with self._lock:
+            return self._observe_locked(event)
+
+    def _observe_locked(self, event: AgentEvent) -> Directive:
         self.history.append(event)
         self.total_tokens += event.tokens_in + event.tokens_out
         self.total_cost += event.cost_usd
@@ -232,6 +257,10 @@ class CircuitBreakerMonitor:
 
     # ------------------------------------------------------------------
     def finish(self, status: str = "complete") -> dict:
+        with self._lock:
+            return self._finish_locked(status)
+
+    def _finish_locked(self, status: str) -> dict:
         totals = {
             "status": status,
             "steps": self.history[-1].step if self.history else 0,
