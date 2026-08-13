@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 76 commits · 212 tests green · 936 benchmark scenarios
+**As of 2026-08-13** · 78 commits · 212 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -149,7 +149,7 @@ Qwen2.5-3B-Instruct-Q4, n=14 per condition:
 The signal is real and it tracks *failure*, not *difficulty* — the healthy-but-hard
 control did not drop. **And the detector is still harmful**: ablation puts it at
 **ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
-ships off by default. See §4.11 for why, because the reason generalises.
+ships off by default. See §4.12 for why, because the reason generalises.
 
 ---
 
@@ -366,7 +366,50 @@ One of my tests was wrong and the adapter was right: `supervisor_node` returning
 a partial dict is correct LangGraph convention. I corrected the test, not the
 code.
 
-### 4.11 A large effect size is not a usable detector
+### 4.11 Tier 2 — a real signal, beaten by three lines of string comparison
+
+Activation probes are ESR's actual method, and this was recorded as blocked for
+the life of the project. **The block was not hardware.** An interrupted install
+had left an orphaned `torch` directory with no metadata and no `lib/` — and it
+died because **Windows long paths are disabled** while this Python sits ~130
+characters deep under a Store path, so torch's deepest headers exceed `MAX_PATH`.
+A venv at a short path fixed it, and keeps torch out of the stdlib-only core.
+
+Linear probes on last-token hidden states, Qwen2.5-0.5B-Instruct, 135 distinct
+transcripts:
+
+| layer | held-out AUC | ambiguous flagged |
+|---|---:|---:|
+| 0 (embeddings) | 1.000 | **100%** — lexical, confuses *hard* with *stuck* |
+| 4 | 0.863 | 13% |
+| 13 | 1.000 | 13% |
+| **16–24** | **1.000** | **0%** |
+| shuffled-label control | 0.453 | *chance — no leak* |
+
+The layer profile is exactly what the hypothesis predicts: early layers separate
+on vocabulary, deep layers separate cleanly *and* correctly call the
+healthy-but-hard control healthy.
+
+**And it still should not ship.** What the probe classifies perfectly — a
+transcript repeating an identical result — is precisely what `LoopDetector`
+already catches with a string comparison:
+
+| | cost per turn |
+|---|---:|
+| probe forward pass | **558 ms** |
+| `LoopDetector` | **0.029 ms** |
+
+**19,000× cheaper for the same detection.** Tier 0 wins outright on the only
+failure mode this design could test.
+
+Three methodology bugs were caught by the controls, each of which would have
+produced a publishable-looking number: the shuffled-label control rejected the
+first run because duplicate prompts spanned the split; layer 0 scoring 1.000
+exposed that the classes were separable by vocabulary alone; and standardising
+with `sd + 1e-6` amplified float noise on constant features into a perfect AUC
+read out of nothing.
+
+### 4.12 A large effect size is not a usable detector
 
 Phase 4 Tier 1 produced the cleanest example in the project of a measurement that
 was necessary and nowhere near sufficient.
@@ -391,7 +434,7 @@ a detector tuned above its own effect size, the same defect `NoProgressDetector`
 had. And the first analysis compared two means against a flat cut-off and called
 a 0.16 gap "usable" at n=6 with sd 0.10–0.16.
 
-### 4.12 A backspace that disabled a security defence
+### 4.13 A backspace that disabled a security defence
 
 A shell heredoc wrote a literal `\x08` where `\b` was intended in an
 injection-detection regex — invisible to grep, editors, and file reads, and it
@@ -408,10 +451,10 @@ All sources are now scanned for control characters by a test.
 | **1 — Eval harness** | ground-truth scenarios, hard negatives, Wilson + clustered CIs, ablation, random control | ✅ Done |
 | **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — §3.3)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
-| **4 — Signal ladder** | logprobs, self-probe, activation probes | ❌ Not started |
+| **4 — Signal ladder** | Tier 0 behavioural ✅ · Tier 1 logprobs ✅ · Tier 2 activation probes ✅ | ✅ Done *(both internal tiers measured, both ship OFF — §3.4, §4.11)* |
 | **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ✅ · PyPI ❌ | 🟡 5 of 6 |
 
-**3 of 5 complete.** Phase 5 is at 5 of 6 — only PyPI packaging remains.
+**4 of 5 complete.** Phase 5 is at 5 of 6 — only PyPI packaging remains.
 
 ---
 
@@ -531,12 +574,16 @@ the only complete answer for a sensitive deployment.
 - **Async is untested under load.** `observe()` is synchronous and called from
   async hooks. It works; it has never been profiled with concurrent agents.
 
-### 8.7 Phase 4 — Tier 1 built and measured, Tier 2 blocked
+### 8.7 Phase 4 — complete, and both internal tiers ship OFF
 
-**Tier 1 (token logprobs) is built, measured, and deliberately shipped OFF.** The
-result is in §3.4. Tier 2 (activation probes, ESR's actual method) needs
-open-weight internals and `torch` is broken in this environment — a genuine block,
-not a choice.
+All three tiers are built and measured. **Tier 1 costs 10.8 F1 when enabled
+(§3.4); Tier 2 is 19,000× more expensive than the string comparison that already
+catches the same thing (§4.11).** Both remain in the tree as measured, opt-in
+research tools.
+
+The honest summary of Phase 4: **reading the model's insides did not beat reading
+its behaviour.** That is a real answer to the question the phase existed to ask,
+and it is worth more than a detector nobody should switch on.
 
 The signal ladder — logprob-based confidence, self-probing, activation probes —
 has **zero lines of code**. It was deferred deliberately: it layers a research
@@ -548,9 +595,10 @@ Short, and worth separating from the above so the distinction stays honest:
 
 - **No OpenAI credits.** A money constraint, not a hardware one. $0 has ever been
   spent on this project.
-- **`torch` is broken** (DLL load failure), so `sentence-transformers` and
-  anything requiring it — EmbeddingGemma among them — cannot run. Worked around
-  with ONNX via `fastembed`.
+- ~~`torch` is broken~~ — **fixed 2026-08-13.** The cause was never CUDA: an
+  interrupted install left an orphaned package because Windows long paths are
+  disabled under a deep Store path. A venv at a short path resolves it. This was
+  the last item on this list that turned out not to be a real constraint.
 - **A 70B-class model will not run** on 15.2 GB of RAM.
 
 Everything else in §8 is a choice, not a limit.
