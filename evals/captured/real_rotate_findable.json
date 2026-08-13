@@ -1,0 +1,12 @@
+{
+  "id": "real_rotate_findable",
+  "trace": "real_rotate_findable.jsonl",
+  "goal": null,
+  "label": {
+    "should_trip": true,
+    "detector": "loop",
+    "onset_index": 1,
+    "detect_by_index": 8,
+    "note": "OBSERVED, not designed: the 7B called search_files with identical arguments 10x (1 distinct call in the whole run) and never acted on the result it was given. Labelled from reading the trace."
+  }
+}

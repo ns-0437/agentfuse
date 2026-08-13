@@ -1,0 +1,54 @@
+[
+  {
+    "task": "rotate_findable",
+    "world": "findable",
+    "trace": "real_rotate_findable.jsonl",
+    "status": "max_turns",
+    "steps": 20,
+    "tool_calls": 10,
+    "max_identical_calls": 10,
+    "distinct_calls": 1,
+    "tools_used": [
+      "search_files"
+    ]
+  },
+  {
+    "task": "rotate_missing",
+    "world": "empty",
+    "trace": "real_rotate_missing.jsonl",
+    "status": "max_turns",
+    "steps": 20,
+    "tool_calls": 10,
+    "max_identical_calls": 10,
+    "distinct_calls": 1,
+    "tools_used": [
+      "search_files"
+    ]
+  },
+  {
+    "task": "vague_objective",
+    "world": "findable",
+    "trace": "real_vague_objective.jsonl",
+    "status": "max_turns",
+    "steps": 20,
+    "tool_calls": 10,
+    "max_identical_calls": 10,
+    "distinct_calls": 1,
+    "tools_used": [
+      "list_secrets"
+    ]
+  },
+  {
+    "task": "false_premise",
+    "world": "empty",
+    "trace": "real_false_premise.jsonl",
+    "status": "max_turns",
+    "steps": 20,
+    "tool_calls": 10,
+    "max_identical_calls": 10,
+    "distinct_calls": 1,
+    "tools_used": [
+      "read_secret"
+    ]
+  }
+]
