@@ -4,7 +4,7 @@
 
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
-**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser.
+**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. *(Last rebuilt 2026-07-19; it predates the rate detector, checkpoints, cost accounting, escalation delivery and secret redaction — see [REPORT.md §8.6](REPORT.md).)*
 
 **📄 [Full project report](REPORT.md)** — every result to date, phase status, and an
 honest readiness assessment, including the measurement showing the deterministic

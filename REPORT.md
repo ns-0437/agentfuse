@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 78 commits · 212 tests green · 936 benchmark scenarios
+**As of 2026-08-14** · 85 commits · 212 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -556,7 +556,20 @@ format, no naming context, and under 32 characters is indistinguishable from
 ordinary text and **will survive**. `escalation_include_agent_text=False` remains
 the only complete answer for a sensitive deployment.
 
-### 8.6 Known rough edges, unaddressed
+### 8.6 The public face of the project is a month stale
+
+The dashboard linked at the top of the README was last rebuilt on **2026-07-19**
+and the demo GIF on **2026-07-18**. Everything since — the rate detector,
+checkpoints, cost accounting, escalation delivery, secret redaction, and every
+detector fix — is invisible in both. The GIF still advertises `o4-mini` steering,
+which §3.3 now shows losing to the deterministic templates.
+
+Anyone arriving at this repo sees a system that no longer exists, described by a
+report that does. That is a documentation failure of exactly the kind §4.13
+records in the code: an artifact that was true when written and stopped being
+true without anyone noticing.
+
+### 8.7 Known rough edges, unaddressed
 
 - **Checkpoints lose recent history.** `state()` saves counters, not the event
   list, so after a restore the supervisor's first snapshot has an empty
@@ -574,7 +587,7 @@ the only complete answer for a sensitive deployment.
 - **Async is untested under load.** `observe()` is synchronous and called from
   async hooks. It works; it has never been profiled with concurrent agents.
 
-### 8.7 Phase 4 — complete, and both internal tiers ship OFF
+### 8.8 Phase 4 — complete, and both internal tiers ship OFF
 
 All three tiers are built and measured. **Tier 1 costs 10.8 F1 when enabled
 (§3.4); Tier 2 is 19,000× more expensive than the string comparison that already
@@ -589,7 +602,7 @@ The signal ladder — logprob-based confidence, self-probing, activation probes 
 has **zero lines of code**. It was deferred deliberately: it layers a research
 direction on top of the steering premise in §8.1, which is unproven.
 
-### 8.8 Genuinely blocked by this environment
+### 8.9 Genuinely blocked by this environment
 
 Short, and worth separating from the above so the distinction stays honest:
 
