@@ -174,6 +174,26 @@ graph.invoke(state, config={"callbacks": [handler]})
 # add handler.supervisor_node as a node to inject steering between agent turns
 ```
 
+### Surviving a restart
+
+A supervisor that forgets everything on restart doesn't just lose convenience —
+it loses the ceiling. An agent with a 500,000-token budget that dies at 480,000
+would come back with its budget at **zero**, so the restart *rearmed* the guard
+instead of enforcing it.
+
+```python
+mon = CircuitBreakerMonitor(MonitorConfig(
+    original_goal=GOAL, max_tokens=500_000,
+    checkpoint_path="runs.db",      # stdlib sqlite3, WAL — survives a hard kill
+    run_id="nightly-reconcile",     # what to resume
+))
+mon.restore()                       # picks up spend, loop counters, calibration
+```
+
+Off by default. Always checkpoints on a trip regardless of interval, since that's
+the state a crash most often follows and the costliest to lose — it carries the
+recovery ladder's position.
+
 ### Low-level (any runtime)
 
 ```python
@@ -210,7 +230,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 121-test CI gate
+pytest evals/ -q                                  # 135-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,
@@ -538,6 +558,7 @@ agentfuse/
   adapters/            agentkit · agentkit_hooks (real RunHooks) · openai_sdk · langgraph
   embedding.py         local ONNX first, hosted second, lexical last
   memory.py            what was steered, and whether it worked
+  checkpoint.py        durable run state — a restart keeps its ceiling
   strategies.py        the escalating ladder of interventions
   calibration.py       per-run thresholds learned from healthy stretches
   sanitize.py          agent/tool output is untrusted input
