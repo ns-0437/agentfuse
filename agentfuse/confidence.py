@@ -138,10 +138,28 @@ class ConfidenceDetector(Detector):
     #: than it looks: each turn contributes hundreds of tokens.
     MIN_SAMPLES = 3
 
-    def __init__(self, drop: float = 0.6, patience: int = 3,
-                 alpha: float = 0.3, calibrator=None):
-        #: How far below baseline mean-logprob counts as a collapse, in nats.
-        self.drop = drop
+    def __init__(self, drop_sigmas: float = 1.0, patience: int = 3,
+                 alpha: float = 0.3, calibrator=None, min_drop: float = 0.03):
+        #: How far below baseline counts as a collapse, measured in standard
+        #: deviations of THIS RUN's own healthy turns rather than in nats.
+        #:
+        #: The first version used an absolute 0.6 nats, and measuring it showed
+        #: why that was wrong twice over. On a real 3B model the actual gaps are
+        #: 0.09-0.16 nats, so 0.6 could never fire — a detector tuned above its
+        #: own effect size, which is the same defect NoProgressDetector had. And
+        #: an absolute figure would not transfer anyway: effect sizes differ by
+        #: model just as baselines do.
+        #:
+        #: In sigmas the measurement reads cleanly: healthy turns had sd 0.068,
+        #: and the three failure modes sat 1.3, 2.1 and 2.3 sigmas below the
+        #: healthy mean. At 1.0 sigma all three clear the bar, and requiring
+        #: `patience` CONSECUTIVE low turns makes chance triggering ~0.4%
+        #: rather than 16%.
+        self.drop_sigmas = drop_sigmas
+        #: Floor on the absolute drop, for a model so deterministic that its
+        #: healthy variance is ~0. Without it, sigma collapses and any wobble
+        #: reads as catastrophic.
+        self.min_drop = min_drop
         #: Consecutive low-confidence turns before tripping. One uncertain turn
         #: is normal; a sustained run of them is the claim.
         self.patience = patience
@@ -151,6 +169,7 @@ class ConfidenceDetector(Detector):
         self._samples = 0
         self._low_streak = 0
         self._last: Optional[dict] = None
+        self._healthy: list[float] = []      # recent healthy means, for sigma
 
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
         if event.type is not EventType.LLM_CALL:
@@ -164,9 +183,10 @@ class ConfidenceDetector(Detector):
         if self._baseline is None:
             self._baseline = mean
             self._samples = 1
+            self._healthy = [mean]
             return None
 
-        threshold = self._baseline - self.drop
+        threshold = self._baseline - self._effective_drop()
         if mean < threshold:
             self._low_streak += 1
         else:
@@ -177,6 +197,8 @@ class ConfidenceDetector(Detector):
             self._low_streak = 0
             self._samples += 1
             self._baseline = (1 - self.alpha) * self._baseline + self.alpha * mean
+            self._healthy.append(mean)
+            del self._healthy[:-24]      # recent history is what sigma should reflect
             return None
 
         if self._samples < self.MIN_SAMPLES or self._low_streak < self.patience:
@@ -196,11 +218,22 @@ class ConfidenceDetector(Detector):
                 "mean_logprob": round(mean, 3),
                 "baseline": round(self._baseline, 3),
                 "drop": round(self._baseline - mean, 3),
+                "drop_threshold": round(self._effective_drop(), 3),
                 "perplexity": round(stats["perplexity"], 2),
                 "low_token_fraction": round(stats["low_fraction"], 3),
                 "consecutive_low_turns": self._low_streak,
             },
         )
+
+    def _effective_drop(self) -> float:
+        """How far below baseline is a collapse, in this run's own units."""
+        if len(self._healthy) < 2:
+            # No spread observed yet, so sigma is meaningless. Fall back to the
+            # floor rather than to zero, which would trip on the first wobble.
+            return max(self.min_drop, self.drop_sigmas * 0.05)
+        mean = sum(self._healthy) / len(self._healthy)
+        var = sum((v - mean) ** 2 for v in self._healthy) / len(self._healthy)
+        return max(self.min_drop, self.drop_sigmas * math.sqrt(var))
 
     def reset(self) -> None:
         self._low_streak = 0

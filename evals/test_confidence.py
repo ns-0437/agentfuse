@@ -108,7 +108,7 @@ def test_it_abstains_entirely_without_logprobs():
 
 
 def test_a_sustained_collapse_relative_to_the_run_trips():
-    det = ConfidenceDetector(drop=0.6, patience=3)
+    det = ConfidenceDetector(drop_sigmas=1.0, patience=3)
     for i in range(1, 6):
         assert det.inspect(_turn(i, [-0.15] * 20), []) is None      # healthy
     trip = None
@@ -119,7 +119,7 @@ def test_a_sustained_collapse_relative_to_the_run_trips():
 
 
 def test_one_uncertain_turn_is_not_a_collapse():
-    det = ConfidenceDetector(drop=0.6, patience=3)
+    det = ConfidenceDetector(drop_sigmas=1.0, patience=3)
     for i in range(1, 6):
         det.inspect(_turn(i, [-0.15] * 20), [])
     assert det.inspect(_turn(6, [-1.6] * 20), []) is None
@@ -133,14 +133,14 @@ def test_the_baseline_is_relative_so_a_quiet_model_is_not_punished():
     This model runs at -1.4 throughout and never wavers. An absolute cut-off
     anywhere near it would fire constantly; a self-relative one stays silent.
     """
-    det = ConfidenceDetector(drop=0.6, patience=2)
+    det = ConfidenceDetector(drop_sigmas=1.0, patience=2)
     for i in range(1, 15):
         assert det.inspect(_turn(i, [-1.4] * 20), []) is None
 
 
 def test_the_baseline_does_not_drift_down_to_follow_a_failing_model():
     """Otherwise the alarm calibrates itself away exactly when it is needed."""
-    det = ConfidenceDetector(drop=0.6, patience=2)
+    det = ConfidenceDetector(drop_sigmas=1.0, patience=2)
     for i in range(1, 5):
         det.inspect(_turn(i, [-0.2] * 20), [])
     healthy_baseline = det._baseline
@@ -152,7 +152,7 @@ def test_the_baseline_does_not_drift_down_to_follow_a_failing_model():
 
 def test_it_waits_for_a_baseline_before_judging_anything():
     """Tripping on turn two would be judging a model against nothing."""
-    det = ConfidenceDetector(drop=0.6, patience=1)
+    det = ConfidenceDetector(drop_sigmas=1.0, patience=1)
     assert det.inspect(_turn(1, [-0.2] * 20), []) is None
     assert det.inspect(_turn(2, [-3.0] * 20), []) is None, (
         "a single healthy sample is not a baseline")

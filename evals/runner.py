@@ -17,7 +17,9 @@ Semantics that matter for honest scoring:
 
 from __future__ import annotations
 
+import math
 import os
+import random
 import sys
 from pathlib import Path
 from typing import Optional
@@ -37,6 +39,7 @@ from agentfuse.detectors import (  # noqa: E402
     Detector, LoopDetector, DriftDetector, NoProgressDetector, SpendDetector,
     RateOfProgressDetector,
 )
+from agentfuse.confidence import ConfidenceDetector  # noqa: E402
 from agentfuse.recovery import RecoveryEngine  # noqa: E402
 
 from agentfuse.recovery import RecoveryAction  # noqa: E402
@@ -115,12 +118,48 @@ def build_detectors(scenario: Scenario, cfg: dict,
     # diagnosis. Ablation keys on the name, so "rate" can be dropped like any other.
     if "rate" not in disabled and cfg.get("rate_patience") is not None:
         built.append(RateOfProgressDetector(patience=cfg["rate_patience"]))
+    # Tier 1, OFF BY DEFAULT — and the measurement is why.
+    #
+    # Ablation put it at dF1 +10.8: removing it IMPROVED the system by more than
+    # ten points, while contributing exactly ZERO recall (97.6% either way) and
+    # 118 additional false positives. Enable with confidence=True to reproduce
+    # that; it is not a default anyone should get by accident.
+    if cfg.get("confidence") and "confidence" not in disabled:
+        built.append(ConfidenceDetector())
     if extra:
         built.extend(extra)
     return built
 
 
-def _events_for_step(step, step_no: int) -> list[AgentEvent]:
+# Confidence statistics drawn from a REAL model, not invented.
+#
+# Measured in evals/measure_confidence.py against Qwen2.5-3B-Instruct-Q4 over
+# n=14 generations per condition: healthy reasoning averaged -0.686 mean logprob
+# with sd 0.068, and the three failure conditions sat at -0.775 to -0.842 with
+# sd ~0.12. Those are the numbers below.
+#
+# WHAT THIS DOES AND DOES NOT ESTABLISH, because the distinction decides how the
+# ablation may be read. The *existence* of the signal was measured separately
+# against a real model; that is not in question here. What is synthetic is the
+# CORRELATION — this harness attaches low confidence to steps it already knows
+# are failing. So the ablation answers only: "given a signal of the realistic
+# effect size we measured, does it add anything the behavioural detectors do not
+# already catch?" It cannot answer whether the signal would fire correctly on a
+# real agent, and a positive dF1 here is therefore an UPPER BOUND.
+_CONF_HEALTHY = (-0.686, 0.068)
+_CONF_FAILING = (-0.810, 0.120)
+
+
+def _confidence_meta(rng: random.Random, failing: bool) -> dict:
+    mean, sd = _CONF_FAILING if failing else _CONF_HEALTHY
+    value = rng.gauss(mean, sd)
+    return {"confidence": {"tokens": 120, "mean_logprob": value,
+                           "perplexity": math.exp(-value),
+                           "low_fraction": 0.30 if failing else 0.25,
+                           "min_logprob": value - 2.0}}
+
+
+def _events_for_step(step, step_no: int, confidence: Optional[dict] = None) -> list[AgentEvent]:
     """Expand one scripted step into the events an adapter would emit.
 
     Fidelity matters more than convenience here. Comparing this against a real
@@ -145,6 +184,7 @@ def _events_for_step(step, step_no: int) -> list[AgentEvent]:
             type=EventType.LLM_CALL, step=step_no, node=step.node,
             text=step.text, goal=step.goal,
             tokens_in=step.tokens_in, tokens_out=step.tokens_out,
+            meta=dict(confidence or {}),
         ))
         events.append(AgentEvent(
             type=EventType.TOOL_CALL, step=step_no, node=step.node,
@@ -165,6 +205,7 @@ def _events_for_step(step, step_no: int) -> list[AgentEvent]:
             type=EventType.LLM_CALL, step=step_no, node=step.node,
             text=step.text, goal=step.goal,
             tokens_in=step.tokens_in, tokens_out=step.tokens_out,
+            meta=dict(confidence or {}),
         ))
         if step.progress:
             events[-1].state = {"advanced_at": step_no, "last": str(step.text)[:80]}
@@ -284,9 +325,12 @@ def run_scenario(scenario: Scenario,
     trip_step_index: Optional[int] = None
     tokens_spent = 0
 
+    conf_rng = random.Random(hash(scenario.id) & 0xFFFF)
+    onset = scenario.label.onset_index if scenario.label.should_trip else None
     for idx, step in enumerate(scenario.steps):
         tokens_spent += step.tokens
-        for ev in _events_for_step(step, idx + 1):
+        failing = onset is not None and idx >= onset
+        for ev in _events_for_step(step, idx + 1, _confidence_meta(conf_rng, failing)):
             monitor.observe(ev)
             if tracer.trip_log and trip_step_index is None:
                 trip_step_index = idx
