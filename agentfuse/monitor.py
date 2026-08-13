@@ -35,12 +35,14 @@ from __future__ import annotations
 
 import threading
 import uuid
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
 from .checkpoint import SQLiteCheckpointStore, load_state_dict, state_dict
 from .events import AgentEvent, EventType, ExecutionSnapshot
+from .notify import Notification, Notifier, build_notifier
 from .detectors import (Detector, LoopDetector, DriftDetector, SpendDetector,
                         NoProgressDetector, RateOfProgressDetector)
 from .calibration import AdaptiveCalibrator
@@ -106,11 +108,19 @@ class MonitorConfig:
     checkpoint_every: int = 20
     # Identifies the run to resume. Generated when not supplied.
     run_id: Optional[str] = None
+    # Where an escalation actually goes. Without one, "escalate to a human" means
+    # printing to a console that, on an unattended run, nobody is reading.
+    escalation_webhook: Optional[str] = None
+    # Drop agent-produced text from the escalation payload. The trace is the
+    # agent's reasoning and tool output, and posting it to an external URL is
+    # data egress; set False where that matters more than the detail.
+    escalation_include_agent_text: bool = True
 
 
 class CircuitBreakerMonitor:
     def __init__(self, config: MonitorConfig, detectors: Optional[list[Detector]] = None,
-                 recovery: Optional[RecoveryEngine] = None, tracer: Optional[Tracer] = None):
+                 recovery: Optional[RecoveryEngine] = None, tracer: Optional[Tracer] = None,
+                 notifier: Optional[Notifier] = None):
         self.config = config
         self.calibrator = AdaptiveCalibrator(enabled=config.adaptive)
         self.detectors: list[Detector] = detectors or [
@@ -163,6 +173,15 @@ class CircuitBreakerMonitor:
         self._store = (SQLiteCheckpointStore(config.checkpoint_path)
                        if config.checkpoint_path else None)
         self._events_since_checkpoint = 0
+        self.notifier = notifier if notifier is not None else build_notifier(
+            webhook_url=config.escalation_webhook, echo=config.echo,
+            include_agent_text=config.escalation_include_agent_text)
+        #: None until an escalation happens, then whether a human was reached.
+        #: Kept distinct from "did we escalate" so a failed delivery cannot be
+        #: mistaken for a successful one.
+        self.escalation_delivered: Optional[bool] = None
+        self.escalations = 0
+        self._warned_no_channel = False
         self.history: list[AgentEvent] = []
         self.route_history: list[str] = []
         self.total_tokens = 0
@@ -331,6 +350,7 @@ class CircuitBreakerMonitor:
             path.action = RecoveryAction.ESCALATE if trip.severity != Severity.CRITICAL else path.action
             self.tracer.recovery(path)
             kind = DirectiveKind.ABORT if path.action == RecoveryAction.ABORT else DirectiveKind.PAUSE
+            self._escalate(event, trip, path)
             return Directive(kind, steering_text=path.instruction, path=path)
 
         path = self.recovery.recover(snapshot)
@@ -343,12 +363,55 @@ class CircuitBreakerMonitor:
             d.reset()
 
         if path.action == RecoveryAction.ESCALATE:
+            self._escalate(event, trip, path)
             return Directive(DirectiveKind.PAUSE, steering_text=path.instruction, path=path)
         if path.action == RecoveryAction.ABORT:
+            self._escalate(event, trip, path)
             return Directive(DirectiveKind.ABORT, steering_text=path.instruction, path=path)
 
         self._pending_steer = (path, event.step)
         return Directive(DirectiveKind.INJECT, steering_text=path.instruction, path=path)
+
+    # ------------------------------------------------------------------
+    def _escalate(self, event: AgentEvent, trip, path) -> None:
+        """Tell a human, and record whether one was actually reached.
+
+        Delivery is tracked rather than assumed. A notifier that fails silently
+        would recreate, one layer up, exactly the bug this feature fixes: an
+        escalation nobody receives that looks identical to one they did.
+        """
+        self.escalations += 1
+        note = Notification(
+            run_id=self.run_id, reason=trip.reason, detector=trip.detector,
+            step=event.step, goal=self.config.original_goal,
+            action=path.action.value, instruction=path.instruction or "",
+            evidence=trip.evidence or {}, totals=self.spend_totals,
+        )
+        if self.notifier is None:
+            self.escalation_delivered = False
+            # Once per monitor: this is a statement about configuration, not
+            # about this particular escalation, and a long run can escalate
+            # many times. Repeating it buries the signal it is meant to raise.
+            if not self._warned_no_channel:
+                self._warned_no_channel = True
+                warnings.warn(
+                    "the breaker escalated but no escalation channel is "
+                    "configured, so no human was told. Set "
+                    "MonitorConfig.escalation_webhook.",
+                    RuntimeWarning, stacklevel=2)
+            return
+        try:
+            delivered = bool(self.notifier.send(note))
+        except Exception:      # a reporting failure must not kill the run
+            delivered = False
+        # Once any escalation fails to reach anyone, the run's answer to "was a
+        # human told?" is no, and a later success does not undo that.
+        self.escalation_delivered = delivered and self.escalation_delivered is not False
+        if not delivered:
+            warnings.warn(
+                f"escalation for run {self.run_id} could not be delivered; "
+                f"the run has halted and nobody has been told.",
+                RuntimeWarning, stacklevel=2)
 
     # ------------------------------------------------------------------
     def finish(self, status: str = "complete") -> dict:
@@ -385,6 +448,9 @@ class CircuitBreakerMonitor:
             "recoveries": self.tracer.recoveries,
             "steers_verified_working": self.steers_that_worked,
             "steers_verified_failed": self.steers_that_failed,
+            "escalations": self.escalations,
+            # None = never escalated. False = escalated and NOBODY was told.
+            "escalation_delivered": self.escalation_delivered,
             "route": " -> ".join(self.route_history[-12:]),
         }
         self.tracer.summary(totals)
