@@ -172,6 +172,32 @@ def test_events_without_state_are_ignored():
                                       text=f"thinking about item {i}"), []) is None
 
 
+def test_no_detector_returns_a_verdict_on_an_unfinished_action():
+    """The rule two detectors had to learn separately, asserted once.
+
+    A tool step emits llm_call -> tool_call -> tool_result. A supervisor that
+    evaluates its threshold on the CALL can halt a run one event before the
+    result that would have cleared it — which is what killed every benign
+    retry-then-success run (16 FPs, all on runs about to succeed) and, earlier,
+    what a naive loop counter did to the same scenario.
+
+    So: driving calls alone past any threshold must never trip. Only an outcome
+    can justify a verdict.
+    """
+    from agentfuse.detectors.loop import LoopDetector
+    from agentfuse.detectors.progress import NoProgressDetector
+
+    for det in (LoopDetector(threshold=2), NoProgressDetector(patience=2),
+                RateOfProgressDetector(patience=2)):
+        for i in range(1, 12):
+            assert det.inspect(AgentEvent(type=EventType.LLM_CALL, step=i,
+                                          text="deciding"), []) is None, det.name
+            assert det.inspect(AgentEvent(type=EventType.TOOL_CALL, step=i,
+                                          tool_name="probe",
+                                          tool_args={"q": "x"}), []) is None, (
+                f"{det.name} returned a verdict on a call whose result it has not seen")
+
+
 def test_reset_clears_the_run():
     det = RateOfProgressDetector(patience=4)
     for i in range(3):
