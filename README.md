@@ -216,6 +216,28 @@ AGENTFUSE_PRICING_FILE=my_prices.json   # {"gpt-4.1": {"input_per_1m": 2.0, "out
 These are guardrail estimates, not billing figures; they will not reconcile with
 an invoice.
 
+### Escalating to a human who is asleep
+
+`escalate` used to mean printing to a console that, on an unattended overnight
+run, nobody is reading. Point it somewhere real:
+
+```python
+MonitorConfig(
+    original_goal=GOAL,
+    escalation_webhook="https://hooks.slack.com/services/…",  # any JSON endpoint
+    escalation_include_agent_text=False,   # keep the trace off the wire
+)
+```
+
+**Delivery is verified, not assumed.** `finish()` reports `escalation_delivered`:
+`None` means never needed, `False` means needed and **nobody was told**. A webhook
+outage never propagates — bounded timeout, two retries, and it returns false
+rather than raising.
+
+The payload carries the agent's reasoning, so it's treated as egress: free text is
+sanitised and truncated, and `escalation_include_agent_text=False` drops it while
+still identifying the run.
+
 ### Low-level (any runtime)
 
 ```python
@@ -252,7 +274,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 148-test CI gate
+pytest evals/ -q                                  # 164-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,
@@ -582,6 +604,7 @@ agentfuse/
   memory.py            what was steered, and whether it worked
   checkpoint.py        durable run state — a restart keeps its ceiling
   pricing.py           token -> USD, and never prices the unknown at zero
+  notify.py            escalation that reaches a human, and says if it didn't
   strategies.py        the escalating ladder of interventions
   calibration.py       per-run thresholds learned from healthy stretches
   sanitize.py          agent/tool output is untrusted input

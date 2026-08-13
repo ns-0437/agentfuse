@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-13** · 66 commits · 148 tests green · 936 benchmark scenarios
+**As of 2026-08-13** · 69 commits · 164 tests green · 936 benchmark scenarios
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -272,7 +272,49 @@ The bundled table is a convenience default, not a source of truth: it carries an
 as-of date, `AGENTFUSE_PRICING_FILE` overrides it with no code change, and the
 figures are guardrail estimates that will not reconcile with an invoice.
 
-### 4.8 A backspace that disabled a security defence
+### 4.8 Escalation nobody received
+
+The breaker escalates when steering is exhausted or a hard ceiling is hit. That
+meant returning a `PAUSE` directive and **printing to the console** — for a
+supervisor whose premise is *unattended* runs of hours to days, a notification
+sent to a process nobody is watching, which is the exact situation it exists for.
+
+Now delivered over a webhook (stdlib `urllib`, no new dependency; works with
+Slack, Discord, PagerDuty or an internal endpoint). Three decisions carry the
+weight:
+
+- **Delivery is verified, not assumed.** `send()` returns whether it worked.
+  `finish()` reports `escalation_delivered`, where `None` means *never needed*
+  and `False` means *needed, and nobody was told* — those must not look alike.
+  One failure is never erased by a later success.
+- **Egress is treated as egress.** The payload naturally contains the agent's
+  reasoning and tool output. Free text is sanitised — trip evidence is
+  agent-produced, so it is untrusted on the way *out* too — truncated, and
+  `escalation_include_agent_text=False` drops it entirely.
+- **A webhook outage never propagates.** Bounded timeout, two retries, returns
+  `False` rather than raising.
+
+### 4.9 The pattern behind four of these bugs
+
+Four defects in this project share one shape: **a guard that looks armed and is
+not.**
+
+| Guard | What it did when it should have fired |
+|---|---|
+| `NoProgressDetector` | nothing — the trip condition was unreachable |
+| `max_cost_usd` | nothing — 11.94M tokens under a $1 ceiling |
+| spend counter across a restart | reset to zero, granting a fresh budget |
+| "escalate to a human" | printed to a console nobody was reading |
+
+All four passed their tests. All four read correctly in review. None was found by
+inspection — each surfaced only from asking *what does this guard actually do at
+the moment it is supposed to work?*
+
+That question is now the project's standing check on anything described as a
+safety mechanism, and it is why each fix above ships with a test that drives the
+guard to its firing point rather than asserting its configuration.
+
+### 4.10 A backspace that disabled a security defence
 
 A shell heredoc wrote a literal `\x08` where `\b` was intended in an
 injection-detection regex — invisible to grep, editors, and file reads, and it
@@ -290,9 +332,9 @@ All sources are now scanned for control characters by a test.
 | **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — §3.3)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
 | **4 — Signal ladder** | logprobs, self-probe, activation probes | ❌ Not started |
-| **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ❌ · PyPI ❌ | 🟡 4 of 6 |
+| **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ✅ · PyPI ❌ | 🟡 5 of 6 |
 
-**3 of 5 complete.** Phase 5 is in progress: thread-safety, SQLite checkpoints and real cost accounting landed 2026-08-13.
+**3 of 5 complete.** Phase 5 is at 5 of 6 — only PyPI packaging remains.
 
 ---
 
@@ -343,7 +385,7 @@ python evals/run_eval.py --generated 40 --json    # full suite + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
 python evals/real_model.py --base-url …           # templates vs a real model
-pytest evals/ -q                                  # 148-test CI gate
+pytest evals/ -q                                  # 164-test CI gate
 ```
 
 No API key required, nothing billed. `evals/baseline.json` records every floor,
