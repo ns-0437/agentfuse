@@ -75,18 +75,69 @@ SUPERVISOR_SYSTEM = (
 
 
 class RecoveryEngine:
+    """Chooses and writes the steering instruction, using a *separate* model.
+
+    Pointing this at a self-hosted model
+    ------------------------------------
+    ``AGENTFUSE_LLM_BASE_URL`` sends the supervisor to any OpenAI-compatible
+    endpoint — llama.cpp's server, vLLM, LM Studio, a gateway — instead of
+    OpenAI's. This exists for a specific reason: for most of this project's life
+    the recovery engine could only ever be measured against the offline mock,
+    because the one supported endpoint needed billing. Every recovery number
+    published so far came from a deterministic stand-in, and the central claim of
+    the project ("it steers the agent back") stayed untested. A model running on
+    the same machine costs nothing and removes that blocker, exactly as a local
+    ONNX model removed it for drift detection.
+
+    ``AGENTFUSE_OFFLINE`` therefore does **not** disable a configured base URL,
+    for the same reason it does not disable local embeddings: it means *do not
+    spend money*, not *do not think*. What it guarantees is that the hosted
+    default stays unused.
+
+    Two APIs, chosen by discovery
+    -----------------------------
+    OpenAI's Responses API is preferred, but almost no self-hosted server
+    implements it — they serve ``/v1/chat/completions``. Rather than make the
+    operator declare which dialect their endpoint speaks, the first call tries
+    Responses and permanently falls back to Chat Completions if that is not
+    understood. A failure *after* Responses has already worked is a real error
+    and is re-raised, not silently retried down the other path.
+    """
+
     def __init__(self, backend: Optional[str] = None, model: Optional[str] = None,
-                 memory=None):
+                 memory=None, base_url: Optional[str] = None):
         # Memory of what has already been tried against each failure shape. The
         # default is in-process and dependency-free, so this is always on: a
         # recovery engine with no memory repeats itself, which is what Phase 1
         # measured it doing.
         self.memory = memory if memory is not None else JSONMemory()
-        self.model = model or os.getenv("AGENTFUSE_RECOVERY_MODEL", "o4-mini")
+        load_env()
+        self.base_url = base_url or os.getenv("AGENTFUSE_LLM_BASE_URL") or None
+        default_model = "qwen2.5-3b-instruct" if self.base_url else "o4-mini"
+        self.model = model or os.getenv("AGENTFUSE_RECOVERY_MODEL", default_model)
+        #: Which API dialect the endpoint speaks; discovered on first use.
+        self._api: Optional[str] = None
+        #: Whether this endpoint honours grammar-constrained JSON; also discovered.
+        self._json_mode: Optional[bool] = None
+        #: A steering instruction plus rationale is a few hundred tokens. Set
+        #: explicitly because self-hosted servers default to a small cap and
+        #: truncate mid-JSON, which is indistinguishable from a malformed reply.
+        self.max_tokens = int(os.getenv("AGENTFUSE_RECOVERY_MAX_TOKENS", "600"))
+        #: Times the model returned something that was not usable JSON. Surfaced
+        #: rather than swallowed: a local model that silently fails to produce
+        #: JSON would fall back to the deterministic template and look exactly
+        #: like a working real backend, which would invalidate the measurement.
+        self.malformed_responses = 0
+
         if backend is None:
-            load_env()
-            backend = ("mock" if offline_mode()
-                       else ("real" if os.getenv("OPENAI_API_KEY") else "mock"))
+            # A self-hosted endpoint spends nothing, so offline mode does not
+            # apply to it — only to the billed default.
+            if self.base_url:
+                backend = "real"
+            elif offline_mode():
+                backend = "mock"
+            else:
+                backend = "real" if os.getenv("OPENAI_API_KEY") else "mock"
         self.backend = backend
         self._client = self._make_client() if backend == "real" else None
         if backend == "real" and self._client is None:
@@ -97,9 +148,59 @@ class RecoveryEngine:
         try:
             from openai import OpenAI  # type: ignore
 
+            if self.base_url:
+                # Self-hosted servers ignore the key but the SDK requires one.
+                return OpenAI(base_url=self.base_url,
+                              api_key=os.getenv("AGENTFUSE_LLM_API_KEY") or "not-needed")
             return OpenAI()
         except Exception:
             return None
+
+    # ------------------------------------------------------------------
+    def _complete(self, system: str, user: str) -> str:
+        """One completion, over whichever API this endpoint actually implements."""
+        if self._api != "chat":
+            try:
+                resp = self._client.responses.create(  # type: ignore[union-attr]
+                    model=self.model,
+                    input=[{"role": "system", "content": system},
+                           {"role": "user", "content": user}],
+                )
+                self._api = "responses"
+                return getattr(resp, "output_text", None) or self._extract_text(resp)
+            except Exception:
+                if self._api == "responses":
+                    raise      # it worked before, so this is a genuine failure
+                self._api = "chat"   # endpoint does not speak Responses
+
+        messages = [{"role": "system", "content": system},
+                    {"role": "user", "content": user}]
+        # Ask the endpoint to CONSTRAIN generation to JSON rather than trusting
+        # the prompt. Measured on a local 3B model: with only the prompt asking
+        # for JSON, the same input produced valid JSON on one call and an
+        # unparseable payload on the next. Small models do not reliably honour a
+        # format contract, and llama.cpp / vLLM enforce it with a grammar, which
+        # turns "usually" into "always". Not every endpoint accepts the
+        # parameter, so a rejection falls back to the unconstrained call.
+        if self._json_mode is not False:
+            try:
+                resp = self._client.chat.completions.create(  # type: ignore[union-attr]
+                    model=self.model, messages=messages, temperature=0.2,
+                    max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
+                )
+                self._json_mode = True
+                return (resp.choices[0].message.content or "") if resp.choices else ""
+            except Exception:
+                if self._json_mode is True:
+                    raise      # it worked before, so this is a genuine failure
+                self._json_mode = False   # endpoint does not support it
+
+        resp = self._client.chat.completions.create(  # type: ignore[union-attr]
+            model=self.model, messages=messages, temperature=0.2,
+            max_tokens=self.max_tokens,
+        )
+        return (resp.choices[0].message.content or "") if resp.choices else ""
 
     def recover(self, snapshot: ExecutionSnapshot) -> SteeringPath:
         """Produce steering, choosing a rung the memory says has not failed here.
@@ -169,7 +270,6 @@ class RecoveryEngine:
     # --- real reasoning-model backend -----------------------------------
     def _recover_real(self, snapshot: ExecutionSnapshot, strategy: str,
                       context: dict) -> SteeringPath:
-        client = self._client
         user = snapshot.to_prompt_context()
         # Tell the model which *kind* of intervention is required, and what has
         # already been ruled out. Without both, a second call on the same
@@ -180,18 +280,21 @@ class RecoveryEngine:
                      "Do not repeat or rephrase them:\n")
             for prev in context["failed"][:3]:
                 user += f"  - {prev[:220]}\n"
-        resp = client.responses.create(  # type: ignore[union-attr]
-            model=self.model,
-            input=[
-                {"role": "system", "content": SUPERVISOR_SYSTEM},
-                {"role": "user", "content": user},
-            ],
-        )
-        text = getattr(resp, "output_text", None) or self._extract_text(resp)
+        text = self._complete(SUPERVISOR_SYSTEM, user)
         data = self._parse_json(text)
+        if not data.get("instruction"):
+            # Raise rather than fill in the default. Smaller self-hosted models
+            # do fail to follow the JSON contract, and quietly substituting the
+            # deterministic fallback here would make a broken real backend
+            # indistinguishable from a working one — the measurement would then
+            # be of the templates, not of the model.
+            self.malformed_responses += 1
+            raise ValueError(
+                f"{self.model} returned no usable instruction JSON "
+                f"(got {len(text or '')} chars)")
         return SteeringPath(
             action=RecoveryAction(data.get("action", "inject")),
-            instruction=data.get("instruction", "Re-read your original objective and take a different next action."),
+            instruction=data["instruction"],
             rationale=data.get("rationale", ""),
             confidence=float(data.get("confidence", 0.6)),
             backend=f"real:{self.model}",

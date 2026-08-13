@@ -6,3 +6,7 @@ __pycache__/
 
 # Captured traces are eval fixtures, not scratch output
 !evals/captured/
+
+# Local GGUF weights — multi-GB, fetched via scripts/serve_local_model.py
+models/
+*.gguf
