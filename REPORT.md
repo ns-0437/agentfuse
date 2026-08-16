@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-14** · 90 commits · 212 tests green · 936 synthetic scenarios + 5 captured real traces
+**As of 2026-08-16** · 96 commits · 212 tests green · 936 synthetic scenarios + 17 captured real traces
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -39,7 +39,7 @@ deterministically through the production monitor.
 | F1 | **98.1%** | |
 | False-positive rate | **1.2%** | healthy runs wrongly halted |
 | Attribution | **83.8%** | correct detector named |
-| Recovery rate | **67.6%** | caught failures put back on track |
+| Recovery rate | **67.6%** ⚠ | **Do not read this as "put back on track".** It is scored against synthetic ground truth. Measured against a real agent, corrections were obeyed **2.4%** of the time — §3.5 |
 | Confusion | TP 438 · FP 6 · FN 11 · TN 481 | |
 
 Against trivial baselines — the complexity has to earn itself:
@@ -70,7 +70,7 @@ trips at our frequency reaches F1 62.4%.
 
 ---
 
-## 3. Four results that should temper the headline
+## 3. Five results that should temper the headline
 
 ### 3.1 The benchmark is saturated
 
@@ -153,6 +153,13 @@ scaling does not change that.** The honest product is the deterministic ladder
 plus the detectors. Frontier reasoning models remain untested for want of
 credits.
 
+**Corrected 2026-08-16 — read §3.5 before trusting this table.** Every figure
+above is a *rubric score*: it measures the text of a correction, not its effect.
+When compliance was finally measured, the winning arm — the templates, at 100%
+"usable" — was obeyed **2.4% of the time**. So this section compares two texts,
+not two effects, and "model-written steering is worse" is a claim about wording
+whose downstream consequence was never established.
+
 ### 3.4 A measured signal that must not ship
 
 Phase 4 Tier 1 reads the model's own token logprobs. Measured against
@@ -170,6 +177,32 @@ The signal is real and it tracks *failure*, not *difficulty* — the healthy-but
 control did not drop. **And the detector is still harmful**: ablation puts it at
 **ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
 ships off by default. See §4.12 for why, because the reason generalises.
+
+### 3.5 The corrections are ignored — 40 times out of 41
+
+Measured 2026-08-16 against a real Qwen2.5-7B across 12 supervised tasks, with
+compliance read off **behaviour** (did the next tool call differ from the one
+that tripped the breaker):
+
+| | |
+|---|---:|
+| steers injected | **41** |
+| complied | **1** |
+| resisted | **40** |
+| **compliance rate** | **2.4%** |
+
+**The steers were the deterministic templates.** All 43 recovery records carry
+`backend=mock` — the ladder instructions that score **100% "usable"** on
+`evals/steering.py`. Instructions our own rubric rates as perfect were obeyed
+once in forty-one attempts.
+
+`steering_usable = 100%` was already flagged as circular, because the rubric was
+written alongside the templates it grades. It is now worse than circular: it is
+**disconnected from outcomes.** The rubric measures whether an instruction reads
+well. A real agent ignores 97.6% of the instructions it approves.
+
+This is the single most consequential measurement in the project, and it lands
+against the half of the system that had never been tested end to end.
 
 ---
 
@@ -560,8 +593,27 @@ which is exactly what ESR studies.
 
 This is motivated by our own measurements rather than by the paper's framing, and
 it does **not** require the internal signal to be a good detector — which is
-precisely what two experiments established it is not. It has never been built or
-measured, and it is now the highest-value open direction in the project.
+precisely what two experiments established it is not.
+
+### Attempted 2026-08-16, and not measurable — for a reason worth more than the answer
+
+`evals/measure_resistance.py` ran it against a real 7B over 12 tasks. **A
+predictor needs a positive class, and this agent supplied one example of
+compliance in forty-one chances** (§3.5). There is no variance for an internal
+signal to predict. The merge was not refuted; it could not be evaluated.
+
+That is the ESR phenomenon showing up directly in our own system rather than in a
+citation. The paper describes models with enough internal consistency to resist
+steering; this agent resisted **97.6%** of corrections, from every rung of the
+ladder, across every task shape we could construct.
+
+It also changes what the merge would have to be for. Predicting *whether* a steer
+lands is uninteresting when the answer is almost always "it does not". The open
+question is now **whether any correction lands at all, and what would make one
+land** — a question about the intervention mechanism, not about which signal
+predicts its success. Injecting a system message into a conversation may simply
+be too weak an intervention, and nothing in this project has tested a stronger
+one.
 
 ---
 
