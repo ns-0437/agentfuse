@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-16** · 96 commits · 212 tests green · 936 synthetic scenarios + 17 captured real traces
+**As of 2026-08-16** · 105 commits · 212 tests green · 936 synthetic scenarios + 18 captured real traces
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
