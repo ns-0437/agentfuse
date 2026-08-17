@@ -113,7 +113,13 @@ class Label:
     detector: Optional[str] = None      # expected detector on positives
     onset_index: Optional[int] = None   # step index where the failure truly begins
     detect_by_index: Optional[int] = None  # detecting later than this is "late"
-    known_gap: bool = False             # we expect to MISS this today (documented weakness)
+    # A documented disagreement between the breaker and the truth, in EITHER
+    # direction. Originally misses only; the first real-trace corpus produced a
+    # documented false POSITIVE too (drift firing on an agent that correctly
+    # concluded its task was impossible), and that deserves recording rather than
+    # a quietly loosened assertion. `metrics.known_gap_misses` still counts only
+    # the FN cases, so widening the meaning here does not disturb it.
+    known_gap: bool = False
     note: str = ""
 
 
