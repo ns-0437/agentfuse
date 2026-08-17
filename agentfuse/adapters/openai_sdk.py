@@ -27,6 +27,7 @@ def guarded_tool_loop(
     monitor: Optional[CircuitBreakerMonitor] = None,
     tool_choice: Any = "auto",
     logprobs: bool = False,
+    intervention: str = "system",
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
@@ -41,6 +42,9 @@ def guarded_tool_loop(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_input},
     ]
+    # Kept so the "rerun" intervention can rebuild the conversation from its
+    # starting point rather than appending to a transcript full of the failure.
+    baseline = list(messages)
     step = 0
     for _ in range(max_turns):
         step += 1
@@ -102,13 +106,17 @@ def guarded_tool_loop(
             ]
         messages.append(assistant)
 
-        if _apply_directive(mon, directive, messages) == "stop":
+        outcome = _apply_directive(mon, directive, messages, intervention, baseline)
+        if outcome == "stop":
             return mon.finish("escalated")
+        if outcome == "restart":
+            continue
 
         tool_calls = getattr(msg, "tool_calls", None)
         if not tool_calls:
             return mon.finish("complete")
 
+        restart = False
         for tc in tool_calls:
             import json as _json
             args = _json.loads(tc.function.arguments or "{}")
@@ -122,8 +130,12 @@ def guarded_tool_loop(
                 # default. It must be on both events or the pair never matches.
                 meta={"call_id": tc.id},
             ))
-            if _apply_directive(mon, d, messages) == "stop":
+            outcome = _apply_directive(mon, d, messages, intervention, baseline)
+            if outcome == "stop":
                 return mon.finish("escalated")
+            if outcome == "restart":
+                restart = True
+                break
 
             result = tool_router(tc.function.name, args)
             d = mon.observe(AgentEvent(
@@ -138,18 +150,66 @@ def guarded_tool_loop(
             # so dropping it meant steering was generated, logged, and never
             # actually applied. The trace showed a recovery; the agent never
             # received one.
-            if _apply_directive(mon, d, messages) == "stop":
+            outcome = _apply_directive(mon, d, messages, intervention, baseline)
+            if outcome == "stop":
                 return mon.finish("escalated")
+            if outcome == "restart":
+                restart = True
+                break
             messages.append({
                 "role": "tool", "tool_call_id": tc.id, "content": str(result),
             })
+        if restart:
+            continue
 
     return mon.finish("max_turns")
 
 
-def _apply_directive(mon, directive, messages) -> str:
+def _apply_directive(mon, directive, messages, intervention: str = "system",
+                     baseline: Optional[list] = None) -> str:
+    """Deliver a steering correction. HOW it is delivered is a real variable.
+
+    Measured 2026-08-16 against a real Qwen2.5-7B: appending the correction as a
+    system message and continuing the conversation was obeyed **1 time in 41**.
+    The instructions were the deterministic templates, the ones our own rubric
+    scores at 100% "usable" — so the failure was not the wording. See REPORT.md
+    §3.5.
+
+    The AgentKit adapter, whose one captured run self-healed, differs in two
+    ways at once: it delivers the steer as a USER message, and it ABORTS the
+    in-flight run so the failing turns are discarded rather than accumulated.
+    Those two were confounded in the only evidence we had, so both are exposed
+    here separately:
+
+      "system"     append as a system message, continue  (the 2.4% baseline)
+      "user"       append as a user message, continue    (isolates the role)
+      "rerun"      restart from the original prompt + steer, discarding the
+                   failing turns entirely  (isolates the mechanism)
+      "drop_tool"  as "user", and the caller removes the failing tool from the
+                   schema  (a hard constraint rather than a request)
+
+    A model that has just emitted the same call four times is being asked to
+    contradict its own visible history; "rerun" removes that history instead of
+    arguing with it.
+    """
     if directive.kind is DirectiveKind.INJECT and directive.steering_text:
-        messages.append({"role": "system", "content": f"[CIRCUIT BREAKER STEERING] {directive.steering_text}"})
+        text = f"[CIRCUIT BREAKER STEERING] {directive.steering_text}"
+        if intervention == "rerun" and baseline is not None:
+            # Discard the failing turns. Everything the model is being told to
+            # stop doing is in those turns, and leaving them in place means the
+            # correction has to out-argue several rounds of the agent's own
+            # committed behaviour.
+            messages[:] = list(baseline) + [{"role": "user", "content": text}]
+            # "restart", not "continue". Rewriting history is only half of an
+            # abort: the caller must also abandon the rest of THIS turn. Any
+            # tool results still pending belong to an assistant message that no
+            # longer exists, and appending them produces a tool message with a
+            # tool_call_id nothing matches — which the API rejects outright.
+            return "restart"
+        elif intervention in ("user", "drop_tool"):
+            messages.append({"role": "user", "content": text})
+        else:
+            messages.append({"role": "system", "content": text})
         return "continue"
     if directive.kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT):
         return "stop"
