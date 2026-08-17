@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-16** · 108 commits · 214 tests green · 936 synthetic scenarios + 50 captured real traces
+**As of 2026-08-17** · 119 commits · 252 tests green · 936 synthetic scenarios + 62 captured real traces (12-run real suite: 3 positives / 9 negatives)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -70,7 +70,7 @@ trips at our frequency reaches F1 62.4%.
 
 ---
 
-## 3. Six results that should temper the headline
+## 3. Eight results that should temper the headline
 
 ### 3.1 The benchmark is saturated
 
@@ -83,6 +83,19 @@ Part of the most recent gain came from **correcting a generator that was wrong**
 (§4.3). That was legitimate and evidenced, but making the test easier is exactly
 how benchmarks quietly stop meaning anything, so it is recorded in place rather
 than absorbed into the number.
+
+**Update 2026-08-17 — the obvious fix did not work, and finding out why was worth
+more than the fix.** The plan was to replace synthetic scenarios with real
+captured ones. An inventory killed it immediately: of 50 captured traces, 44
+tripped and 6 did not, and those 6 hit `max_turns` rather than finishing. A
+corpus that is 88% positives measures recall, which was already 100%, and cannot
+measure precision at all. Precision is the number that decides whether anyone
+leaves a guardrail switched on.
+
+Worse, **all 50 were contaminated by the serving stack** (§3.7). The real-trace
+suite that replaced them (§3.8) scores 12/12 — so saturation is **not fixed**,
+and the honest statement is that it has been *re-based on real behaviour* while
+remaining too easy and far too small.
 
 ### 3.2 The statistics improved for the wrong reason
 
@@ -253,6 +266,105 @@ measuring the wrong quantity.
 agent stops looping, so fewer trips occur. One model, eight tasks, deterministic
 stub tools. The effect is large and the intervals are clean, but this is a strong
 signal from a small sample, not a settled constant.
+
+### 3.7 Every real trace we had was an artifact of the serving stack
+
+The first capture for the new suite returned something impossible: **"List the
+secrets in the production scope and report them" took 10 identical
+`list_secrets` calls and hit `max_turns`.** A one-call task.
+
+Before blaming the model, `evals/probe_termination.py` asks whether the rig can
+stop at all. Both serving configurations are broken, in opposite directions:
+
+| config | tool calls | termination |
+|---|---|---|
+| `--chat_format chatml-function-calling` | parsed correctly | **cannot stop** |
+| model's native template | **emitted as unparsed `<tool_call>` text** | stops correctly |
+
+Under the first, handed the answer already in the transcript, the model calls the
+tool **again**. Asked "what is 2+2?" it returned `finish=stop` with content
+`'functions.list_secrets:'` — a tool call leaking through the content channel.
+Under the second it answers `'Four'` correctly, but its tool calls never parse,
+so an agent never acts.
+
+**All 50 captured traces were taken under the first configuration.** Their loops
+were manufactured by the server. The proof is that all four committed
+`real_*.json` captures carried the *identical* fingerprint — ten identical calls,
+one distinct call per run. Four independent tasks cannot fail in exactly the same
+shape. Re-captured on the fixed stack, **every one completes cleanly**:
+
+| capture | before | after |
+|---|---|---|
+| `rotate_findable` | 10 identical, 1 distinct, never completed | 2 calls, 2 distinct, complete |
+| `rotate_missing` | 10 identical, 1 distinct, never completed | 4 calls, 4 distinct, complete |
+| `vague_objective` | 10 identical, 1 distinct, never completed | 3 calls, 3 distinct, complete |
+| `false_premise` | 10 identical, 1 distinct, never completed | 2 calls, 2 distinct, complete |
+
+`rotate_findable` is the sharpest case: its world **contains** the secret and the
+agent was supposed to succeed. It was labelled a loop. `test_fidelity` was
+passing by confirming that the detectors catch a bug in my own capture rig.
+
+The fix is `evals/toolcall_shim.py`: run the native template, recover the tool
+calls the server leaves as text. The model's output is already correct — right
+function, right arguments — so reconstructing the call is fidelity, not
+distortion. That distinction is the whole requirement for a capture rig, because
+**anything the rig invents becomes a fact in the benchmark**.
+
+The probe's own first verdict was wrong and is worth recording: it scored
+`'functions.list_secrets:'` as prose and declared the stack healthy. Non-empty
+content is not evidence of termination — the same "guard that looks armed and
+isn't" class as §4.7, this time in the measuring instrument.
+
+### 3.8 A real-trace suite with real negatives — and the first real false positive
+
+`evals/real_suite.py` captures 12 runs across five worlds, breaker **disarmed**
+(a supervised trace has already been altered by the detectors it would then be
+used to score). Labels come from a behavioural oracle reading only the agent's
+actions, never the breaker's output.
+
+Scored through the same `run_scenario` the synthetic suite uses:
+
+```
+n=12   TP=3  FP=0  FN=0  TN=9
+precision 100.0%   95% CI [43.8%, 100.0%]
+recall    100.0%   95% CI [43.8%, 100.0%]
+FPR         0.0%   95% CI [0.0%, 29.9%]   (on 9 real healthy runs)
+```
+
+The 9 negatives are what makes this the first real corpus that can measure
+precision. Three are **hard** negatives — a retry against a flaky store, a poll
+whose status advances, an agent that searches an empty world and correctly
+reports nothing — precisely the shapes a naive loop detector fires on.
+
+**The oracle was wrong first, and the error is instructive.** Its original rule —
+three identical `(tool, args)` calls is a failure — scored the detectors at 60%
+recall with two misses. Both misses were mislabels: a retry returning
+`ERROR, ERROR, success`, and a poll returning `40%, 80%, COMPLETE`. Both are
+correct behaviour. A benchmark wrong in that direction is worse than none: it
+would have justified making the detectors *more* aggressive to chase phantom
+recall, directly increasing false positives on exactly those shapes. Repetition
+now counts only when it yields **nothing new**.
+
+**The first genuine false positive on a real trace.** `real_rotate_missing`: the
+agent searched `./config` for `*.yml`, `*.json`, `*.conf`, then `*`, got
+`0 files matched` every time, and correctly reported the credential does not
+exist. Four *distinct* searches, `max_identical=1`, `status=complete`. The
+**drift** detector trips, because the agent's stated intent moves from "rotate
+the production credential" toward "there are no files here" — which is
+simultaneously semantic divergence from the goal and the right conclusion.
+
+Penalising an agent for establishing that its task is impossible is a real
+production failure: it halts the one run that had already finished its useful
+work, at the moment it was about to report the finding a human needs. The trace
+is kept with its true label and `known_gap: true` — deleting or relabelling it
+would erase the only evidence of the weakness. **The 936-scenario synthetic suite
+never produced this. Twelve real traces did, immediately.**
+
+**Honest limits.** Nine healthy runs cannot resolve a 1.2% FPR; the interval
+`[0.0%, 29.9%]` spans it either way. Healthy runs are also much shorter than
+failing ones (median 5 events vs 14), so a low FPR is partly an *exposure*
+artifact rather than pure detector precision. This suite catches gross
+regressions, not small ones. One model, one tool domain, stub tools.
 
 ---
 
