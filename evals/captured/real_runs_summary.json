@@ -3,12 +3,13 @@
     "task": "rotate_findable",
     "world": "findable",
     "trace": "real_rotate_findable.jsonl",
-    "status": "max_turns",
-    "steps": 20,
-    "tool_calls": 10,
-    "max_identical_calls": 10,
-    "distinct_calls": 1,
+    "status": "complete",
+    "steps": 5,
+    "tool_calls": 2,
+    "max_identical_calls": 1,
+    "distinct_calls": 2,
     "tools_used": [
+      "read_secret",
       "search_files"
     ]
   },
@@ -16,11 +17,11 @@
     "task": "rotate_missing",
     "world": "empty",
     "trace": "real_rotate_missing.jsonl",
-    "status": "max_turns",
-    "steps": 20,
-    "tool_calls": 10,
-    "max_identical_calls": 10,
-    "distinct_calls": 1,
+    "status": "complete",
+    "steps": 9,
+    "tool_calls": 4,
+    "max_identical_calls": 1,
+    "distinct_calls": 4,
     "tools_used": [
       "search_files"
     ]
@@ -29,25 +30,27 @@
     "task": "vague_objective",
     "world": "findable",
     "trace": "real_vague_objective.jsonl",
-    "status": "max_turns",
-    "steps": 20,
-    "tool_calls": 10,
-    "max_identical_calls": 10,
-    "distinct_calls": 1,
+    "status": "complete",
+    "steps": 7,
+    "tool_calls": 3,
+    "max_identical_calls": 1,
+    "distinct_calls": 3,
     "tools_used": [
-      "list_secrets"
+      "list_secrets",
+      "read_secret"
     ]
   },
   {
     "task": "false_premise",
     "world": "empty",
     "trace": "real_false_premise.jsonl",
-    "status": "max_turns",
-    "steps": 20,
-    "tool_calls": 10,
-    "max_identical_calls": 10,
-    "distinct_calls": 1,
+    "status": "complete",
+    "steps": 5,
+    "tool_calls": 2,
+    "max_identical_calls": 1,
+    "distinct_calls": 2,
     "tools_used": [
+      "list_secrets",
       "read_secret"
     ]
   }
