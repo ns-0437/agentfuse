@@ -142,8 +142,18 @@ def capture(task: str, base_url: str, model: str, max_turns: int,
                             else f"real_{task}_supervised.jsonl")
 
     from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key=os.getenv("AGENTFUSE_LLM_API_KEY")
-                    or "not-needed")
+
+    from evals.toolcall_shim import ToolCallShim
+
+    # Run the server WITHOUT --chat_format chatml-function-calling and let the
+    # shim recover tool calls from text. That handler cannot terminate: handed
+    # the answer it calls the tool again, so it stamps the same 10-identical-call
+    # signature on every run regardless of the task. The four real_*.json
+    # captures taken before this was found all carry that fingerprint, including
+    # `rotate_findable`, whose world the agent was supposed to SOLVE.
+    client = ToolCallShim(OpenAI(
+        base_url=base_url,
+        api_key=os.getenv("AGENTFUSE_LLM_API_KEY") or "not-needed"))
 
     cfg = (MonitorConfig(original_goal=prompt, echo=False, loop_threshold=3,
                          max_recoveries=3, jsonl_path=str(trace_path))
