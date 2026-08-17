@@ -39,6 +39,11 @@ and **LangGraph**.
 The differentiator: most observability tools *watch*. AgentFuse **watches and
 intervenes** — a closed-loop, self-healing safety layer.
 
+**Measured, on a real agent:** with the default delivery mechanism, **6 of 8**
+tasks that were failing went on to complete, and 83% of corrections were obeyed.
+That number depends entirely on *how* the correction is delivered — the previous
+default completed **0 of 8**. See [REPORT.md §3.6](REPORT.md).
+
 ---
 
 ## 60-second demo (no API key, nothing to install)
@@ -274,7 +279,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 212-test CI gate
+pytest evals/ -q                                  # 214-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,

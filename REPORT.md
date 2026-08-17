@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-16** · 105 commits · 212 tests green · 936 synthetic scenarios + 18 captured real traces
+**As of 2026-08-16** · 108 commits · 214 tests green · 936 synthetic scenarios + 50 captured real traces
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -39,7 +39,7 @@ deterministically through the production monitor.
 | F1 | **98.1%** | |
 | False-positive rate | **1.2%** | healthy runs wrongly halted |
 | Attribution | **83.8%** | correct detector named |
-| Recovery rate | **67.6%** ⚠ | **Do not read this as "put back on track".** It is scored against synthetic ground truth. Measured against a real agent, corrections were obeyed **2.4%** of the time — §3.5 |
+| Recovery rate | **67.6%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. §3.5–3.6 |
 | Confusion | TP 438 · FP 6 · FN 11 · TN 481 | |
 
 Against trivial baselines — the complexity has to earn itself:
@@ -70,7 +70,7 @@ trips at our frequency reaches F1 62.4%.
 
 ---
 
-## 3. Five results that should temper the headline
+## 3. Six results that should temper the headline
 
 ### 3.1 The benchmark is saturated
 
@@ -153,12 +153,12 @@ scaling does not change that.** The honest product is the deterministic ladder
 plus the detectors. Frontier reasoning models remain untested for want of
 credits.
 
-**Corrected 2026-08-16 — read §3.5 before trusting this table.** Every figure
-above is a *rubric score*: it measures the text of a correction, not its effect.
-When compliance was finally measured, the winning arm — the templates, at 100%
-"usable" — was obeyed **2.4% of the time**. So this section compares two texts,
-not two effects, and "model-written steering is worse" is a claim about wording
-whose downstream consequence was never established.
+**Corrected 2026-08-16 — read §3.5 and §3.6 before trusting this table.** Every
+figure above is a *rubric score*: it measures the text of a correction, not its
+effect. Worse, every experiment behind it held the DELIVERY MECHANISM fixed at
+the setting later measured to complete **zero of eight** real tasks (§3.6). So
+this section compares two wordings of a message the agent was never going to act
+on. The wording was not the variable that mattered.
 
 ### 3.4 A measured signal that must not ship
 
@@ -201,8 +201,58 @@ written alongside the templates it grades. It is now worse than circular: it is
 **disconnected from outcomes.** The rubric measures whether an instruction reads
 well. A real agent ignores 97.6% of the instructions it approves.
 
-This is the single most consequential measurement in the project, and it lands
-against the half of the system that had never been tested end to end.
+**Corrected 2026-08-16 by §3.6 — the conclusion drawn here was wrong.** The
+numbers above are real and reproduced (a second run measured 0/23 on the same
+setting). What was wrong was the inference: this was read as *"steering does not
+work"*, when it was in fact *"steering delivered THIS WAY does not work"*. Every
+correction in this measurement was appended to a conversation that already
+contained several rounds of the agent's own failing behaviour. Change the
+delivery and the same templates land 83% of the time. See §3.6.
+
+### 3.6 …and then they worked, once delivered differently
+
+§3.5 concluded that steering does not work. That was the wrong reading of a
+correct number, and the correction is the most useful result in the project.
+
+Every steering experiment here had varied the **text** of a correction — template
+wording against 3B wording against 7B wording, across days (§3.3). None had
+varied how it was **delivered**. The only positive evidence we had, a captured
+AgentKit run that self-healed, differed from the failing adapter in *two* ways at
+once — user-role message *and* aborting the in-flight run — so it was confounded
+and proved nothing about which half mattered.
+
+Four mechanisms, 8 real tasks each, same model, same templates:
+
+| arm | corrections obeyed | **tasks completed** | avg steps |
+|---|---:|---:|---:|
+| `system` *(the shipped default)* | 0/23 — 0.0% | **0 of 8** | 24 |
+| `user` | 1/18 — 5.6% | 3 of 8 | 21 |
+| **`rerun`** | **5/6 — 83.3%** | **6 of 8** | **13** |
+| `drop_tool` | 5/13 — 38.5% | 2 of 8 | 22 |
+
+Intervals do not overlap: `system` 0–14.3%, `rerun` 43.6–97.0%.
+
+**Read the completion column, not the compliance column.** The shipped default
+finished **zero** of eight tasks. Restarting the agent from its objective with
+the correction attached finished **six**, in half the steps.
+
+**Why it works.** A model that has just emitted the same call four times is being
+asked to contradict several rounds of its own visible, committed behaviour.
+Appending a correction *argues* with that history; discarding it *removes the
+thing being argued with*. The agent was not being stubborn — it was being
+consistent with a transcript we kept showing it.
+
+**What this retrospectively invalidates.** §3.3 compared template wording against
+model wording and concluded the templates win. That comparison, and every
+steering-quality experiment behind it, held the mechanism fixed at the one
+setting that completes zero tasks. **We spent days A/B testing the phrasing of a
+message the agent was never going to act on.** The rubric was not the only thing
+measuring the wrong quantity.
+
+**Limits, stated plainly.** `rerun` has only 6 steers, because it works — the
+agent stops looping, so fewer trips occur. One model, eight tasks, deterministic
+stub tools. The effect is large and the intervals are clean, but this is a strong
+signal from a small sample, not a settled constant.
 
 ---
 
