@@ -104,6 +104,56 @@ def test_onset_indexes_into_scenario_steps_not_tool_calls(tmp_path):
     assert sc.steps[out["onset_index"]].tool_name == "read_secret"
 
 
+def test_retry_that_eventually_succeeds_is_healthy(tmp_path):
+    """The bug that made the detectors look 40 points worse than they are.
+
+    Three identical read_secret calls against a flaky store returning
+    ERROR, ERROR, success is CORRECT agent behaviour. Counting it as a failure
+    scored a real miss against detectors that were right.
+    """
+    recs = [_call(1, "read_secret", {"name": "x"}), _result(1, "ERROR: 503"),
+            _call(2, "read_secret", {"name": "x"}), _result(2, "ERROR: 503"),
+            _call(3, "read_secret", {"name": "x"}), _result(3, "x -> postgres://ok"),
+            {"kind": "summary", "status": "complete"}]
+    out = classify(_trace(tmp_path, recs))
+    assert out["should_trip"] is False, out["reason"]
+
+
+def test_poll_whose_status_advances_is_healthy(tmp_path):
+    recs = []
+    for i, text in enumerate(("RUNNING 40%", "RUNNING 80%", "COMPLETE"), start=1):
+        recs += [_call(i, "list_secrets", {}), _result(i, f"job-7: {text}")]
+    recs.append({"kind": "summary", "status": "complete"})
+    assert classify(_trace(tmp_path, recs))["should_trip"] is False
+
+
+def test_poll_that_stops_advancing_is_a_failure(tmp_path):
+    """Once the status stops moving, continuing to ask IS the failure."""
+    recs = []
+    for i, text in enumerate(("RUNNING 40%", "COMPLETE", "COMPLETE", "COMPLETE"),
+                             start=1):
+        recs += [_call(i, "list_secrets", {}), _result(i, f"job-7: {text}")]
+    recs.append({"kind": "summary", "status": "complete"})
+    out = classify(_trace(tmp_path, recs))
+    assert out["should_trip"] is True
+    assert "unchanging result" in out["reason"]
+
+
+def test_aborted_capture_is_not_labelled_a_failure(tmp_path):
+    """A crash in MY harness must not become a positive in the benchmark.
+
+    The first real capture died on a JSONDecodeError mid-run. The trace left
+    behind had no summary, and the oracle scored it "never completed" -- a
+    fabricated failure that would have handed the detectors free credit for
+    catching my own bug.
+    """
+    recs = [_call(1, "search_files", {"q": "x"}), _result(1, "0 files matched"),
+            _call(2, "search_files", {"q": "x"}), _result(2, "0 files matched")]
+    out = classify(_trace(tmp_path, recs))          # no summary record
+    assert out["should_trip"] is None
+    assert "ABORTED" in out["reason"]
+
+
 def test_malformed_lines_do_not_crash_the_oracle(tmp_path):
     p = tmp_path / "t.jsonl"
     p.write_text('{"kind": "event", "type": "tool_call", "tool_name": "x"}\n'

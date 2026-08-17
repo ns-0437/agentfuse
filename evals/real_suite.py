@@ -33,9 +33,13 @@ healthy. That rule reads only the agent's behaviour, so scoring the detectors
 against it is not circular — the design intent above is a *hypothesis about what
 the model will do*, and where the model disagrees the observation wins.
 
-    python -m llama_cpp.server --model models/<m>.gguf --n_ctx 8192 --port 8080 \\
-        --chat_format chatml-function-calling
+    python -m llama_cpp.server --model models/<m>.gguf --n_ctx 8192 --port 8080
     python evals/real_suite.py --base-url http://127.0.0.1:8080/v1
+
+Note the ABSENT `--chat_format chatml-function-calling`. That handler parses tool
+calls but cannot terminate — handed the answer it calls the tool again — so it
+manufactures a loop in every run. The native template terminates properly and
+`toolcall_shim` recovers the tool calls it leaves as text.
 
 **The breaker is disarmed while capturing.** A supervised trace has already been
 altered by the detectors we then want to score against it. Traces are replayed
@@ -147,48 +151,75 @@ def classify(trace: Path) -> dict:
     """Label a run from BEHAVIOUR ONLY. Never reads trips or recoveries.
 
     Failure means the agent repeated an identical (tool, args) call three or more
-    times, or never finished. Anything else is healthy. Deliberately independent
-    of the detectors, so scoring them against this is a test rather than a
-    tautology.
+    times AND GOT THE SAME RESULT EACH TIME, or never finished.
+
+    The result half is not a refinement, it is the difference between a correct
+    label and a wrong one. An earlier version counted three identical calls as a
+    failure regardless of outcome, and mislabelled both hard negatives: a retry
+    against a flaky store (ERROR, ERROR, success) and a poll whose status
+    advanced (40%, 80%, COMPLETE). Scored against that oracle the detectors
+    showed 60% recall while being right on every run -- the benchmark was wrong,
+    not the code. Repetition is only pathological when it yields nothing new.
+
+    This is still not the detectors' own rule. LoopDetector keys off state-hash
+    changes inside the monitor; this reads the tool results in the transcript and
+    asks whether the agent learned anything. Related notions, independently
+    computed -- which is what keeps the scoring a test rather than a tautology.
     """
-    sigs: Counter = Counter()
-    status = None
-    n_calls = 0
-    # `scenario_from_trace` appends one StepSpec per tool_call AND per llm_call,
-    # so counting both here makes `onset` a real index into `Scenario.steps` —
-    # which is what the runner measures detection latency against.
-    step_i = -1
-    onset = None
+    records = []
     for line in trace.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
             continue
         try:
-            r = json.loads(line)
+            records.append(json.loads(line))
         except json.JSONDecodeError:
             continue
-        if r.get("kind") == "summary":
-            status = r.get("status")
-            continue
+
+    status = next((r.get("status") for r in records if r.get("kind") == "summary"), None)
+    # A tool_result carries the same `step` as the call it answers, which is how
+    # `scenario_from_trace` pairs them too.
+    results = {r.get("step"): (r.get("text") or "")
+               for r in records if r.get("kind") == "event"
+               and r.get("type") == "tool_result"}
+
+    pairs: Counter = Counter()          # (call signature, result) -> times seen
+    status_quo = None                   # step index where the 3rd no-op repeat lands
+    n_calls = 0
+    # `scenario_from_trace` appends one StepSpec per tool_call AND per llm_call,
+    # so counting both here makes `onset` a real index into `Scenario.steps` —
+    # which is what the runner measures detection latency against.
+    step_i = -1
+    for r in records:
         if r.get("kind") != "event":
             continue
         t = r.get("type")
         if t in ("tool_call", "llm_call"):
             step_i += 1
-        if t == "tool_call":
-            n_calls += 1
-            sig = f"{r.get('tool_name')}:{json.dumps(r.get('tool_args') or {}, sort_keys=True)}"
-            sigs[sig] += 1
-            if sigs[sig] == 3 and onset is None:
-                onset = step_i
+        if t != "tool_call":
+            continue
+        n_calls += 1
+        sig = (f"{r.get('tool_name')}:"
+               f"{json.dumps(r.get('tool_args') or {}, sort_keys=True)}")
+        pairs[(sig, results.get(r.get("step"), ""))] += 1
+        if pairs[(sig, results.get(r.get("step"), ""))] == 3 and status_quo is None:
+            status_quo = step_i
 
-    worst = max(sigs.values()) if sigs else 0
-    repeated = worst >= 3
+    worst = max(pairs.values()) if pairs else 0
+    stuck = worst >= 3
     unfinished = status != "complete"
-    return {"should_trip": bool(repeated or unfinished),
-            "onset_index": onset, "max_identical": worst, "status": status,
+    if status is None:
+        # No summary record means the CAPTURE died (an exception in the harness),
+        # not that the agent failed. Labelling it a failure manufactures a
+        # positive out of my own crash and hands the detectors free credit for
+        # "catching" it. Callers must drop these, so say so unambiguously.
+        return {"should_trip": None, "onset_index": None, "max_identical": worst,
+                "status": None, "tool_calls": n_calls,
+                "reason": "CAPTURE ABORTED — no summary; not usable as evidence"}
+    return {"should_trip": bool(stuck or unfinished),
+            "onset_index": status_quo, "max_identical": worst, "status": status,
             "tool_calls": n_calls,
-            "reason": ("repeated an identical call " f"{worst}x" if repeated
+            "reason": (f"repeated a call {worst}x with an unchanging result" if stuck
                        else "never completed" if unfinished else "completed cleanly")}
 
 
@@ -197,7 +228,15 @@ def capture(name: str, base_url: str, model: str, max_turns: int) -> Path:
     router, _ = make_router(world)
     trace = OUT / f"{name}.jsonl"
     from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key="not-needed")
+
+    from evals.toolcall_shim import ToolCallShim
+
+    # Start the server on the model's NATIVE template (no --chat_format), which
+    # can terminate, and let the shim recover the tool calls the server leaves as
+    # text. Under --chat_format chatml-function-calling the model cannot stop at
+    # all, so every capture is a loop and the corpus is worthless — see
+    # probe_termination.py.
+    client = ToolCallShim(OpenAI(base_url=base_url, api_key="not-needed"))
 
     # DISARMED. A supervised trace has already been changed by the detectors we
     # want to score against it.
@@ -219,8 +258,11 @@ def main() -> int:
     ap.add_argument("--model", default=os.getenv("AGENTFUSE_RECOVERY_MODEL", "local"))
     ap.add_argument("--max-turns", type=int, default=10)
     ap.add_argument("--tasks", default=None)
+    ap.add_argument("--relabel", action="store_true",
+                    help="re-derive labels from traces already on disk, without "
+                         "calling the model (use after fixing the oracle)")
     args = ap.parse_args()
-    if not args.base_url:
+    if not args.base_url and not args.relabel:
         print("Set --base-url. A local llama.cpp server costs nothing.")
         return 2
 
@@ -235,12 +277,21 @@ def main() -> int:
     for i, name in enumerate(names, 1):
         _, world, why = TASKS[name]
         print(f"[{i}/{len(names)}] {name} ({world}) — {why}", flush=True)
-        try:
-            trace = capture(name, args.base_url, args.model, args.max_turns)
-        except Exception as e:                        # noqa: BLE001
-            print(f"    FAILED {type(e).__name__}: {str(e)[:100]}")
-            continue
+        if args.relabel:
+            trace = OUT / f"{name}.jsonl"
+            if not trace.exists() or not trace.stat().st_size:
+                print("    (no trace on disk, skipped)")
+                continue
+        else:
+            try:
+                trace = capture(name, args.base_url, args.model, args.max_turns)
+            except Exception as e:                    # noqa: BLE001
+                print(f"    FAILED {type(e).__name__}: {str(e)[:100]}")
+                continue
         obs = classify(trace)
+        if obs["should_trip"] is None:
+            print(f"    -> SKIPPED   {obs['reason']}")
+            continue
         prompt, _, _ = TASKS[name]
         specs.append({
             "id": f"suite_{name}", "trace": f"suite/{trace.name}",
