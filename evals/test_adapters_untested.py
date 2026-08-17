@@ -127,8 +127,20 @@ def test_openai_sdk_detects_a_loop_and_names_the_tool():
         "the loop detector contributes over the progress backstop")
 
 
+def _steering_messages(client):
+    return [m for turn in client.seen for m in turn
+            if "CIRCUIT BREAKER STEERING" in str(m.get("content"))]
+
+
 def test_openai_sdk_injects_steering_into_the_conversation():
-    """A directive nobody applies is not a recovery."""
+    """A directive nobody applies is not a recovery.
+
+    Deliberately does NOT assert a role. This test used to require a `system`
+    message and failed the moment the default changed to `rerun`, which delivers
+    the correction as a `user` message after discarding the failed turns. The
+    thing worth protecting is that steering REACHES the agent; which envelope it
+    arrives in is a measured decision, not an invariant.
+    """
     mon = CircuitBreakerMonitor(
         MonitorConfig(original_goal=GOAL, echo=False, loop_threshold=3,
                       drift_threshold=0.0, max_recoveries=99),
@@ -137,9 +149,53 @@ def test_openai_sdk_injects_steering_into_the_conversation():
     guarded_tool_loop(client, model="gpt-4.1", system_prompt=GOAL, user_input="go",
                       tools=[], tool_router=lambda n, a: "0 files matched",
                       max_turns=10, monitor=mon)
-    steered = [m for turn in client.seen for m in turn
-               if m.get("role") == "system" and "CIRCUIT BREAKER STEERING" in str(m.get("content"))]
-    assert steered, "steering was produced but never reached the agent's messages"
+    assert _steering_messages(client), \
+        "steering was produced but never reached the agent's messages"
+
+
+def test_rerun_discards_the_failing_turns():
+    """The mechanism that took task completion from 0-of-8 to 6-of-8.
+
+    Appending a correction leaves the agent arguing with several rounds of its
+    own committed behaviour. Restarting removes that history. Measured on a real
+    7B: append completed ZERO tasks, restart completed six (REPORT.md §3.6).
+
+    So the conversation must SHRINK back to the objective when a steer lands,
+    not keep growing.
+    """
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal=GOAL, echo=False, loop_threshold=3,
+                      drift_threshold=0.0, max_recoveries=99),
+        tracer=Tracer(None, False))
+    client = FakeOpenAI(_loop_turns())
+    guarded_tool_loop(client, model="gpt-4.1", system_prompt=GOAL, user_input="go",
+                      tools=[], tool_router=lambda n, a: "0 files matched",
+                      max_turns=10, monitor=mon, intervention="rerun")
+
+    steered_turns = [t for t in client.seen
+                     if any("CIRCUIT BREAKER STEERING" in str(m.get("content")) for m in t)]
+    assert steered_turns, "no steer was ever delivered"
+    first = steered_turns[0]
+    assert len(first) == 3, (
+        f"after a rerun the conversation should be [system, user, steer], got "
+        f"{[m.get('role') for m in first]}")
+    assert first[-1]["role"] == "user", "the correction is delivered as a user turn"
+
+
+def test_system_intervention_keeps_the_history_for_comparison():
+    """The old behaviour stays available — it is the measured control arm."""
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal=GOAL, echo=False, loop_threshold=3,
+                      drift_threshold=0.0, max_recoveries=99),
+        tracer=Tracer(None, False))
+    client = FakeOpenAI(_loop_turns())
+    guarded_tool_loop(client, model="gpt-4.1", system_prompt=GOAL, user_input="go",
+                      tools=[], tool_router=lambda n, a: "0 files matched",
+                      max_turns=10, monitor=mon, intervention="system")
+    msgs = _steering_messages(client)
+    assert msgs and all(m["role"] == "system" for m in msgs)
+    longest = max(len(t) for t in client.seen)
+    assert longest > 3, "the 'system' arm must keep accumulating history"
 
 
 def test_openai_sdk_reports_token_usage_to_the_monitor():

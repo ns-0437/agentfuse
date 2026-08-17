@@ -2,9 +2,15 @@
 
 For teams running a hand-rolled tool-use loop against the OpenAI Responses/Chat
 API (no framework). ``guarded_tool_loop`` runs the loop for you and consults the
-breaker each turn; if a steering directive comes back it injects the correction
-as a system message and continues. This shows the breaker is framework-agnostic:
-the exact same monitor powers AgentKit, LangGraph, and raw SDK code.
+breaker each turn; if a steering directive comes back it restarts the agent from
+its original objective with the correction attached, discarding the turns that
+failed. This shows the breaker is framework-agnostic: the exact same monitor
+powers AgentKit, LangGraph, and raw SDK code.
+
+The delivery mechanism is not a detail. Appending the correction to the ongoing
+conversation — which this adapter did until 2026-08-16 — completed ZERO of eight
+real tasks. Restarting from the objective completed six. See ``intervention`` on
+:func:`guarded_tool_loop`.
 """
 
 from __future__ import annotations
@@ -27,7 +33,7 @@ def guarded_tool_loop(
     monitor: Optional[CircuitBreakerMonitor] = None,
     tool_choice: Any = "auto",
     logprobs: bool = False,
-    intervention: str = "system",
+    intervention: str = "rerun",
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
@@ -165,7 +171,7 @@ def guarded_tool_loop(
     return mon.finish("max_turns")
 
 
-def _apply_directive(mon, directive, messages, intervention: str = "system",
+def _apply_directive(mon, directive, messages, intervention: str = "rerun",
                      baseline: Optional[list] = None) -> str:
     """Deliver a steering correction. HOW it is delivered is a real variable.
 
@@ -181,10 +187,21 @@ def _apply_directive(mon, directive, messages, intervention: str = "system",
     Those two were confounded in the only evidence we had, so both are exposed
     here separately:
 
-      "system"     append as a system message, continue  (the 2.4% baseline)
+MEASURED, 4 arms x 8 tasks, real Qwen2.5-7B (REPORT.md 3.6):
+
+        arm         corrections obeyed        tasks completed   avg steps
+        system         0/23   0.0%                 0 of 8          24
+        user           1/18   5.6%                 3 of 8          21
+        rerun          5/6   83.3%                 6 of 8          13
+        drop_tool      5/13  38.5%                 2 of 8          22
+
+    The default was "system" and it completed ZERO tasks out of eight. "rerun"
+    completed six, in half the steps. That is why the default is now "rerun".
+
+      "system"     append as a system message, continue  (the 0-2.4% baseline)
       "user"       append as a user message, continue    (isolates the role)
       "rerun"      restart from the original prompt + steer, discarding the
-                   failing turns entirely  (isolates the mechanism)
+                   failing turns entirely  (DEFAULT — isolates the mechanism)
       "drop_tool"  as "user", and the caller removes the failing tool from the
                    schema  (a hard constraint rather than a request)
 

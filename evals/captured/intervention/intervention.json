@@ -1,0 +1,158 @@
+[
+  {
+    "arm": "system",
+    "complied": 0,
+    "total": 23,
+    "per_task": {
+      "rotate_findable": [
+        0,
+        3
+      ],
+      "rotate_missing": [
+        0,
+        3
+      ],
+      "vague_objective": [
+        0,
+        3
+      ],
+      "false_premise": [
+        0,
+        2
+      ],
+      "audit_secrets": [
+        0,
+        3
+      ],
+      "audit_empty": [
+        0,
+        3
+      ],
+      "migrate_store": [
+        0,
+        3
+      ],
+      "migrate_blocked": [
+        0,
+        3
+      ]
+    }
+  },
+  {
+    "arm": "user",
+    "complied": 1,
+    "total": 18,
+    "per_task": {
+      "rotate_findable": [
+        0,
+        3
+      ],
+      "rotate_missing": [
+        0,
+        3
+      ],
+      "vague_objective": [
+        1,
+        3
+      ],
+      "false_premise": [
+        0,
+        1
+      ],
+      "audit_secrets": [
+        0,
+        3
+      ],
+      "audit_empty": [
+        0,
+        3
+      ],
+      "migrate_store": [
+        0,
+        1
+      ],
+      "migrate_blocked": [
+        0,
+        1
+      ]
+    }
+  },
+  {
+    "arm": "rerun",
+    "complied": 5,
+    "total": 6,
+    "per_task": {
+      "rotate_findable": [
+        3,
+        3
+      ],
+      "rotate_missing": [
+        2,
+        3
+      ],
+      "vague_objective": [
+        0,
+        0
+      ],
+      "false_premise": [
+        0,
+        0
+      ],
+      "audit_secrets": [
+        0,
+        0
+      ],
+      "audit_empty": [
+        0,
+        0
+      ],
+      "migrate_store": [
+        0,
+        0
+      ],
+      "migrate_blocked": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "arm": "drop_tool",
+    "complied": 5,
+    "total": 13,
+    "per_task": {
+      "rotate_findable": [
+        1,
+        3
+      ],
+      "rotate_missing": [
+        0,
+        0
+      ],
+      "vague_objective": [
+        0,
+        3
+      ],
+      "false_premise": [
+        0,
+        1
+      ],
+      "audit_secrets": [
+        2,
+        2
+      ],
+      "audit_empty": [
+        1,
+        1
+      ],
+      "migrate_store": [
+        0,
+        1
+      ],
+      "migrate_blocked": [
+        1,
+        2
+      ]
+    }
+  }
+]
