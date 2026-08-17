@@ -231,6 +231,57 @@ def test_openai_sdk_runs_the_tool_router_with_parsed_arguments():
         "tool arguments did not survive JSON round-tripping through the adapter")
 
 
+class _RawFn:
+    """A tool call whose arguments are whatever the model actually emitted."""
+
+    def __init__(self, name, raw):
+        self.name, self.arguments = name, raw
+
+
+class _RawToolCall:
+    def __init__(self, name, raw, idx):
+        self.id, self.function = f"call_{idx}", _RawFn(name, raw)
+
+
+def test_malformed_tool_arguments_do_not_kill_the_run():
+    """A model emitting invalid JSON must not crash the supervised agent.
+
+    Observed live: a real 7B emitted an invalid escape in its arguments and the
+    unguarded json.loads raised straight out of the tool loop, killing the run.
+    That is the worst possible failure for a supervisor — the agent dies, no
+    detector fires, and nothing is escalated. Caught only because it aborted a
+    capture; no test covered it.
+    """
+    calls = []
+    mon = CircuitBreakerMonitor(MonitorConfig(original_goal=GOAL, echo=False),
+                                tracer=Tracer(None, False))
+    turns = [_Resp(_Msg("go", [_RawToolCall("search_files", r'{"p": "./c\*"}', 0)])),
+             _Resp(_Msg("recovered", None))]
+    summary = guarded_tool_loop(
+        FakeOpenAI(turns), model="gpt-4.1", system_prompt=GOAL, user_input="go",
+        tools=[], tool_router=lambda n, a: calls.append((n, a)) or "ok",
+        max_turns=4, monitor=mon)
+
+    assert summary is not None, "the run died on a recoverable model slip"
+    assert calls == [], "the tool ran with invented arguments the model never sent"
+
+
+def test_malformed_arguments_are_reported_back_to_the_model():
+    """The error has to reach the model, or it cannot correct itself."""
+    mon = CircuitBreakerMonitor(MonitorConfig(original_goal=GOAL, echo=False),
+                                tracer=Tracer(None, False))
+    client = FakeOpenAI([
+        _Resp(_Msg("go", [_RawToolCall("search_files", r'{"p": "./c\*"}', 0)])),
+        _Resp(_Msg("recovered", None))])
+    guarded_tool_loop(client, model="gpt-4.1", system_prompt=GOAL, user_input="go",
+                      tools=[], tool_router=lambda n, a: "ok", max_turns=4,
+                      monitor=mon)
+
+    tool_msgs = [m for turn in client.seen for m in turn if m.get("role") == "tool"]
+    assert tool_msgs, "no tool message was fed back after the parse failure"
+    assert "not valid JSON" in tool_msgs[-1]["content"]
+
+
 # ------------------------------------------------------------- langgraph
 class _Gen:
     def __init__(self, text):

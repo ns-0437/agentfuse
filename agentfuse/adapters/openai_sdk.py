@@ -125,7 +125,22 @@ def guarded_tool_loop(
         restart = False
         for tc in tool_calls:
             import json as _json
-            args = _json.loads(tc.function.arguments or "{}")
+            # A model can emit arguments that are not valid JSON — an invalid
+            # escape is the common one. This was an unguarded json.loads, so a
+            # single malformed call raised JSONDecodeError straight out of the
+            # loop and killed the whole run. For a supervisor whose entire job is
+            # keeping a long-running agent alive, crashing on a recoverable model
+            # slip is the worst available behaviour: the agent dies, no detector
+            # fires, and nothing is escalated.
+            #
+            # A real runtime hands the error back and lets the model correct
+            # itself, so that is what happens now. The tool is NOT invoked with
+            # guessed arguments — inventing a call the model did not make would
+            # put fiction in the trace.
+            try:
+                args, bad_args = _json.loads(tc.function.arguments or "{}"), None
+            except (ValueError, TypeError) as exc:
+                args, bad_args = {}, str(exc)
             step += 1
             d = mon.observe(AgentEvent(
                 type=EventType.TOOL_CALL, step=step,
@@ -143,7 +158,10 @@ def guarded_tool_loop(
                 restart = True
                 break
 
-            result = tool_router(tc.function.name, args)
+            result = (f"ERROR: arguments were not valid JSON ({bad_args}). "
+                      f"Re-issue the call with valid JSON arguments."
+                      if bad_args is not None
+                      else tool_router(tc.function.name, args))
             d = mon.observe(AgentEvent(
                 type=EventType.TOOL_RESULT, step=step,
                 tool_name=tc.function.name, text=str(result)[:200],
