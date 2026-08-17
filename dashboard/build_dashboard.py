@@ -58,7 +58,7 @@ CATALOG = {
     # than an observability tool.
     "real_7b_supervised.jsonl": (
         "Real 7B Loop (steering ignored)",
-        "A real Qwen2.5-7B loops on one tool; caught 3x, steered 3x, never recovers.",
+        "Real Qwen2.5-7B loop; caught 3x, steered 3x, never recovers — the OLD delivery mechanism, which completed 0 of 8 tasks. See REPORT.md 3.6.",
         "real"),
 }
 
