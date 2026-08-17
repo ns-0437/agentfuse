@@ -279,7 +279,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 214-test CI gate
+pytest evals/ -q                                  # 252-test CI gate
 ```
 
 **936 scenarios** from **21 parameterised generator families** across 6 domains,
@@ -569,11 +569,53 @@ product claim here is *steering*, and `stop calling search_files` is actionable
 where `you seem stuck` is not — so 28 points of attribution is worth more than the
 0.0 F1 it now costs.
 
+### A real-trace suite — with real *healthy* runs in it
+
+Synthetic scenarios encode my model of agent failure. `evals/real_suite.py`
+captures 12 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
+with an oracle that reads only the agent's actions — never the breaker's output.
+
+```bash
+python evals/score_real_suite.py
+```
+
+```
+n=12   TP=3  FP=0  FN=0  TN=9
+precision 100.0%   95% CI [43.8%, 100.0%]
+recall    100.0%   95% CI [43.8%, 100.0%]
+FPR         0.0%   95% CI [0.0%, 29.9%]   (on 9 real healthy runs)
+```
+
+The **9 negatives** are the point — the previous 50 captured traces were 88%
+positives and could not measure precision at all. Three are *hard* negatives: a
+retry against a flaky store, a poll whose status advances, an agent that searches
+an empty world and correctly reports nothing. Those are exactly the shapes a
+naive loop detector fires on.
+
+Two findings came out of building it, both unflattering:
+
+- **All 50 earlier traces were artifacts.** `llama.cpp`'s
+  `chatml-function-calling` handler *cannot terminate* — handed the answer it
+  calls the tool again — so it stamped the same "10 identical calls" signature on
+  every run regardless of task. Re-captured on the fixed stack, all four
+  committed captures complete cleanly, including one whose agent was supposed to
+  succeed and had been labelled a loop. See [REPORT.md §3.7](REPORT.md).
+- **The first real false positive.** `drift` trips on an agent that searched four
+  different ways, found nothing, and correctly reported the task was impossible.
+  Halting that run destroys the one result a human needed. Kept in the corpus with
+  its true label rather than deleted. The 936-scenario synthetic suite never
+  produced this; 12 real traces did, immediately.
+
+**It does not fix saturation.** 12/12 is still a ceiling, and 9 healthy runs
+cannot resolve a 1.2% FPR — the interval spans it either way. It catches gross
+regressions, not small ones.
+
 ### Honest limitations of the benchmark itself
 
 - **Synthetic.** The generators encode *my* model of agent failure, so they fix
-  sampling error, not authoring bias. `evals/trace_import.py` converts real
-  captured runs into labelled cases; that is the only real cure.
+  sampling error, not authoring bias. `evals/real_suite.py` and
+  `evals/trace_import.py` convert real captured runs into labelled cases; that is
+  the only real cure.
 - **Detection only.** We score whether a failure is *caught*, never whether the
   steering that follows actually fixes it. That needs live models (Phase 2).
 - **Notional token savings.** We assume halting saves everything downstream, and
