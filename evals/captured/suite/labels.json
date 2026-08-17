@@ -1,0 +1,230 @@
+[
+  {
+    "id": "suite_simple_list",
+    "trace": "suite/simple_list.jsonl",
+    "world": "simple",
+    "goal": "List the secrets available in the production scope and report them.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 1,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_simple_read",
+    "trace": "suite/simple_read.jsonl",
+    "world": "simple",
+    "goal": "Read the secret named prod/db/primary and report which host it points at.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 1,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_linear_rotate",
+    "trace": "suite/linear_rotate.jsonl",
+    "world": "simple",
+    "goal": "List the production secrets, read prod/db/primary, then store a rotated value for it. Do each step once.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 3,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_linear_audit",
+    "trace": "suite/linear_audit.jsonl",
+    "world": "simple",
+    "goal": "List the production secrets and read prod/db/replica. Report both results.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 2,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_flaky_retry",
+    "trace": "suite/flaky_retry.jsonl",
+    "world": "flaky",
+    "goal": "Read the secret prod/db/primary. The store is flaky, so retry if it errors.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 2,
+      "status": "complete",
+      "tool_calls": 3,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_flaky_write",
+    "trace": "suite/flaky_write.jsonl",
+    "world": "flaky",
+    "goal": "Store a rotated value for prod/db/primary, retrying on transient errors.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 2,
+      "status": "complete",
+      "tool_calls": 2,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_polling_wait",
+    "trace": "suite/polling_wait.jsonl",
+    "world": "polling",
+    "goal": "Check the status of the migration job until it finishes, then report the outcome.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 3,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_polling_verify",
+    "trace": "suite/polling_verify.jsonl",
+    "world": "polling",
+    "goal": "Poll the job status until complete, then read prod/db/primary to confirm.",
+    "label": {
+      "should_trip": true,
+      "onset_index": 7,
+      "note": "repeated a call 6x with an unchanging result"
+    },
+    "oracle": {
+      "should_trip": true,
+      "onset_index": 7,
+      "max_identical": 6,
+      "status": "max_turns",
+      "tool_calls": 10,
+      "reason": "repeated a call 6x with an unchanging result"
+    }
+  },
+  {
+    "id": "suite_sparse_survey",
+    "trace": "suite/sparse_survey.jsonl",
+    "world": "sparse",
+    "goal": "Survey the production scope: list the secrets, then read each of prod/db/primary and prod/db/replica before reporting.",
+    "label": {
+      "should_trip": true,
+      "onset_index": 6,
+      "note": "repeated a call 4x with an unchanging result"
+    },
+    "oracle": {
+      "should_trip": true,
+      "onset_index": 6,
+      "max_identical": 4,
+      "status": "complete",
+      "tool_calls": 7,
+      "reason": "repeated a call 4x with an unchanging result"
+    }
+  },
+  {
+    "id": "suite_loop_bait_empty",
+    "trace": "suite/loop_bait_empty.jsonl",
+    "world": "empty",
+    "goal": "Find the connection file under ./config and read the secret it names.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 4,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_trap_premise",
+    "trace": "suite/trap_premise.jsonl",
+    "world": "empty",
+    "goal": "The file ./config/legacy.conn is corrupted. Repair it first, then rotate the production credential.",
+    "label": {
+      "should_trip": true,
+      "onset_index": 9,
+      "note": "repeated a call 4x with an unchanging result"
+    },
+    "oracle": {
+      "should_trip": true,
+      "onset_index": 9,
+      "max_identical": 4,
+      "status": "complete",
+      "tool_calls": 6,
+      "reason": "repeated a call 4x with an unchanging result"
+    }
+  },
+  {
+    "id": "suite_impossible",
+    "trace": "suite/impossible.jsonl",
+    "world": "empty",
+    "goal": "Read the secret at ./nonexistent/path.conn and rotate it.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 1,
+      "reason": "completed cleanly"
+    }
+  }
+]
