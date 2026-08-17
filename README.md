@@ -669,7 +669,14 @@ evals/                 the benchmark — ground-truth scenarios, metrics, ablati
   metrics.py           precision · recall · FPR · attribution · net tokens
   ablation.py          leave-one-out + rate-matched random control
   validity.py          checks on the BENCHMARK: generalisation, baselines, clustering
-  captured/            a real openai-agents trace, scored like any other case
+  real_suite.py        capture real runs INCLUDING healthy ones; label from behaviour
+  score_real_suite.py  replay them through the same runner the synthetic suite uses
+  toolcall_shim.py     recover tool calls llama.cpp leaves as text in `content`
+  probe_termination.py can the serving stack stop at all? (it could not — §3.7)
+  relabel_captures.py  re-derive committed labels from the traces themselves
+  capture_real_runs.py drive a real model to produce traces, breaker disarmed
+  captured/            real traces, scored like any other case
+    suite/             the 12-run real suite: 3 positives / 9 negatives
   results/             REPORT.md + results.json (regression baseline)
 ```
 
