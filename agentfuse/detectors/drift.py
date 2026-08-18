@@ -143,6 +143,8 @@ class DriftDetector(Detector):
         self._anchors = _goal_anchors(original_goal)
         self._last_action_grounded = False
         self._seen_action = False
+        self._on_goal_tools: set[str] = set()
+        self._turns_since_action = 0
         self.suppressed_trips = 0
 
         # An injected embedder makes this testable without network access, which
@@ -208,15 +210,47 @@ class DriftDetector(Detector):
 
     # ------------------------------------------------------------------
     def _note_action(self, event: AgentEvent) -> None:
-        """Record whether this tool call still touches the goal's own entities."""
-        parts = [event.tool_name or ""]
+        """Record whether this tool call is still evidence of on-goal work.
+
+        Two independent signals, because one of them has a measured blind spot.
+
+        1. ANCHORS — the call names one of the goal's own entities. Strong when
+           the goal names something concrete ("./config"), and useless when it
+           does not: the goal "research the top three competitors" yields anchors
+           like {research, competitors, comparison} that a real call such as
+           `web_search {"url": "a.com"}` can never match. That gap was measured,
+           not assumed, and it is what this second signal exists to close.
+
+        2. TOOL CONTINUITY — the call uses a tool the agent was already using
+           while its trajectory was healthy. Drift means the agent started doing
+           a *different kind of work*; an agent still reaching for the same
+           instruments it used on-goal has not changed kind, whatever its prose
+           says while it narrates failures.
+
+        The known limit of (2): an agent that drifts while continuing to use the
+        same generic tool — searching the web for something unrelated — stays
+        grounded and will not trip on prose alone. That case is genuinely
+        ambiguous from the outside, and it is recorded here rather than papered
+        over.
+        """
+        tool = event.tool_name or ""
+        parts = [tool]
         for key, val in (event.tool_args or {}).items():
             parts.append(f"{key} {val}")
         text = " ".join(parts).lower()
         tokens = {t.strip("./-") for t in _ANCHOR_WORD.findall(text)}
-        self._last_action_grounded = bool(
-            (self._anchors & tokens) or any(a in text for a in self._anchors))
+
+        anchored = bool((self._anchors & tokens)
+                        or any(a in text for a in self._anchors))
+        # Only learn a tool as "on-goal" on POSITIVE evidence that the trajectory
+        # is healthy. Learning it while the trend is already low would let a
+        # drifting agent's new tools grant themselves amnesty.
+        if tool and self._ema is not None and self._ema >= self.threshold:
+            self._on_goal_tools.add(tool)
+
+        self._last_action_grounded = anchored or (tool in self._on_goal_tools)
         self._seen_action = True
+        self._turns_since_action = 0
 
     def _still_acting_on_goal(self) -> bool:
         """Is the agent's most recent ACTION still on the goal's subject matter?
@@ -233,8 +267,19 @@ class DriftDetector(Detector):
         So a trip now needs the actions to have left too. An agent that has taken
         no actions at all is unaffected: pure-reasoning drift still trips on
         prose, which is the only signal available there.
+
+        Grounding must also be CURRENT, and that qualifier was learned from a
+        real miss rather than reasoned out in advance. Without it
+        `drift_abrupt_hijack` stopped tripping: the agent made one on-goal
+        `read_notes` call during its healthy opening turn, then drifted purely in
+        reasoning and took no further action at all. That single stale call was
+        granting permanent amnesty to every turn after it. Corroboration has to
+        mean the agent is STILL acting on the goal, so the action must be recent
+        enough to describe what the agent is doing now.
         """
-        return self.action_grounding and self._seen_action and self._last_action_grounded
+        return (self.action_grounding and self._seen_action
+                and self._last_action_grounded
+                and self._turns_since_action <= 1)
 
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
         if event.type == EventType.TOOL_CALL:
@@ -243,6 +288,8 @@ class DriftDetector(Detector):
         probe = event.goal or (event.text if event.type == EventType.LLM_CALL else None)
         if not probe:
             return None
+        if event.type == EventType.LLM_CALL:
+            self._turns_since_action += 1
 
         sim = self._similarity(probe)
         self._last_similarity = sim

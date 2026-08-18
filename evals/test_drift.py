@@ -324,3 +324,65 @@ def test_anchors_keep_path_like_identifiers():
     anchors = _goal_anchors("Rotate prod/db/primary described in ./config/db.conn")
     assert any("config" in a for a in anchors)
     assert any("prod" in a for a in anchors)
+
+
+# ------------------------------------------ tool continuity (the second signal)
+#
+# `fetch_page {"url": "a.com"}` shares no token with GOAL, so the anchor signal
+# cannot ground it. That is the whole point: it stands in for every goal whose
+# tools take opaque arguments, where the lexical check is measurably useless.
+
+def _opaque_run(tools):
+    d = _make()
+    _probe(d, "Summarize the quarter revenue figures from the report.", 1)
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        _act(d, tools[i], {"url": "a.com"}, i * 2 + 2)
+        trip = trip or _probe(d, text, i * 2 + 3)
+    return d, trip
+
+
+def test_opaque_arguments_still_ground_via_tool_continuity():
+    """The measured blind spot in anchor matching.
+
+    A goal like "research the top three competitors" produces anchors that a real
+    call such as `web_search {"url": "a.com"}` can never match, leaving the same
+    false positive open for every goal whose tools take opaque arguments.
+    Continuing to use the tool the agent was already using while healthy is the
+    evidence that closes it.
+    """
+    d, trip = _opaque_run(["fetch_page"] * 3)
+    assert "fetch_page" in d._on_goal_tools, "on-goal tool was never learned"
+    assert trip is None, "drift halted an agent still using its on-goal tool"
+    assert d.suppressed_trips > 0
+
+
+def test_switching_to_new_tools_still_trips_under_opaque_arguments():
+    d, trip = _opaque_run(["fetch_page", "book_meeting", "send_email"])
+    assert trip is not None, "tool continuity suppressed a genuine tool switch"
+
+
+def test_tools_are_not_learned_while_the_trend_is_already_low():
+    """Otherwise a drifting agent's new tools grant themselves amnesty."""
+    d = _make()
+    for i, text in enumerate(_DRIFTING_PROSE):
+        _probe(d, text, i + 1)
+    _act(d, "book_meeting", {"room": "Zurich"}, 9)
+    assert "book_meeting" not in d._on_goal_tools
+
+
+def test_stale_grounding_does_not_grant_permanent_amnesty():
+    """Regression: drift_abrupt_hijack stopped tripping.
+
+    The agent made ONE on-goal call during its healthy opening turn and then
+    drifted purely in reasoning, taking no further action. That single stale call
+    was suppressing every turn after it. Corroboration has to mean the agent is
+    still acting, so it expires.
+    """
+    d = _make()
+    _probe(d, "Summarize the quarter revenue figures from the report.", 1)
+    _act(d, "fetch_page", {"url": "a.com"}, 2)
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        trip = trip or _probe(d, text, i + 3)
+    assert trip is not None, "one stale on-goal call suppressed all later drift"
