@@ -28,6 +28,7 @@ which is in use.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from dataclasses import dataclass, field, asdict
@@ -278,6 +279,56 @@ class QdrantMemory:
                 vectors_config=VectorParams(size=self._dim, distance=Distance.COSINE),
             )
         self._by_id: dict[str, RecoveryRecord] = {}
+        self._rehydrate()
+
+    @staticmethod
+    def _point_id(record_id: str) -> int:
+        """Stable point id for a record id, across processes.
+
+        This used to be ``abs(hash(record_id)) % 2**63``. Python randomises
+        string hashing per process, so the same record produced a DIFFERENT
+        point id after every restart. Measured: three processes, three ids.
+
+        In `:memory:` mode nothing notices. With ``path=`` it means a
+        ``mark_outcome`` after a restart upserts a SECOND point instead of
+        updating the first, leaving the stale ``worked=None`` copy in place —
+        so the ladder can read a rung it has already disproved as untried and
+        reissue a correction known not to work. That is precisely the failure
+        Phase 2 was built to prevent, reintroduced underneath it.
+        """
+        return int.from_bytes(hashlib.blake2b(record_id.encode("utf-8"),
+                                              digest_size=8).digest(),
+                              "big") % (2 ** 63)
+
+    def _rehydrate(self) -> None:
+        """Reload the exact-match index from the collection.
+
+        ``recall``, ``failed_strategies``, ``failed_instructions`` and
+        ``strategies_tried`` all read ``_by_id``, which was in-process only. The
+        vectors persisted; the lesson learned from them did not. Measured on a
+        real on-disk store: before a restart ``failed_strategies`` returned
+        ``{'re-anchor'}``, after it returned ``set()`` — while the record was
+        still sitting in the collection with ``worked=False``.
+
+        A memory that silently forgets which corrections already failed is worse
+        than no memory, because the engine swallows memory faults by design and
+        the ladder just quietly stops climbing.
+        """
+        try:
+            records, _ = self._client.scroll(
+                collection_name=self._collection, limit=10_000,
+                with_payload=True, with_vectors=False)
+        except Exception:                       # noqa: BLE001
+            return                              # empty or unreadable: start clean
+        for point in records or []:
+            payload = getattr(point, "payload", None)
+            if not payload:
+                continue
+            try:
+                rec = RecoveryRecord.from_dict(dict(payload))
+            except (TypeError, ValueError):
+                continue
+            self._by_id[rec.record_id] = rec
 
     def _text_for(self, record: RecoveryRecord) -> str:
         return f"{record.detector} failure on {record.tool or 'unknown tool'}: {record.goal}"
@@ -289,7 +340,7 @@ class QdrantMemory:
         self._by_id[record.record_id] = record
         self._client.upsert(
             collection_name=self._collection,
-            points=[PointStruct(id=abs(hash(record.record_id)) % (2 ** 63),
+            points=[PointStruct(id=self._point_id(record.record_id),
                                 vector=vec, payload=record.to_dict())],
         )
         return record.record_id

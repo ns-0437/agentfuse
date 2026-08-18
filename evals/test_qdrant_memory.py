@@ -135,3 +135,73 @@ def test_backends_expose_the_same_interface():
     for backend in (JSONMemory(), QdrantMemory(embedder=embed)):
         missing = [m for m in required if not callable(getattr(backend, m, None))]
         assert not missing, f"{type(backend).__name__} missing {missing}"
+
+
+# ------------------------------------------------- the persistent path (path=)
+# Every test above uses `:memory:`, which is why both bugs below survived: they
+# are invisible unless the store is reopened. `path=` is the mode anyone running
+# agents across restarts would actually use.
+
+def test_point_ids_are_stable_across_processes():
+    """This was `abs(hash(record_id)) % 2**63`.
+
+    Python randomises string hashing per process, so the same record got a
+    different point id after every restart. In `:memory:` nothing notices; with
+    `path=`, mark_outcome after a restart upserts a SECOND point instead of
+    updating the first, leaving the stale worked=None copy behind — so the
+    ladder can read a rung it has already disproved as untried.
+    """
+    import subprocess
+    import sys as _sys
+    code = ("import sys; sys.path.insert(0, r'%s');"
+            "from agentfuse.memory import QdrantMemory;"
+            "print(QdrantMemory._point_id('rec-abc-123'))" % str(ROOT))
+    ids = {subprocess.run([_sys.executable, "-c", code], capture_output=True,
+                          text=True).stdout.strip() for _ in range(3)}
+    assert len(ids) == 1, f"point id is not stable across processes: {ids}"
+
+
+def test_failed_strategies_survive_a_restart(tmp_path):
+    """The lesson has to outlive the process that learned it.
+
+    Measured before the fix: {'re-anchor'} before a restart, set() after — while
+    the record was still in the collection with worked=False. A memory that
+    silently forgets which corrections already failed is worse than no memory,
+    because the engine swallows memory faults by design and the ladder simply
+    stops climbing.
+    """
+    path = str(tmp_path / "qd")
+    mem = QdrantMemory(embedder=embed, path=path)
+    rid = mem.remember(_rec(sig="sig-a", strategy="re-anchor"))
+    mem.mark_outcome(rid, False)
+    assert mem.failed_strategies("sig-a") == {"re-anchor"}
+    mem._client.close()
+
+    reopened = QdrantMemory(embedder=embed, path=path)
+    assert reopened.failed_strategies("sig-a") == {"re-anchor"}
+    assert len(reopened.recall("sig-a")) == 1
+    reopened._client.close()
+
+
+def test_marking_an_outcome_after_a_restart_updates_rather_than_duplicates(tmp_path):
+    """The consequence of an unstable point id, stated as behaviour."""
+    path = str(tmp_path / "qd")
+    mem = QdrantMemory(embedder=embed, path=path)
+    rid = mem.remember(_rec(sig="sig-a", strategy="re-anchor"))
+    mem._client.close()
+
+    reopened = QdrantMemory(embedder=embed, path=path)
+    reopened.mark_outcome(rid, False)
+    hits = reopened.recall_similar("loop", "search_files",
+                                   "stop the search loop repeat", limit=20)
+    assert len(hits) == 1, f"restart duplicated the record: {len(hits)} points"
+    assert hits[0].worked is False
+    reopened._client.close()
+
+
+def test_reopening_an_empty_store_does_not_crash(tmp_path):
+    """Rehydration runs on every construction, including the first."""
+    mem = QdrantMemory(embedder=embed, path=str(tmp_path / "qd"))
+    assert mem.recall("nothing") == []
+    assert mem.failed_strategies("nothing") == set()
+    mem._client.close()
