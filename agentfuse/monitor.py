@@ -33,6 +33,7 @@ agent run** remains the supported model, and is what every adapter here builds.
 
 from __future__ import annotations
 
+import os
 import threading
 import uuid
 import warnings
@@ -115,6 +116,15 @@ class MonitorConfig:
     # agent's reasoning and tool output, and posting it to an external URL is
     # data egress; set False where that matters more than the detail.
     escalation_include_agent_text: bool = True
+    # Shared secret for HMAC-SHA256 signing of the escalation POST. Without it a
+    # receiver cannot distinguish a real "your agent was halted" from anyone who
+    # has learned the URL, and webhook URLs leak — into CI logs, screenshots and
+    # config repos. Read from AGENTFUSE_ESCALATION_SECRET when not set here, so
+    # the secret does not have to live in the same code as the config.
+    escalation_secret: Optional[str] = None
+    # Allow posting escalations over plaintext http://. Off by default: the
+    # payload carries the goal, the failure reason and agent output.
+    escalation_allow_insecure: bool = False
 
 
 class CircuitBreakerMonitor:
@@ -175,7 +185,10 @@ class CircuitBreakerMonitor:
         self._events_since_checkpoint = 0
         self.notifier = notifier if notifier is not None else build_notifier(
             webhook_url=config.escalation_webhook, echo=config.echo,
-            include_agent_text=config.escalation_include_agent_text)
+            include_agent_text=config.escalation_include_agent_text,
+            secret=(config.escalation_secret
+                    or os.getenv("AGENTFUSE_ESCALATION_SECRET")),
+            allow_insecure=config.escalation_allow_insecure)
         #: None until an escalation happens, then whether a human was reached.
         #: Kept distinct from "did we escalate" so a failed delivery cannot be
         #: mistaken for a successful one.

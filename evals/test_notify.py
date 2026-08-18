@@ -302,3 +302,32 @@ def test_localhost_over_http_is_still_allowed():
 def test_insecure_transport_can_be_opted_into_explicitly():
     assert WebhookNotifier("http://internal.example.invalid/hook",
                            allow_insecure=True) is not None
+
+
+def test_secret_reaches_the_webhook_through_monitorconfig():
+    """A security option only reachable by hand-constructing the notifier is one
+    almost nobody will turn on. The documented path is MonitorConfig."""
+    from agentfuse import CircuitBreakerMonitor, MonitorConfig
+    mon = CircuitBreakerMonitor(MonitorConfig(
+        original_goal=GOAL, echo=False,
+        escalation_webhook="https://example.invalid/hook",
+        escalation_secret="s3cret"))
+    assert mon.notifier.secret == "s3cret"
+
+
+def test_secret_can_come_from_the_environment(monkeypatch):
+    """So the secret does not have to live in the same code as the config."""
+    from agentfuse import CircuitBreakerMonitor, MonitorConfig
+    monkeypatch.setenv("AGENTFUSE_ESCALATION_SECRET", "from-env")
+    mon = CircuitBreakerMonitor(MonitorConfig(
+        original_goal=GOAL, echo=False,
+        escalation_webhook="https://example.invalid/hook"))
+    assert mon.notifier.secret == "from-env"
+
+
+def test_monitorconfig_also_refuses_plaintext_by_default():
+    from agentfuse import CircuitBreakerMonitor, MonitorConfig
+    with pytest.raises(ValueError, match="plaintext"):
+        CircuitBreakerMonitor(MonitorConfig(
+            original_goal=GOAL, echo=False,
+            escalation_webhook="http://escalations.example.invalid/hook"))

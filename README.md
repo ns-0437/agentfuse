@@ -231,8 +231,21 @@ MonitorConfig(
     original_goal=GOAL,
     escalation_webhook="https://hooks.slack.com/services/…",  # any JSON endpoint
     escalation_include_agent_text=False,   # keep the trace off the wire
+    escalation_secret="…",                 # or $AGENTFUSE_ESCALATION_SECRET
 )
 ```
+
+**The escalation is signed.** With `escalation_secret` set, the POST carries
+`X-AgentFuse-Signature: sha256=…` over the payload, and the timestamp is signed
+*with* the body so a captured escalation cannot be replayed later. Without it,
+anyone who has learned the URL can forge "your agent was halted" — and webhook
+URLs leak, into CI logs, screenshots and config repos.
+
+**Plaintext `http://` is refused, not warned about.** The payload carries the
+goal, the failure reason and agent output; over http that is readable on the
+path. `localhost` is exempt so local development is unaffected, and
+`escalation_allow_insecure=True` is there for an endpoint genuinely on a trusted
+network — an explicit decision rather than a silent default.
 
 **Delivery is verified, not assumed.** `finish()` reports `escalation_delivered`:
 `None` means never needed, `False` means needed and **nobody was told**. A webhook
