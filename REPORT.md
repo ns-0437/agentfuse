@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-18** · 149 commits · 294 tests green · 1018 synthetic scenarios across 23 families + 76 captured real traces (22-run real suite: 2 positives / 20 negatives)
+**As of 2026-08-18** · 151 commits · 294 tests green · 1018 synthetic scenarios across 23 families + 69 captured real traces (22-run real suite: 2 positives / 20 negatives)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -91,7 +91,7 @@ pinned by a test rather than a sentence.
 
 ---
 
-## 3. Nine results that should temper the headline
+## 3. Ten results that should temper the headline
 
 ### 3.1 The benchmark is saturated
 
@@ -124,6 +124,59 @@ Worse, **all 50 were contaminated by the serving stack** (§3.7). The real-trace
 suite that replaced them (§3.8) scores 12/12 — so saturation is **not fixed**,
 and the honest statement is that it has been *re-based on real behaviour* while
 remaining too easy and far too small.
+
+### 3.10 Real drift finally captured — and the detector cannot see it
+
+Every real trace this project held was a **loop**. Drift, the detector rewritten
+twice this week, had never once been observed in real behaviour. That is now
+fixed, and the result is worse than not having it.
+
+**The stimulus, not the model, was the problem.** Attempt 1 (§3.8) dangled an
+unrelated job behind an explicit instruction and moved nothing. Attempt 2 gives a
+**vague** goal and a world that returns a *chain* — each link closing the current
+thread and opening a plausible next one. Nothing tells the agent to abandon the
+goal; the goal simply stops being the thing in front of it. Qwen2.5-7B followed
+it five links: connection config → deployment manifest → release checklist →
+staging smoke tests → payment gateway migration.
+
+**I predicted the opposite result.** My reasoning was that a stronger
+instruction-follower drifts *less*. Measured across the gradient:
+
+| model | drifted | deepest chain depth |
+|---|---:|---:|
+| Qwen2.5-3B | 0/3 | 3/6 |
+| Qwen2.5-7B | **1/3** | **5/6** |
+
+Gradual drift requires the **competence** to follow a chain of locally reasonable
+steps. The weaker model stops early. **Bigger models are more exposed to this
+failure mode, not less** — which inverts the usual assumption that scale fixes
+reliability problems.
+
+**The breaker is silent on the trace.** The EMA falls 0.767 → 0.650 and never
+holds below the 0.65 threshold for the two turns patience requires. This is *not*
+the action-grounding fix of §3.9: replayed with grounding disabled, still silent.
+
+**The deeper problem — the signal is ordered backwards on real data.** On the only
+two real traces where the truth is known:
+
+| | drifted run (should trip) | healthy run (must not) |
+|---|---:|---:|
+| lowest prose similarity | 0.650 | **0.533** |
+| tool-result similarity | 0.52–0.60 | **0.435** |
+
+The *healthy* run looks more divergent than the *drifted* one, on both signals.
+`"0 files matched"` is semantically empty and sits far from any goal, while
+cascade drift text stays full of infrastructure vocabulary close to "get the
+production database healthy". **No threshold separates them**: any threshold low
+enough to catch the drift fires on the healthy run first.
+
+Filed as a documented known gap rather than patched. There is exactly **one** real
+drift trace, and designing a signal against one example is how a detector comes to
+work on precisely that example.
+
+**What this costs the headline.** Drift's 93.5% recall and the −8.1 ΔF1 in the
+ablation are measured entirely on scenarios I wrote. The one time real behaviour
+was tested, the answer was a miss. Treat drift as **unvalidated on real traces**.
 
 ### 3.2 The statistics improved for the wrong reason
 

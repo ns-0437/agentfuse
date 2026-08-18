@@ -634,6 +634,16 @@ Two findings came out of building it, both unflattering:
   just its prose. See [REPORT.md §3.9](REPORT.md) — including why the 936-scenario
   suite could not see the fix at all, and the two families added so it can.
 
+**Real drift is now captured — and the detector misses it.** A Qwen2.5-7B given a
+vague goal followed a plausible chain five links from it (connection config →
+deployment manifest → release checklist → smoke tests → payment gateway). The
+breaker stays silent. Worse, on the only two real traces where the truth is
+known, the similarity signal is **ordered backwards**: the drifted run bottoms out
+at 0.650 while the *healthy* one reaches 0.533. Counter to the usual assumption,
+the **3B did not drift and the 7B did** — gradual drift needs the competence to
+follow a chain, so bigger models are *more* exposed. Treat drift as unvalidated
+on real behaviour. See [REPORT.md §3.10](REPORT.md).
+
 **It does not fix saturation.** 12/12 is still a ceiling, and 9 healthy runs
 cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
 regressions, not small ones.
