@@ -226,3 +226,31 @@ def test_rehydration_paginates_beyond_one_scroll_page(tmp_path):
     assert len(reopened._by_id) == 1200
     assert reopened.failed_strategies("sig-1199") == {"st-1199"}
     reopened._client.close()
+
+
+def test_legacy_duplicate_points_do_not_resurrect_an_untried_verdict(tmp_path):
+    """A store written before point ids were stable holds legacy ids.
+
+    After an upgrade, mark_outcome upserts at the corrected id and the stale
+    point survives. Returning both shows the ladder one rung as simultaneously
+    tried and untried — and the stale copy is the one carrying worked=None,
+    which is the wrong one to believe.
+    """
+    from qdrant_client.models import PointStruct
+    path = str(tmp_path / "qd")
+    mem = QdrantMemory(embedder=embed, path=path)
+    rec = _rec(sig="sig-a", strategy="re-anchor")
+    mem.remember(rec)
+    mem.mark_outcome(rec.record_id, False)
+
+    # Simulate the legacy point: same payload, worked=None, an unrelated id.
+    stale = rec.to_dict()
+    stale["worked"] = None
+    mem._client.upsert(collection_name=mem._collection, points=[PointStruct(
+        id=424242, vector=embed(mem._text_for(rec)), payload=stale)])
+
+    hits = mem.recall_similar("loop", "search_files",
+                              "stop the search loop repeat", limit=20)
+    assert len(hits) == 1, f"duplicate record returned twice: {len(hits)}"
+    assert hits[0].worked is False, "the stale untried copy won"
+    mem._client.close()

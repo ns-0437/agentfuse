@@ -380,16 +380,26 @@ class QdrantMemory:
             hits = self._client.search(collection_name=self._collection,
                                        query_vector=vector, limit=limit)
 
-        out = []
+        # Deduplicate by record_id, keeping the newest. Two points can describe
+        # the same record: a store written before point ids were made stable
+        # holds legacy ids, so an upgraded process upserts the corrected id
+        # alongside the old one. Returning both would show the ladder a rung as
+        # simultaneously tried and untried, and the stale copy is the one with
+        # worked=None -- exactly the wrong one to believe. Non-destructive on
+        # purpose: nothing is deleted from a user's store to correct an id.
+        best: dict[str, RecoveryRecord] = {}
         for h in hits:
             payload = getattr(h, "payload", None)
             if not payload:
                 continue
             try:
-                out.append(RecoveryRecord.from_dict(dict(payload)))
+                rec = RecoveryRecord.from_dict(dict(payload))
             except (TypeError, ValueError):
                 continue
-        return out
+            prior = best.get(rec.record_id)
+            if prior is None or rec.ts >= prior.ts:
+                best[rec.record_id] = rec
+        return list(best.values())
 
     def mark_outcome(self, record_id: str, worked: bool) -> None:
         rec = self._by_id.get(record_id)
