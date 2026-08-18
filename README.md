@@ -292,7 +292,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 1018 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 281-test CI gate
+pytest evals/ -q                                  # 294-test CI gate
 ```
 
 **1018 scenarios** from **23 parameterised generator families** across 6 domains,
@@ -606,10 +606,10 @@ python evals/score_real_suite.py
 ```
 
 ```
-n=12   TP=3  FP=0  FN=0  TN=9
-precision 100.0%   95% CI [43.8%, 100.0%]
-recall    100.0%   95% CI [43.8%, 100.0%]
-FPR         0.0%   95% CI [0.0%, 29.9%]   (on 9 real healthy runs)
+n=22   TP=2  FP=0  FN=0  TN=20
+precision 100.0%   95% CI [34.2%, 100.0%]
+recall    100.0%   95% CI [34.2%, 100.0%]
+FPR         0.0%   95% CI [0.0%, 16.1%]   (on 20 real healthy runs)
 ```
 
 The **9 negatives** are the point — the previous 50 captured traces were 88%

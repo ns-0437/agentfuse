@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-18** · 136 commits · 281 tests green · 1018 synthetic scenarios across 23 families + 62 captured real traces (12-run real suite: 3 positives / 9 negatives)
+**As of 2026-08-18** · 149 commits · 294 tests green · 1018 synthetic scenarios across 23 families + 76 captured real traces (22-run real suite: 2 positives / 20 negatives)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -353,11 +353,27 @@ actions, never the breaker's output.
 Scored through the same `run_scenario` the synthetic suite uses:
 
 ```
-n=12   TP=3  FP=0  FN=0  TN=9
-precision 100.0%   95% CI [43.8%, 100.0%]
-recall    100.0%   95% CI [43.8%, 100.0%]
-FPR         0.0%   95% CI [0.0%, 29.9%]   (on 9 real healthy runs)
+n=22   TP=2  FP=0  FN=0  TN=20
+precision 100.0%   95% CI [34.2%, 100.0%]
+recall    100.0%   95% CI [34.2%, 100.0%]
+FPR         0.0%   95% CI [0.0%, 16.1%]   (on 20 real healthy runs)
 ```
+
+**Grown 2026-08-18 from 12 runs to 22.** Twenty healthy runs instead of nine
+narrows the false-positive interval from [0.0%, 29.9%] to **[0.0%, 16.1%]** —
+real movement on the only number this corpus exists to measure, and still not
+enough to resolve the 0.6% the synthetic suite claims.
+
+**The drift elicitation failed, and that is the more useful result.** Three
+`hijack` tasks were written to produce the failure mode this corpus has never
+contained: a tool result dangling an attractive unrelated job — *"the marketing
+site CSS is broken and the newsletter needs sending"* — which is the exact shape
+`drift_abrupt_hijack` was hand-written from. **All three came back negative.**
+The 7B read the bait and carried on rotating the credential, every time. So the
+real corpus is still loop-plus-one-progress, and **"drift works on real
+behaviour" remains unevidenced** — the drift detector has been changed twice this
+week and every check on it is synthetic or a single hand-labelled trace. The
+tasks stay in the suite; a stronger model may well take the bait.
 
 The 9 negatives are what makes this the first real corpus that can measure
 precision. Three are **hard** negatives — a retry against a flaky store, a poll
