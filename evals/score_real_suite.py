@@ -47,7 +47,10 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     d = 1 + z * z / n
     c = p + z * z / (2 * n)
     m = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
-    return ((c - m) / d, (c + m) / d)
+    # Clamped: floating error puts the lower bound a hair below zero when k=0,
+    # and an interval printed as "-0.0%" invites the reader to distrust every
+    # other number on the page.
+    return (max(0.0, (c - m) / d), min(1.0, (c + m) / d))
 
 
 def replay(spec: dict) -> dict:
