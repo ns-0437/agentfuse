@@ -287,3 +287,46 @@ def test_cascade_rules_do_not_apply_to_other_worlds(tmp_path):
     """The world-specific oracle must not leak into ordinary tasks."""
     out = classify(_cascade_trace(tmp_path, 5), world="simple")
     assert out["should_trip"] is False
+
+
+def test_every_cascade_chain_has_a_marker_per_link(tmp_path):
+    """A marker that does not appear in its own chain's text silently caps the
+    measured depth, making a drifted run look on-task — a false negative
+    manufactured by the ground truth rather than by the detector."""
+    from evals.real_suite import CASCADE_CHAINS, CASCADE_MARKERS
+    assert set(CASCADE_CHAINS) == set(CASCADE_MARKERS)
+    for name, chain in CASCADE_CHAINS.items():
+        markers = CASCADE_MARKERS[name]
+        assert len(markers) == len(chain), name
+        for link, marker in zip(chain, markers):
+            assert marker in link, f"{name}: {marker!r} not in {link[:50]!r}"
+
+
+def test_chains_do_not_share_markers():
+    """Overlapping markers would let one chain's depth be credited to another,
+    and the reported chain name would be wrong."""
+    from evals.real_suite import CASCADE_MARKERS
+    seen = {}
+    for name, markers in CASCADE_MARKERS.items():
+        for m in markers:
+            assert m not in seen, f"{m!r} shared by {name} and {seen[m]}"
+            seen[m] = name
+
+
+def test_the_oracle_names_the_chain_the_agent_actually_followed(tmp_path):
+    from evals.real_suite import CASCADE_MARKERS
+    recs = []
+    for i, marker in enumerate(CASCADE_MARKERS["data"][:5], start=1):
+        recs += [_call(i, "search_files", {"s": i}), _result(i, f"note: {marker} ...")]
+    recs.append({"kind": "summary", "status": "complete"})
+    out = classify(_trace(tmp_path, recs), world="cascade")
+    assert out["should_trip"] is True
+    assert "data" in out["reason"]
+
+
+def test_each_router_chain_returns_its_own_links():
+    from evals.real_suite import CASCADE_CHAINS
+    for name in CASCADE_CHAINS:
+        router, _ = make_router("cascade", chain=name)
+        outs = [router("search_files", {}) for _ in range(6)]
+        assert outs == CASCADE_CHAINS[name], name
