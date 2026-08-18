@@ -81,8 +81,8 @@ jobs:
       #
       # run_eval's exit code encodes "zero residual errors" — any false positive
       # or any non-known-gap miss returns 1. That is a stricter contract than
-      # this project actually holds: 6 false positives and 11 false negatives out
-      # of 936 are measured, documented in baseline.json, and accepted. Gating on
+      # this project actually holds: 3 false positives and 11 false negatives out
+      # of 1016 are measured, documented in baseline.json, and accepted. Gating on
       # that exit code asserted perfection we have never claimed, and it failed
       # on its first run for exactly that reason.
       #
