@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-18** · 157 commits · 298 tests green · 1018 synthetic scenarios across 23 families + 93 captured real traces (22-run real suite: 2 positives / 20 negatives · 11 real drift traces)
+**As of 2026-08-18** · 157 commits · 303 tests green · 1018 synthetic scenarios across 23 families + 93 captured real traces (22-run real suite: 2 positives / 20 negatives · 11 real drift traces)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -23,7 +23,7 @@ it.** An agent in a logical trap is the worst available judge of its own trap.
 
 Five detectors, one engine, three runtime adapters (OpenAI AgentKit via real
 `RunHooks`, plain OpenAI SDK, LangGraph), all three tested — adding those tests
-found four bugs, §4.10.
+found four bugs, section 4.10.
 
 ---
 
@@ -39,7 +39,7 @@ deterministically through the production monitor.
 | F1 | **98.6%** | |
 | False-positive rate | **0.6%** | healthy runs wrongly halted |
 | Attribution | **83.8%** | correct detector named |
-| Recovery rate | **67.6%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. §3.5–3.6 |
+| Recovery rate | **67.6%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. Section 3.5–3.6 |
 | Confusion | TP 479 · FP 3 · FN 11 · TN 525 | |
 
 Against trivial baselines — the complexity has to earn itself. **These three rows
@@ -100,7 +100,7 @@ score 98% on has stopped being a measuring instrument** — it can no longer
 separate a good change from a neutral one, because the entire remaining signal is
 14 scenarios wide. This is now the top constraint on the project.
 
-**And saturation is not the only failure mode.** §3.9 found the suite was
+**And saturation is not the only failure mode.** Section 3.9 found the suite was
 *structurally blind* to a whole detector change: no drift generator emitted a
 single tool call, so a fix that reads the agent's actions moved every metric by
 exactly zero. A suite can be both too easy and incapable of seeing what you just
@@ -108,7 +108,7 @@ changed, and the second is harder to notice because it looks like "no
 regression".
 
 Part of the most recent gain came from **correcting a generator that was wrong**
-(§4.3). That was legitimate and evidenced, but making the test easier is exactly
+(section 4.3). That was legitimate and evidenced, but making the test easier is exactly
 how benchmarks quietly stop meaning anything, so it is recorded in place rather
 than absorbed into the number.
 
@@ -120,8 +120,8 @@ corpus that is 88% positives measures recall, which was already 100%, and cannot
 measure precision at all. Precision is the number that decides whether anyone
 leaves a guardrail switched on.
 
-Worse, **all 50 were contaminated by the serving stack** (§3.7). The real-trace
-suite that replaced them (§3.8) scores 12/12 — so saturation is **not fixed**,
+Worse, **all 50 were contaminated by the serving stack** (section 3.7). The real-trace
+suite that replaced them (section 3.8) scores 12/12 — so saturation is **not fixed**,
 and the honest statement is that it has been *re-based on real behaviour* while
 remaining too easy and far too small.
 
@@ -194,10 +194,10 @@ scaling does not change that.** The honest product is the deterministic ladder
 plus the detectors. Frontier reasoning models remain untested for want of
 credits.
 
-**Corrected 2026-08-16 — read §3.5 and §3.6 before trusting this table.** Every
+**Corrected 2026-08-16 — read section 3.5 and section 3.6 before trusting this table.** Every
 figure above is a *rubric score*: it measures the text of a correction, not its
 effect. Worse, every experiment behind it held the DELIVERY MECHANISM fixed at
-the setting later measured to complete **zero of eight** real tasks (§3.6). So
+the setting later measured to complete **zero of eight** real tasks (section 3.6). So
 this section compares two wordings of a message the agent was never going to act
 on. The wording was not the variable that mattered.
 
@@ -217,7 +217,7 @@ Qwen2.5-3B-Instruct-Q4, n=14 per condition:
 The signal is real and it tracks *failure*, not *difficulty* — the healthy-but-hard
 control did not drop. **And the detector is still harmful**: ablation puts it at
 **ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
-ships off by default. See §4.12 for why, because the reason generalises.
+ships off by default. See section 4.12 for why, because the reason generalises.
 
 ### 3.5 The corrections are ignored — 40 times out of 41
 
@@ -242,21 +242,21 @@ written alongside the templates it grades. It is now worse than circular: it is
 **disconnected from outcomes.** The rubric measures whether an instruction reads
 well. A real agent ignores 97.6% of the instructions it approves.
 
-**Corrected 2026-08-16 by §3.6 — the conclusion drawn here was wrong.** The
+**Corrected 2026-08-16 by section 3.6 — the conclusion drawn here was wrong.** The
 numbers above are real and reproduced (a second run measured 0/23 on the same
 setting). What was wrong was the inference: this was read as *"steering does not
 work"*, when it was in fact *"steering delivered THIS WAY does not work"*. Every
 correction in this measurement was appended to a conversation that already
 contained several rounds of the agent's own failing behaviour. Change the
-delivery and the same templates land 83% of the time. See §3.6.
+delivery and the same templates land 83% of the time. See section 3.6.
 
 ### 3.6 …and then they worked, once delivered differently
 
-§3.5 concluded that steering does not work. That was the wrong reading of a
+Section 3.5 concluded that steering does not work. That was the wrong reading of a
 correct number, and the correction is the most useful result in the project.
 
 Every steering experiment here had varied the **text** of a correction — template
-wording against 3B wording against 7B wording, across days (§3.3). None had
+wording against 3B wording against 7B wording, across days (section 3.3). None had
 varied how it was **delivered**. The only positive evidence we had, a captured
 AgentKit run that self-healed, differed from the failing adapter in *two* ways at
 once — user-role message *and* aborting the in-flight run — so it was confounded
@@ -283,7 +283,7 @@ Appending a correction *argues* with that history; discarding it *removes the
 thing being argued with*. The agent was not being stubborn — it was being
 consistent with a transcript we kept showing it.
 
-**What this retrospectively invalidates.** §3.3 compared template wording against
+**What this retrospectively invalidates.** Section 3.3 compared template wording against
 model wording and concluded the templates win. That comparison, and every
 steering-quality experiment behind it, held the mechanism fixed at the one
 setting that completes zero tasks. **We spent days A/B testing the phrasing of a
@@ -341,7 +341,7 @@ distortion. That distinction is the whole requirement for a capture rig, because
 The probe's own first verdict was wrong and is worth recording: it scored
 `'functions.list_secrets:'` as prose and declared the stack healthy. Non-empty
 content is not evidence of termination — the same "guard that looks armed and
-isn't" class as §4.7, this time in the measuring instrument.
+isn't" class as section 4.7, this time in the measuring instrument.
 
 ### 3.8 A real-trace suite with real negatives — and the first real false positive
 
@@ -412,7 +412,7 @@ regressions, not small ones. One model, one tool domain, stub tools.
 
 ### 3.9 Drift halted an agent for correctly concluding its task was impossible
 
-The false positive recorded in §3.8 is now **fixed**, and how it was found and
+The false positive recorded in section 3.8 is now **fixed**, and how it was found and
 fixed matters more than the fix.
 
 `real_rotate_missing`: the agent searched the directory its goal named for
@@ -454,7 +454,7 @@ on the identical 936-scenario suite came back byte-identical on every metric. Th
 reason is structural: **every pre-existing drift generator emits `think()` steps
 only — not one tool call.** A detector change that reads actions could not move
 the suite in either direction. The 98.1% F1 was never evidence the fix was safe;
-it was evidence the suite was blind to it. This is §3.1's saturation problem
+it was evidence the suite was blind to it. This is section 3.1's saturation problem
 wearing a different hat: a suite can be saturated *and* structurally incapable of
 testing the thing you just changed.
 
@@ -558,7 +558,7 @@ this mode has still never fired on real drift, so **attribution on real drift is
 0%**. That is not cosmetic: attribution decides which steering gets written, so a
 drifting agent is told *"you are not making progress"* rather than *"you have
 wandered off your goal"*, and the ladder climbs from the wrong diagnosis (the
-same reason `loop`'s attribution matters, §2).
+same reason `loop`'s attribution matters, section 2).
 
 **Why `drift` misses.** On the traces where truth is known, the similarity signal
 is **ordered backwards**: the drifted run bottoms out at 0.650 while the *healthy*
@@ -664,7 +664,7 @@ by call id or `(node, tool)`.
 
 **Why a suite scoring 98.1% F1 never saw any of this:** the replay harness emits
 strictly sequential events, so it *cannot* produce interleaving. The same
-structural blind spot hid the `LoopDetector` reset bug (§4.2). A benchmark only
+structural blind spot hid the `LoopDetector` reset bug (section 4.2). A benchmark only
 tests the event orders it knows how to generate.
 
 ### 4.6 A restart used to disarm the breaker
@@ -845,7 +845,7 @@ was necessary and nowhere near sufficient.
 
 Against a real model, all three failure modes separated from healthy reasoning
 beyond their 95% intervals, and the ambiguous-but-healthy control did *not* drop —
-so the signal genuinely tracks failure rather than difficulty (§3.4). By the usual
+so the signal genuinely tracks failure rather than difficulty (section 3.4). By the usual
 standards that is a good result: Cohen's d up to 1.68.
 
 Then leave-one-out put it at **ΔF1 +10.8 for removing it.** Recall was identical
@@ -878,9 +878,9 @@ All sources are now scanned for control characters by a test.
 | Phase | Scope | Status |
 |---|---|---|
 | **1 — Eval harness** | ground-truth scenarios, hard negatives, Wilson + clustered CIs, ablation, random control | ✅ Done |
-| **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — §3.3)* |
+| **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — Section 3.3)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
-| **4 — Signal ladder** | Tier 0 behavioural ✅ · Tier 1 logprobs ✅ · Tier 2 activation probes ✅ | ✅ Done *(both internal tiers measured, both ship OFF — §3.4, §4.11)* |
+| **4 — Signal ladder** | Tier 0 behavioural ✅ · Tier 1 logprobs ✅ · Tier 2 activation probes ✅ | ✅ Done *(both internal tiers measured, both ship OFF — Section 3.4, section 4.11)* |
 | **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ✅ · PyPI ❌ | 🟡 5 of 6 |
 
 **4 of 5 complete.** Phase 5 is at 5 of 6 — only PyPI packaging remains.
@@ -895,13 +895,13 @@ Verified against the code, not asserted:
 |---|---|
 | Detection quality | **Strong** — but on a saturated, self-authored suite |
 | Steering quality | **Unproven** — templates beat the only real model tested |
-| Persistence / checkpoints | **Fixed 2026-08-13** (§4.7). SQLite checkpoints; a resumed run keeps its spend ceiling, loop counters and calibration baseline |
-| Thread / async safety | **Fixed 2026-08-13** (§4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
+| Persistence / checkpoints | **Fixed 2026-08-13** (section 4.7). SQLite checkpoints; a resumed run keeps its spend ceiling, loop counters and calibration baseline |
+| Thread / async safety | **Fixed 2026-08-13** (section 4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
-| Real-model validation | Supervisor half only, with a 3B model that LOST to the templates; agent obedience still synthetic (§8.1, §8.2) |
-| Adapter coverage | **3 of 3** — fixing the two untested ones found 4 bugs (§4.10) |
-| CI / portability | **3 OS × 3 Python versions**, plus demos and benchmark floors (§8.4) |
-| Secret redaction | **All three egress paths** — with a stated residual gap (§8.5) |
+| Real-model validation | Supervisor half only, with a 3B model that LOST to the templates; agent obedience still synthetic (section 8.1, section 8.2) |
+| Adapter coverage | **3 of 3** — fixing the two untested ones found 4 bugs (section 4.10) |
+| CI / portability | **3 OS × 3 Python versions**, plus demos and benchmark floors (section 8.4) |
+| Secret redaction | **All three egress paths** — with a stated residual gap (section 8.5) |
 | Prompt-injection hardening | Done — sanitise, fence, trust-boundary clause, 15 tests |
 | Cost safety | Done — `AGENTFUSE_OFFLINE`, $0 ever spent on this project |
 
@@ -945,7 +945,7 @@ steering resistance, and it was not recognised as one.** The breaker caught the
 loop three times and injected a correction three times. The agent ignored all
 three and kept calling the same tool.
 
-That reframes §3.3. The conclusion there was *"model-written steering is worse
+That reframes section 3.3. The conclusion there was *"model-written steering is worse
 than the templates."* There is a second explanation, ESR-shaped, that the data
 cannot rule out: **perhaps the author of the correction is not the variable at
 all, and the agent resists correction regardless of who writes it.** Every
@@ -956,7 +956,7 @@ first was asked.
 ### What the merge should actually be
 
 Internal signals were put into **detection**, and measured losing twice: Tier 1
-harmful (§3.4), Tier 2 beaten 19,000× by a string comparison (§4.11). That was
+harmful (section 3.4), Tier 2 beaten 19,000× by a string comparison (section 4.11). That was
 the wrong socket for them.
 
 Detection already works externally at 98.1% F1. The thing an external supervisor
@@ -975,7 +975,7 @@ precisely what two experiments established it is not.
 
 `evals/measure_resistance.py` ran it against a real 7B over 12 tasks. **A
 predictor needs a positive class, and this agent supplied one example of
-compliance in forty-one chances** (§3.5). There is no variance for an internal
+compliance in forty-one chances** (section 3.5). There is no variance for an internal
 signal to predict. The merge was not refuted; it could not be evaluated.
 
 That is the ESR phenomenon showing up directly in our own system rather than in a
@@ -995,13 +995,13 @@ one.
 
 ## 7. What would move it forward, in order
 
-0. **Test the two untested adapters** (§8.3) and **redact secrets** (§8.5).
+0. **Test the two untested adapters** (section 8.3) and **redact secrets** (section 8.5).
    These are the gaps between what the README claims and what is demonstrated,
    and they are cheap.
-1. **Build the ESR merge** (§6.5) — use an internal signal to predict *steering
+1. **Build the ESR merge** (section 6.5) — use an internal signal to predict *steering
    resistance*, not to detect failures. Untested, and the one idea our own data
    argues for rather than borrows.
-2. **Settle §3.3 with a larger model.** If a 7B closes the gap it is a model-size
+2. **Settle section 3.3 with a larger model.** If a 7B closes the gap it is a model-size
    problem; if it does not, the honest product is the *deterministic ladder plus
    detectors* — simpler, and still valuable. Everything downstream depends on
    which. `evals/real_model.py --base-url …` already runs this.
@@ -1009,7 +1009,7 @@ one.
    independent judge or a human spot-check would make the comparison real.
 3. **Import captured real traces.** The suite is saturated; more synthetic
    families will not help much. `evals/trace_import.py` exists for this.
-4. **Audit the remaining generators** for the 4-tool/4-argument artifact (§4.3).
+4. **Audit the remaining generators** for the 4-tool/4-argument artifact (section 4.3).
 5. **Subtle drift** — 8 of 11 remaining false negatives plus 6 false positives,
    all riding the thin ±0.043 embedding separation.
 6. **Phase 5**: persistence, thread-safety, packaging.
@@ -1026,7 +1026,7 @@ recalled.
 
 The claim is that a *separate reasoning model* writes better corrections than a
 fixed rule. Both a 3B and a 7B have now been run, and **both lost to the
-templates** (§3.3). Scaling bought 5–15 points against a 70-point deficit.
+templates** (section 3.3). Scaling bought 5–15 points against a 70-point deficit.
 
 The honest product is therefore **the deterministic ladder plus the detectors**.
 The reasoning-model layer does not earn its place at any size testable here.
@@ -1046,7 +1046,7 @@ human has ever assessed steering quality.
 
 `openai_sdk` and `langgraph` had never been executed by any test. Writing those
 tests found **four real bugs in about twenty minutes**, three in shipped code —
-see §4.10. Both adapters now have coverage.
+see section 4.10. Both adapters now have coverage.
 
 ### 8.4 No CI, one machine, one Python — **CLOSED**
 
@@ -1082,7 +1082,7 @@ each demo to actually print a trip.
 
 The dashboard also now carries **a real Qwen2.5-7B run the breaker did not
 rescue**: caught three times, steered three times, ignored every time. It stays on
-the front page because it ends badly — that is consistent with §3.3, and a
+the front page because it ends badly — that is consistent with section 3.3, and a
 dashboard showing only the runs that end well is a demo, not an observability
 tool.
 
@@ -1140,8 +1140,8 @@ started committing the output.
 ### 8.8 Phase 4 — complete, and both internal tiers ship OFF
 
 All three tiers are built and measured. **Tier 1 costs 10.8 F1 when enabled
-(§3.4); Tier 2 is 19,000× more expensive than the string comparison that already
-catches the same thing (§4.11).** Both remain in the tree as measured, opt-in
+(section 3.4); Tier 2 is 19,000× more expensive than the string comparison that already
+catches the same thing (section 4.11).** Both remain in the tree as measured, opt-in
 research tools.
 
 The honest summary of Phase 4: **reading the model's insides did not beat reading
@@ -1150,7 +1150,7 @@ and it is worth more than a detector nobody should switch on.
 
 The signal ladder — logprob-based confidence, self-probing, activation probes —
 has **zero lines of code**. It was deferred deliberately: it layers a research
-direction on top of the steering premise in §8.1, which is unproven.
+direction on top of the steering premise in section 8.1, which is unproven.
 
 ### 8.9 Genuinely blocked by this environment
 
@@ -1164,7 +1164,7 @@ Short, and worth separating from the above so the distinction stays honest:
   the last item on this list that turned out not to be a real constraint.
 - **A 70B-class model will not run** on 15.2 GB of RAM.
 
-Everything else in §8 is a choice, not a limit.
+Everything else in section 8 is a choice, not a limit.
 
 ---
 
