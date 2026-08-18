@@ -41,7 +41,10 @@ an unbounded one is not.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -129,9 +132,29 @@ class WebhookNotifier:
 
     def __init__(self, url: str, timeout: float = 5.0, retries: int = 2,
                  headers: Optional[dict] = None, include_agent_text: bool = True,
-                 opener: Optional[Callable] = None):
+                 opener: Optional[Callable] = None, secret: Optional[str] = None,
+                 allow_insecure: bool = False):
+        # An escalation says a production agent has been halted, and carries the
+        # goal, the failure reason and evidence drawn from the agent's own
+        # output. Over http:// that is readable by anything on the path. Refused
+        # by default rather than warned about, because a warning in a log is not
+        # a control and this is the one message that only gets sent when
+        # something has already gone wrong.
+        if not allow_insecure and url.lower().startswith("http://"):
+            host = url.split("/")[2].split(":")[0].lower() if "//" in url else ""
+            if host not in ("localhost", "127.0.0.1", "::1"):
+                raise ValueError(
+                    "refusing to POST escalations over plaintext http:// — they "
+                    "carry goal, failure reason and agent output. Use https://, "
+                    "or pass allow_insecure=True if the endpoint is genuinely "
+                    "on a trusted network.")
         self.url = url
         self.timeout = timeout
+        # Shared secret for HMAC request signing. Without it a receiver cannot
+        # tell a real escalation from anyone who has learned the URL, and webhook
+        # URLs leak — into CI logs, screenshots and config repos. Signing is what
+        # makes "AgentFuse halted your agent" a claim the receiver can check.
+        self.secret = secret
         # Total attempts = retries + 1. Deliberately small: the run is stopping
         # and a human is waiting, so a long retry ladder helps nobody.
         self.retries = retries
@@ -140,12 +163,29 @@ class WebhookNotifier:
         self.last_error: Optional[str] = None
         self._opener = opener or urllib.request.urlopen
 
+    def _signed_headers(self, body: bytes) -> dict:
+        """Headers for this body, including an HMAC signature when configured.
+
+        The timestamp is inside the signed material, not merely alongside it, so
+        a captured escalation cannot be replayed later with a fresh timestamp —
+        signing only the body would leave exactly that hole.
+        """
+        if not self.secret:
+            return self.headers
+        ts = str(int(time.time()))
+        mac = hmac.new(self.secret.encode("utf-8"),
+                       ts.encode("utf-8") + b"." + body, hashlib.sha256)
+        return {**self.headers,
+                "X-AgentFuse-Timestamp": ts,
+                "X-AgentFuse-Signature": f"sha256={mac.hexdigest()}"}
+
     def send(self, note: Notification) -> bool:
         body = json.dumps(note.payload(self.include_agent_text)).encode("utf-8")
+        headers = self._signed_headers(body)
         for attempt in range(self.retries + 1):
             try:
                 req = urllib.request.Request(self.url, data=body,
-                                             headers=self.headers, method="POST")
+                                             headers=headers, method="POST")
                 with self._opener(req, timeout=self.timeout) as resp:
                     code = getattr(resp, "status", None) or resp.getcode()
                     if 200 <= int(code) < 300:

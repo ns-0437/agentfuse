@@ -235,3 +235,70 @@ def test_console_notifier_writes_something_useful():
     lines = []
     ConsoleNotifier(write=lines.append).send(_note())
     assert lines and "ESCALATION" in lines[0] and "run-1" in lines[0]
+
+
+# ----------------------------------------------------- authenticity & transport
+def _capture():
+    seen = {}
+
+    def opener(req, timeout=None):
+        seen["headers"] = {k.lower(): v for k, v in req.headers.items()}
+        seen["body"] = req.data
+        return _Resp(200)
+    return seen, opener
+
+
+def test_signature_lets_the_receiver_verify_the_escalation():
+    """Without this, anyone who learns the URL can forge "your agent was halted".
+
+    Webhook URLs leak — into CI logs, screenshots and config repos — so the URL
+    alone is not a credential.
+    """
+    import hashlib
+    import hmac
+    seen, opener = _capture()
+    assert WebhookNotifier("https://example.invalid/hook", secret="s3cret",
+                           opener=opener).send(_note()) is True
+
+    ts = seen["headers"]["x-agentfuse-timestamp"]
+    expected = hmac.new(b"s3cret", ts.encode() + b"." + seen["body"],
+                        hashlib.sha256).hexdigest()
+    assert seen["headers"]["x-agentfuse-signature"] == f"sha256={expected}"
+
+
+def test_the_timestamp_is_inside_the_signature_not_beside_it():
+    """Signing only the body would let a captured escalation be replayed later
+    with a fresh timestamp, which is the whole attack the timestamp exists to
+    stop."""
+    import hashlib
+    import hmac
+    seen, opener = _capture()
+    WebhookNotifier("https://example.invalid/hook", secret="s3cret",
+                    opener=opener).send(_note())
+    body_only = hmac.new(b"s3cret", seen["body"], hashlib.sha256).hexdigest()
+    assert seen["headers"]["x-agentfuse-signature"] != f"sha256={body_only}"
+
+
+def test_unsigned_by_default_sends_no_signature_header():
+    seen, opener = _capture()
+    WebhookNotifier("https://example.invalid/hook", opener=opener).send(_note())
+    assert "x-agentfuse-signature" not in seen["headers"]
+
+
+def test_plaintext_http_is_refused_rather_than_warned_about():
+    """The payload carries the goal, the failure reason and agent output. A
+    warning in a log is not a control."""
+    with pytest.raises(ValueError, match="plaintext"):
+        WebhookNotifier("http://escalations.example.invalid/hook")
+
+
+def test_localhost_over_http_is_still_allowed():
+    """Refusing this would break every local integration test and dev loop for
+    no security gain."""
+    assert WebhookNotifier("http://127.0.0.1:9000/hook") is not None
+    assert WebhookNotifier("http://localhost:9000/hook") is not None
+
+
+def test_insecure_transport_can_be_opted_into_explicitly():
+    assert WebhookNotifier("http://internal.example.invalid/hook",
+                           allow_insecure=True) is not None
