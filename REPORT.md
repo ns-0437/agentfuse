@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-17** · 119 commits · 252 tests green · 936 synthetic scenarios + 62 captured real traces (12-run real suite: 3 positives / 9 negatives)
+**As of 2026-08-18** · 125 commits · 259 tests green · 1016 synthetic scenarios across 23 families + 62 captured real traces (12-run real suite: 3 positives / 9 negatives)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -29,20 +29,22 @@ found four bugs, §4.10.
 
 ## 2. Headline numbers
 
-Measured on 936 generated scenarios across 21 families and 6 domains, replayed
+Measured on 1016 generated scenarios across 23 families and 6 domains, replayed
 deterministically through the production monitor.
 
 | Metric | Value | Read as |
 |---|---:|---|
-| Recall | **97.6%** | real failures caught |
-| Precision | **98.6%** | can a trip be trusted |
-| F1 | **98.1%** | |
-| False-positive rate | **1.2%** | healthy runs wrongly halted |
+| Recall | **97.8%** | real failures caught |
+| Precision | **99.4%** | can a trip be trusted |
+| F1 | **98.6%** | |
+| False-positive rate | **0.6%** | healthy runs wrongly halted |
 | Attribution | **83.8%** | correct detector named |
 | Recovery rate | **67.6%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. §3.5–3.6 |
-| Confusion | TP 438 · FP 6 · FN 11 · TN 481 | |
+| Confusion | TP 478 · FP 3 · FN 11 · TN 524 | |
 
-Against trivial baselines — the complexity has to earn itself:
+Against trivial baselines — the complexity has to earn itself. **These three rows
+were measured on the previous 936-scenario suite and have not been re-run since
+it grew to 1016**, so they are not directly comparable with the table above:
 
 | System | Recall | Precision | F1 |
 |---|---:|---:|---:|
@@ -57,27 +59,40 @@ noticing failures, but not halting healthy runs.
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
-| full system | 97.6% | 98.6% | 98.1% | |
-| ablate `progress` | 78.8% | 98.3% | 87.5% | **−10.6** |
-| ablate `spend` | 80.2% | 98.4% | 88.3% | −9.8 |
-| ablate `drift` | 81.1% | 100.0% | 89.5% | −8.6 |
-| ablate `rate` | 88.6% | 98.5% | 93.3% | −4.8 |
-| ablate `loop` | 97.6% | 98.6% | 98.1% | +0.0 |
-| random control | 82.9% | 50.0% | 62.4% | −35.7 |
+| full system | 97.8% | 99.4% | 98.6% | |
+| ablate `progress` | 80.6% | 99.2% | 88.9% | **−9.6** |
+| ablate `spend` | 81.8% | 99.3% | 89.7% | −8.9 |
+| ablate `drift` | 82.6% | 100.0% | 90.5% | −8.1 |
+| ablate `rate` | 89.6% | 99.3% | 94.2% | −4.4 |
+| ablate `loop` | 97.8% | 99.4% | 98.6% | +0.0 |
+| random control (p=0.109) | 84.5% | 51.2% | 63.7% | −34.8 |
 
 The random control is what makes the rest mean anything: a detector that simply
-trips at our frequency reaches F1 62.4%.
+trips at our frequency reaches F1 63.7%.
+
+**`loop` still contributes exactly nothing to F1.** Ablating it changes no digit,
+because `progress` catches the same scenarios as a backstop. That is not an
+argument for deleting it — attribution would get blunter and the steering advice
+with it — but a detector carrying 0.0 ΔF1 has not earned its place on this
+evidence, and it is listed here rather than left for a reader to notice.
 
 ---
 
-## 3. Eight results that should temper the headline
+## 3. Nine results that should temper the headline
 
 ### 3.1 The benchmark is saturated
 
-Six false positives and eleven false negatives out of 936. **A suite you score
-98% on has stopped being a measuring instrument** — it can no longer separate a
-good change from a neutral one, because the entire remaining signal is 17
-scenarios wide. This is now the top constraint on the project.
+Three false positives and eleven false negatives out of 1016. **A suite you
+score 98% on has stopped being a measuring instrument** — it can no longer
+separate a good change from a neutral one, because the entire remaining signal is
+14 scenarios wide. This is now the top constraint on the project.
+
+**And saturation is not the only failure mode.** §3.9 found the suite was
+*structurally blind* to a whole detector change: no drift generator emitted a
+single tool call, so a fix that reads the agent's actions moved every metric by
+exactly zero. A suite can be both too easy and incapable of seeing what you just
+changed, and the second is harder to notice because it looks like "no
+regression".
 
 Part of the most recent gain came from **correcting a generator that was wrong**
 (§4.3). That was legitimate and evidenced, but making the test easier is exactly
@@ -365,6 +380,86 @@ never produced this. Twelve real traces did, immediately.**
 failing ones (median 5 events vs 14), so a low FPR is partly an *exposure*
 artifact rather than pure detector precision. This suite catches gross
 regressions, not small ones. One model, one tool domain, stub tools.
+
+### 3.9 Drift halted an agent for correctly concluding its task was impossible
+
+The false positive recorded in §3.8 is now **fixed**, and how it was found and
+fixed matters more than the fix.
+
+`real_rotate_missing`: the agent searched the directory its goal named for
+`*.yml`, then `*.json`, then `*.conf`, then `*`, got `0 files matched` every
+time, and correctly reported that the credential did not exist. Measured prose
+similarity to the goal across that run:
+
+| turn | similarity | trend | what the agent was saying |
+|---|---:|---:|---|
+| 1 | 0.791 | 0.791 | "start by finding the file in ./config" |
+| 3 | 0.475 | 0.633 | "there are no .yml files; try .json" |
+| 5 | 0.516 | 0.575 | "no .json either; try .conf" — **trips here** |
+| 7 | 0.492 | 0.533 | "no .yml, .json or .conf files" |
+| 9 | 0.767 | 0.650 | "there are no files at all; we cannot find it" |
+
+The narration moved because *what there was to narrate was an absence*. The
+**actions never moved at all** — every call was `search_files` on the directory
+the goal names.
+
+So a drift trip now requires corroboration from behaviour: prose divergence alone
+no longer halts a run whose latest action still touches the goal's own entities.
+An agent that has taken no actions is unaffected, since prose is then the only
+signal available.
+
+**The check is lexical, and that is measured rather than lazy.** Embeddings were
+tried first and cannot do this job. Against the same local model:
+
+| action | similarity to goal | |
+|---|---:|---|
+| `search files dir ./config` | 0.503 | on-goal |
+| `refactor module path ./src/logging/formatter.py` | **0.516** | genuinely drifted |
+
+An embedding puts "config file" and "logging module" in the same neighbourhood
+because both are code-shaped. Literal entity names do not blur — which is exactly
+why they work.
+
+**The benchmark could not see the change, and that is the real finding.** The A/B
+on the identical 936-scenario suite came back byte-identical on every metric. The
+reason is structural: **every pre-existing drift generator emits `think()` steps
+only — not one tool call.** A detector change that reads actions could not move
+the suite in either direction. The 98.1% F1 was never evidence the fix was safe;
+it was evidence the suite was blind to it. This is §3.1's saturation problem
+wearing a different hat: a suite can be saturated *and* structurally incapable of
+testing the thing you just changed.
+
+Two families were added to close that. The A/B that actually means something:
+
+| | negatives tripped | positives caught |
+|---|---:|---:|
+| grounding **ON** (shipped) | **0 / 40** | 40 / 40 |
+| grounding **OFF** (pre-fix) | 40 / 40 | 40 / 40 |
+
+The family has teeth — it would have caught this bug — and the suppression costs
+nothing on the positive side, so it is not a blanket amnesty.
+
+**The first version of that negative family was wrong**, and the error is worth
+keeping. It opened with a healthy prefix and ran a longer barren stretch, so 21
+of 40 tripped **progress**, not drift. That trip is defensible: the progress
+detector deliberately grants extra room only to a run that has not advanced *yet*
+(`GRACE_MULTIPLIER`), and prefixing one successful step switches that grace off,
+making the scenario a genuine stall as well as a drift case. A scenario that is
+two failures at once cannot tell you which detector was wrong. The shipped
+version is modelled on the captured trace — exploring from the first step, never
+advancing, ending on the conclusion. The label was the questionable part, and the
+label is what changed.
+
+**Honest limits.** Grounding is lexical, so it only helps when the goal names
+concrete entities that also appear in tool arguments. It suppresses the false
+positive when the args carry `./config`; it does **nothing** for a goal like
+"research the top three competitors" whose tools take opaque URLs. That class of
+false positive is still open.
+
+**The headline FP drop is not attributable to this fix.** Suite-level FPR moved
+1.2% → 0.6%, but adding two generators changes the shared RNG stream, so every
+scenario is a different draw. The clean A/B is the identical-suite one, and it
+moved nothing.
 
 ---
 
