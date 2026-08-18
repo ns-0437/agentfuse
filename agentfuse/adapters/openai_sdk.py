@@ -197,7 +197,7 @@ def _apply_directive(mon, directive, messages, intervention: str = "rerun",
     system message and continuing the conversation was obeyed **1 time in 41**.
     The instructions were the deterministic templates, the ones our own rubric
     scores at 100% "usable" — so the failure was not the wording. See REPORT.md
-    §3.5.
+    section 3.5.
 
     The AgentKit adapter, whose one captured run self-healed, differs in two
     ways at once: it delivers the steer as a USER message, and it ABORTS the

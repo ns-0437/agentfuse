@@ -212,7 +212,7 @@ BODY = f"""<header class="mast">
 </header>
 <div class="app">
   <aside class="rail">
-    <div class="rail-hd"><span class="sx">§</span><span class="lx">INDEX &mdash; SUPERVISED RUNS</span></div>
+    <div class="rail-hd"><span class="sx">section </span><span class="lx">INDEX &mdash; SUPERVISED RUNS</span></div>
     <div id="runlist"></div>
   </aside>
   <main class="main" id="main"></main>
@@ -297,7 +297,7 @@ function routeView(s){
   if(!p.length) return '<div style="color:var(--faint)">—</div>';
   return '<div class="route">'+p.map((n,i)=>`<span class="n">${esc(n)}</span>${i<p.length-1?'<span class="w">&rarr;</span>':''}`).join('')+'</div>';
 }
-function tb(ix,lb,rt){return `<div class="tb"><span class="ix">§${ix}</span><span class="lb">${lb}</span><span class="rt">${rt||''}</span></div>`;}
+function tb(ix,lb,rt){return `<div class="tb"><span class="ix">section ${ix}</span><span class="lb">${lb}</span><span class="rt">${rt||''}</span></div>`;}
 
 function timeline(r){
   let h='<div class="tl">';
@@ -351,8 +351,8 @@ function render(){
     <div class="cols">
       <div class="plot-wrap">${tb('01','CUMULATIVE TOKEN SPEND','PLOT · TOKENS × STEP')}${chart(r.records)}</div>
       <div class="marg">
-        <div class="mlbl"><span class="sx">§02</span>DETECTORS · 4-CHANNEL</div>${detectors(r)}
-        <div class="mlbl" style="margin-top:18px"><span class="sx">§03</span>GRAPH ROUTE</div>${routeView(s)}
+        <div class="mlbl"><span class="sx">section 02</span>DETECTORS · 4-CHANNEL</div>${detectors(r)}
+        <div class="mlbl" style="margin-top:18px"><span class="sx">section 03</span>GRAPH ROUTE</div>${routeView(s)}
       </div>
     </div>
 
