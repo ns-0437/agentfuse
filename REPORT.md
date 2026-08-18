@@ -70,11 +70,24 @@ noticing failures, but not halting healthy runs.
 The random control is what makes the rest mean anything: a detector that simply
 trips at our frequency reaches F1 63.7%.
 
-**`loop` still contributes exactly nothing to F1.** Ablating it changes no digit,
-because `progress` catches the same scenarios as a backstop. That is not an
-argument for deleting it — attribution would get blunter and the steering advice
-with it — but a detector carrying 0.0 ΔF1 has not earned its place on this
-evidence, and it is listed here rather than left for a reader to notice.
+**`loop` contributes 0.0 to F1 — and that number is misleading.** Ablating it
+changes no digit, because `progress` catches the same scenarios as a backstop.
+An earlier version of this report concluded from that a detector carrying 0.0
+ΔF1 "has not earned its place". **That was wrong**, and the evidence simply was
+not being collected: F1 measures *whether* a failure is caught, never *when*, and
+"when" is the entire economic argument for a circuit breaker. Measured across all
+164 loop-labelled positives:
+
+| | caught | mean steps late | median tokens saved | named `loop` |
+|---|---:|---:|---:|---:|
+| full system | 164/164 | **2.52** | **4,300** | 122/164 |
+| ablate `loop` | 164/164 | 3.39 | 3,664 | 0/164 |
+
+Loop buys **~0.9 steps of earlier detection and ~600 tokens per incident**, plus
+the attribution that decides which steering advice gets written. Removing it
+costs real money and produces blunter corrections while leaving every headline
+metric untouched — exactly the regression shape this suite is blind to. Now
+pinned by a test rather than a sentence.
 
 ---
 
