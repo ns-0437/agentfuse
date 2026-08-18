@@ -120,6 +120,35 @@ def test_captured_traces_are_scored():
             f"(detector={result.trip_detector})")
 
 
+def test_documented_gaps_are_still_gaps():
+    """A known gap that quietly starts passing is stale documentation.
+
+    `known_gap` suppresses the outcome assertion, so once a gap closes nothing
+    reports it — the corpus keeps warning about a weakness that no longer exists,
+    and REPORT.md keeps telling readers the detector cannot do something it can.
+    Since a closed gap is good news, this fails LOUDLY with instructions rather
+    than silently tolerating either state.
+    """
+    from evals.trace_import import load_captured
+    from evals.runner import run_scenario
+
+    captured = [s for s in load_captured() if s.label.known_gap]
+    if not captured:
+        pytest.skip("no documented gaps in the captured corpus")
+
+    closed = []
+    for scenario in captured:
+        expected = "TP" if scenario.label.should_trip else "TN"
+        if run_scenario(scenario).outcome == expected:
+            closed.append(scenario.id)
+
+    assert not closed, (
+        f"documented gap(s) now behave correctly: {closed}. This is good news — "
+        f"remove `known_gap` from the label, update the note with what fixed it, "
+        f"and correct the matching section of REPORT.md so the report stops "
+        f"claiming a weakness that no longer exists.")
+
+
 def test_captured_trace_uses_the_production_progress_convention():
     """The adapter attaches progress to TOOL_RESULT; no STATE_UPDATE events exist.
 
