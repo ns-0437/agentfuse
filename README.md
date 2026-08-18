@@ -276,13 +276,13 @@ with ground truth, confidence intervals, and a significance test — and the
 numbers are published, including the unflattering ones.
 
 ```bash
-python evals/run_eval.py --generated 40 --json    # 1016 scenarios + ablation
+python evals/run_eval.py --generated 40 --json    # 1018 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 259-test CI gate
+pytest evals/ -q                                  # 278-test CI gate
 ```
 
-**1016 scenarios** from **23 parameterised generator families** across 6 domains,
+**1018 scenarios** from **23 parameterised generator families** across 6 domains,
 with ground truth true *by construction*. 449 are genuine failures; **487 are
 hard negatives** — healthy runs that look like failures: a legitimate retry,
 polling that really is progressing, a sub-goal that reads as drift, a
@@ -359,7 +359,7 @@ destroying work that was fine. It is now asserted for every stateful detector in
 
 **What's still broken, stated plainly:**
 
-- **The benchmark is saturated** — 3 FPs and 11 FNs out of 1016. It cannot measure
+- **The benchmark is saturated** — 3 FPs and 11 FNs out of 1018. It cannot measure
   further improvement, and that is now the top constraint on the project.
 - **Subtle drift is the main real miss** (8 of 11 FNs, `gen_driftsub`), plus 6 FPs
   where a legitimate sub-goal reads as drift. Both sit on the ±0.043 embedding
@@ -554,11 +554,24 @@ F1. It is the control that makes the headline number mean anything.
 | ablate `spend` | 81.8% | 99.3% | 89.7% | −8.9 |
 | ablate `drift` | 82.6% | 100.0% | 90.5% | −8.1 |
 | ablate `rate` | 89.6% | 99.3% | 94.2% | −4.4 |
-| ablate `loop` | 97.8% | 99.4% | 98.6% | **+0.0** |
+| ablate `loop` | 97.8% | 99.4% | 98.6% | **+0.0** † |
 | random control (rate-matched) | 84.5% | 51.2% | 63.7% | −34.8 |
 
 The random control is the row that makes the rest mean anything: a detector that
 simply trips at our frequency reaches F1 63.7%.
+
+**† `loop` at ΔF1 +0.0 is not dead weight, and reading it that way was a mistake
+this project made.** F1 measures *whether* a failure is caught, never *when* —
+and "when" is the entire economic argument for a circuit breaker. Measured across
+all 164 loop-labelled positives:
+
+| | mean steps late | median tokens saved | named `loop` |
+|---|---:|---:|---:|
+| full system | **2.52** | **4,300** | 122/164 |
+| ablate `loop` | 3.39 | 3,664 | 0/164 |
+
+~0.9 steps earlier and ~600 tokens per incident, plus the attribution that
+decides which steering advice gets written. Pinned by a test now, not a note.
 
 **The `loop` row deserves its own explanation.** It was at **+1.8** — removing it
 *improved* the system — and is now exactly neutral after the fixes above. It still
@@ -629,7 +642,7 @@ regressions, not small ones.
   the effective n (222).
 
 For scale context: AE Studio's ESR baseline ran **7,892 trials**. This suite runs
-1016 across 23 independent families. Twenty-three is the number to reason about, and
+1018 across 23 independent families. Twenty-three is the number to reason about, and
 it is not enough to call anything settled.
 
 ### Prior work
