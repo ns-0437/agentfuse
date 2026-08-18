@@ -319,7 +319,7 @@ def test_sharing_one_monitor_across_agents_halts_healthy_runs():
                 pauses += 1
     assert pauses > 0, (
         "sharing a monitor no longer halts healthy agents — if that is now "
-        "genuinely supported, update REPORT §8 and delete this test")
+        "genuinely supported, update REPORT section 8 and delete this test")
 
 
 def test_a_shared_monitor_warns_once_when_it_can_tell():

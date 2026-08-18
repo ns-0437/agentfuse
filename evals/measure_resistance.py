@@ -1,6 +1,6 @@
 """The ESR merge: does an internal signal predict whether a steer will LAND?
 
-This is the experiment §6.5 argues for, and it is deliberately NOT the one that
+This is the experiment section 6.5 argues for, and it is deliberately NOT the one that
 was run twice already and lost twice.
 
 Tiers 1 and 2 put internal signals into **detection** — can the model's logprobs
@@ -25,11 +25,11 @@ different and untested question.
 Why this is worth running now
 -----------------------------
 `real_7b_supervised.jsonl` already shows a real 7B being steered three times and
-ignoring all three. §3.3 read that as "model-written steering is worse than the
+ignoring all three. Section 3.3 read that as "model-written steering is worse than the
 templates" — but every experiment so far varied only WHO WROTE the steer, never
 whether the agent was receptive to any steer at all. Those are different claims
 and only the first was tested. If resistance is predictable, the second
-explanation is live and §3.3 is incomplete.
+explanation is live and section 3.3 is incomplete.
 
 Method
 ------
@@ -49,7 +49,7 @@ The label is an observation of behaviour, not an opinion about the steering text
 
 What a negative result looks like, so it cannot be explained away afterwards: if
 compliance and resistance have overlapping confidence distributions, the internal
-signal does not predict receptiveness, the merge in §6.5 does not work as
+signal does not predict receptiveness, the merge in section 6.5 does not work as
 described, and the honest conclusion is that steering resistance is not visible
 in logprobs. That outcome is reported as clearly as a positive one.
 """
@@ -303,7 +303,7 @@ def main() -> int:
     if abs(gap) - ci <= 0:
         verdict = ("NO PREDICTIVE SIGNAL — confidence before a correction does not "
                    "separate the steers that landed from the ones that did not. The "
-                   "§6.5 merge does not work as described, at least not from "
+                   "section 6.5 merge does not work as described, at least not from "
                    "logprobs on this model.")
     elif gap > 0:
         verdict = ("PREDICTIVE — agents that went on to OBEY were more confident "

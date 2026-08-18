@@ -158,7 +158,7 @@ def test_rerun_discards_the_failing_turns():
 
     Appending a correction leaves the agent arguing with several rounds of its
     own committed behaviour. Restarting removes that history. Measured on a real
-    7B: append completed ZERO tasks, restart completed six (REPORT.md §3.6).
+    7B: append completed ZERO tasks, restart completed six (REPORT.md section 3.6).
 
     So the conversation must SHRINK back to the objective when a steer lands,
     not keep growing.

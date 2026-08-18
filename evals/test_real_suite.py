@@ -3,7 +3,7 @@
 The oracle decides ground truth for every real run, so a bug here does not cause
 a test failure — it silently produces a benchmark that certifies the wrong
 behaviour. That is the same shape as the "guard that looks armed and isn't" bug
-class (REPORT.md §4.7), which is why these tests assert on the *evidence* the
+class (REPORT.md section 4.7), which is why these tests assert on the *evidence* the
 oracle reports and not only on its verdict.
 """
 

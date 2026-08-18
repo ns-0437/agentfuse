@@ -238,7 +238,7 @@ def test_local_embeddings_are_preferred_over_hosted(monkeypatch):
     assert mode == "embedding:local"
 
 
-# ------------------------------------------------- action grounding (§3.9)
+# ------------------------------------------------- action grounding (section 3.9)
 def _act(det: DriftDetector, tool: str, args: dict, step: int = 1):
     return det.inspect(AgentEvent(type=EventType.TOOL_CALL, step=step,
                                   tool_name=tool, tool_args=args), [])

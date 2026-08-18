@@ -4,7 +4,7 @@
 found it does not work: **41 corrections injected into a real Qwen2.5-7B, 1
 obeyed, 40 ignored.** The corrections were the deterministic ladder templates —
 the ones our own rubric scores at 100% "usable" — so the failure was not the
-wording (REPORT.md §3.5).
+wording (REPORT.md section 3.5).
 
 Every experiment before that varied the *text* of the correction. None varied how
 it was *delivered*. And there is a loose thread already in the repository: the one

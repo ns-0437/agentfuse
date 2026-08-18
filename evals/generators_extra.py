@@ -204,7 +204,7 @@ def gen_benign_batch(rng: random.Random, idx: int) -> Scenario:
 #
 # Every existing drift generator emits `think()` steps ONLY. That left the whole
 # suite blind to any drift logic that reads the agent's actions: the 936-scenario
-# numbers were identical before and after the action-grounding change of §3.9,
+# numbers were identical before and after the action-grounding change of section 3.9,
 # and that identity was never evidence of anything. These two families give the
 # benchmark the ability to see that code path at all.
 
