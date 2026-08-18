@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 from evals.ablation import run_ablation, control_significance  # noqa: E402
 from evals.generators import generate_suite  # noqa: E402
 from evals.metrics import score  # noqa: E402
-from evals.runner import run_suite  # noqa: E402
+from evals.runner import run_suite, run_scenario  # noqa: E402
 from evals.scenarios import ALL_SCENARIOS, POSITIVES, NEGATIVES  # noqa: E402
 from evals.stats import wilson  # noqa: E402
 
@@ -173,6 +173,50 @@ def test_ablation_covers_every_detector(generated):
     labels = {r.label for r in rows}
     for name in ("loop", "drift", "progress", "spend"):
         assert f"ablate {name}" in labels
+
+
+def test_loop_earns_its_place_on_latency_not_f1(generated):
+    """`ablate loop` shows ΔF1 = 0.0, and that number is misleading.
+
+    Removing the loop detector changes no F1 digit, because `progress` catches
+    the same scenarios as a backstop. Read alone, that says the detector is dead
+    weight. It is not -- F1 measures WHETHER a failure is caught, never WHEN, and
+    "when" is the entire economic argument for a circuit breaker.
+
+    Measured across every loop-labelled positive in the suite:
+
+        full system   mean 2.52 steps late, median 4,300 tokens saved
+        ablate loop   mean 3.39 steps late, median 3,664 tokens saved
+
+    So loop buys ~0.9 steps of earlier detection and ~600 tokens per incident,
+    plus the attribution that decides which steering advice gets written. This
+    test pins that, so a change that quietly makes loop redundant fails here
+    rather than passing an F1 check that cannot see the difference.
+    """
+    import statistics
+    scenarios, _, _ = generated
+    loops = [s for s in scenarios
+             if s.label.should_trip and s.label.detector == "loop"]
+    if len(loops) < 20:
+        pytest.skip("too few loop positives to compare latency")
+
+    def latency(disabled):
+        late = [r.steps_late for r in
+                (run_scenario(s, disabled=disabled) for s in loops)
+                if r.tripped and r.steps_late is not None]
+        return statistics.mean(late)
+
+    with_loop, without_loop = latency(None), latency({"loop"})
+    assert without_loop > with_loop, (
+        f"loop no longer detects earlier than the backstop "
+        f"({with_loop:.2f} vs {without_loop:.2f} steps late) -- either it has "
+        f"become genuinely redundant, or the backstop got faster")
+
+    named = sum(1 for s in loops
+                if run_scenario(s).trip_detector == "loop")
+    assert named > len(loops) * 0.5, (
+        "loop is no longer the detector NAMED on most loop failures, so the "
+        "steering advice is being written from the wrong diagnosis")
 
 
 def test_wilson_interval_sanity():
