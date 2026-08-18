@@ -49,6 +49,43 @@ from .base import Detector, Trip, Severity
 
 _WORD = re.compile(r"[a-z0-9]+")
 
+# Argument values carry paths and identifiers, so the anchor tokenizer keeps the
+# separators that make them distinctive ("./config", "prod/db/primary").
+_ANCHOR_WORD = re.compile(r"[a-z0-9_./-]+")
+
+# Goal words too generic to be evidence that an action is still on-goal. Without
+# this, `write_file path ./logs/out.txt` matches the "file" in almost any goal
+# and every drifted run looks grounded. Measured: with this list, all five
+# genuinely-drifted actions score zero anchors while every on-goal action in the
+# false-positive trace scores at least one.
+_GENERIC_GOAL_TERMS = frozenset({
+    "find", "read", "write", "store", "fetch", "value", "values", "current",
+    "file", "files", "name", "names", "data", "list", "item", "items", "get",
+    "set", "update", "check", "make", "create", "delete", "remove", "then",
+    "under", "with", "this", "that", "from", "into", "over", "each", "next",
+    "step", "steps", "task", "tasks", "call", "calls", "run", "runs", "new",
+    "old", "first", "last", "some", "any", "all", "and", "the", "for",
+})
+
+
+def _goal_anchors(goal: str) -> set[str]:
+    """The goal's distinctive nouns and identifiers.
+
+    Deliberately LEXICAL. Embeddings were tried first and cannot do this job:
+    measured against the same local model, the on-goal action
+    "search files dir ./config" scores 0.503 against this goal while the
+    genuinely drifted "refactor module path ./src/logging/formatter.py" scores
+    0.516. An embedding puts "config file" and "logging module" in the same
+    neighbourhood because they are both code-shaped. Literal entity names do not
+    blur, which is exactly why they work as an anchor.
+    """
+    out: set[str] = set()
+    for raw in _ANCHOR_WORD.findall(goal.lower()):
+        tok = raw.strip("./-")
+        if len(tok) >= 4 and tok not in _GENERIC_GOAL_TERMS:
+            out.add(tok)
+    return out
+
 # Embeddings separate the classes well enough to sit near the middle; the
 # lexical fallback does not, so it runs tighter to keep false positives down.
 # Swept against the local bge-base model on the generated suite:
@@ -95,11 +132,18 @@ class DriftDetector(Detector):
     def __init__(self, original_goal: str, threshold: Optional[float] = None,
                  patience: int = 2, ema_alpha: Optional[float] = None,
                  embedder: Optional[Callable[[str], list[float]]] = None,
-                 cache_size: int = 512):
+                 cache_size: int = 512, action_grounding: bool = True):
         self.original_goal = original_goal
         self.patience = patience          # consecutive low-similarity turns to trip
         self._cache: dict[str, list[float]] = {}
         self._cache_size = cache_size
+
+        # Prose alone is not enough evidence to halt a run. See _still_acting_on_goal.
+        self.action_grounding = action_grounding
+        self._anchors = _goal_anchors(original_goal)
+        self._last_action_grounded = False
+        self._seen_action = False
+        self.suppressed_trips = 0
 
         # An injected embedder makes this testable without network access, which
         # is how the trajectory logic is verified in CI.
@@ -163,7 +207,39 @@ class DriftDetector(Detector):
         return _lexical_similarity(self.original_goal, probe)
 
     # ------------------------------------------------------------------
+    def _note_action(self, event: AgentEvent) -> None:
+        """Record whether this tool call still touches the goal's own entities."""
+        parts = [event.tool_name or ""]
+        for key, val in (event.tool_args or {}).items():
+            parts.append(f"{key} {val}")
+        text = " ".join(parts).lower()
+        tokens = {t.strip("./-") for t in _ANCHOR_WORD.findall(text)}
+        self._last_action_grounded = bool(
+            (self._anchors & tokens) or any(a in text for a in self._anchors))
+        self._seen_action = True
+
+    def _still_acting_on_goal(self) -> bool:
+        """Is the agent's most recent ACTION still on the goal's subject matter?
+
+        Drift claims the agent is pursuing a different objective. Prose is weak
+        evidence for that claim: an agent narrating repeated tool failures
+        ("there are no .yml files here") reads as divergent while doing exactly
+        what it was asked. That is the documented false positive in
+        `evals/captured/real_rotate_missing.json` — four DISTINCT searches of the
+        directory named in the goal, a correct conclusion that the credential
+        does not exist, and a trip that would have destroyed the one result a
+        human needed.
+
+        So a trip now needs the actions to have left too. An agent that has taken
+        no actions at all is unaffected: pure-reasoning drift still trips on
+        prose, which is the only signal available there.
+        """
+        return self.action_grounding and self._seen_action and self._last_action_grounded
+
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
+        if event.type == EventType.TOOL_CALL:
+            self._note_action(event)
+
         probe = event.goal or (event.text if event.type == EventType.LLM_CALL else None)
         if not probe:
             return None
@@ -182,6 +258,12 @@ class DriftDetector(Detector):
             self._low_streak = 0
 
         if self._low_streak >= self.patience:
+            if self._still_acting_on_goal():
+                # Counted rather than silent: a suppression that never shows up
+                # anywhere is indistinguishable from a detector that is switched
+                # off, which is the failure mode this project keeps finding.
+                self.suppressed_trips += 1
+                return None
             return Trip(
                 detector=self.name,
                 severity=Severity.TRIP,
@@ -204,3 +286,7 @@ class DriftDetector(Detector):
     def reset(self) -> None:
         self._low_streak = 0
         self._ema = None
+        # Grounding is deliberately NOT reset. It is a fact about what the agent
+        # last did, not part of the trip's accumulating state, and clearing it
+        # here would make the next post-steer turn behave as if no action had
+        # ever been taken.

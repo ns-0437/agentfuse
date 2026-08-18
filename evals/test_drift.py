@@ -236,3 +236,91 @@ def test_local_embeddings_are_preferred_over_hosted(monkeypatch):
     monkeypatch.delenv("AGENTFUSE_OFFLINE", raising=False)
     _, mode = get_embedder()
     assert mode == "embedding:local"
+
+
+# ------------------------------------------------- action grounding (§3.9)
+def _act(det: DriftDetector, tool: str, args: dict, step: int = 1):
+    return det.inspect(AgentEvent(type=EventType.TOOL_CALL, step=step,
+                                  tool_name=tool, tool_args=args), [])
+
+
+_DRIFTING_PROSE = [
+    "Reviewing competitor advertising spend across social channels.",
+    "Analysing influencer campaign performance and social reach.",
+    "Drafting a marketing content calendar for social campaigns.",
+]
+
+
+def test_prose_drift_with_on_goal_actions_is_suppressed():
+    """The real false positive, reduced to its mechanism.
+
+    An agent narrating repeated tool failures reads as divergent while doing
+    exactly what it was asked. Halting it destroys the one result a human needed
+    -- in the captured case, the finding that the credential does not exist.
+    """
+    d = _make()
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        _act(d, "read_report", {"section": "revenue figures"}, i + 1)
+        trip = trip or _probe(d, text, i + 1)
+    assert trip is None, "drift halted an agent whose actions never left the goal"
+    assert d.suppressed_trips > 0, "suppression happened but was not counted"
+
+
+def test_prose_drift_with_off_goal_actions_still_trips():
+    """The whole point of drift. Grounding must not become a blanket amnesty."""
+    d = _make()
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        _act(d, "book_meeting", {"room": "Zurich", "time": "14:00"}, i + 1)
+        trip = trip or _probe(d, text, i + 1)
+    assert trip is not None, "genuine drift was suppressed by the grounding check"
+    assert trip.detector == "drift"
+
+
+def test_pure_reasoning_drift_still_trips_without_any_actions():
+    """An agent that has taken no action has no corroborating signal to offer,
+    so prose remains the only evidence and must still be acted on."""
+    d = _make()
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        trip = trip or _probe(d, text, i + 1)
+    assert trip is not None, "drift stopped working for agents that only reason"
+
+
+def test_grounding_follows_the_latest_action_not_the_first():
+    """An agent that starts on-goal and wanders off must lose its amnesty."""
+    d = _make()
+    _act(d, "read_report", {"section": "revenue figures"}, 1)
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        _act(d, "book_meeting", {"room": "Zurich"}, i + 2)
+        trip = trip or _probe(d, text, i + 2)
+    assert trip is not None, "grounding from an early action masked later drift"
+
+
+def test_grounding_can_be_switched_off():
+    d = _make(action_grounding=False)
+    trip = None
+    for i, text in enumerate(_DRIFTING_PROSE):
+        _act(d, "read_report", {"section": "revenue figures"}, i + 1)
+        trip = trip or _probe(d, text, i + 1)
+    assert trip is not None, "action_grounding=False did not restore prose-only drift"
+
+
+def test_generic_goal_words_are_not_anchors():
+    """Without this, `write_file path ./logs/out.txt` matches the "file" in
+    almost any goal and every drifted run looks grounded."""
+    from agentfuse.detectors.drift import _goal_anchors
+    anchors = _goal_anchors("Find the connection file under ./config and read "
+                            "the current secret, then store a new value.")
+    assert "config" in anchors and "connection" in anchors and "secret" in anchors
+    for generic in ("find", "file", "read", "current", "store", "value", "new"):
+        assert generic not in anchors, f"{generic!r} is too generic to anchor on"
+
+
+def test_anchors_keep_path_like_identifiers():
+    from agentfuse.detectors.drift import _goal_anchors
+    anchors = _goal_anchors("Rotate prod/db/primary described in ./config/db.conn")
+    assert any("config" in a for a in anchors)
+    assert any("prod" in a for a in anchors)
