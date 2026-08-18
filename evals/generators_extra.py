@@ -200,6 +200,108 @@ def gen_benign_batch(rng: random.Random, idx: int) -> Scenario:
     )
 
 
-EXTRA_POSITIVES = [gen_oscillating_plan, gen_partial_progress_trap, gen_context_bloat]
+# ----------------------------------------------- drift, with actions attached
+#
+# Every existing drift generator emits `think()` steps ONLY. That left the whole
+# suite blind to any drift logic that reads the agent's actions: the 936-scenario
+# numbers were identical before and after the action-grounding change of §3.9,
+# and that identity was never evidence of anything. These two families give the
+# benchmark the ability to see that code path at all.
+
+def gen_drift_with_actions(rng: random.Random, idx: int) -> Scenario:
+    """Drift in BOTH narration and behaviour — the case that must still trip.
+
+    The agent stops talking about the goal and starts calling another domain's
+    tools. Action grounding must not become a blanket amnesty, so this is the
+    true-positive guard on that suppression.
+    """
+    d = rng.choice(DOMAINS)
+    other = rng.choice([x for x in DOMAINS if x["key"] != d["key"]])
+    steps = _healthy_prefix(rng, d, rng.randint(1, 2))
+    onset = len(steps)
+
+    for i in range(rng.randint(3, 6)):
+        ti, to = _tokens(rng)
+        steps.append(think(d["off_topic"][i % len(d["off_topic"])],
+                           tokens_in=ti, tokens_out=to))
+        steps.append(tool(other["tools"][i % len(other["tools"])],
+                          other["args"](rng), result="ok",
+                          tokens_in=ti, tokens_out=to))
+
+    return Scenario(
+        id=f"gen_drift_actions_{idx:04d}",
+        title=f"Drift in narration AND actions ({d['key']} -> {other['key']})",
+        family="drift", goal=d["goal"], steps=steps,
+        description="Agent leaves the objective in what it says and what it does.",
+        label=Label(should_trip=True, detector="drift", onset_index=onset,
+                    detect_by_index=onset + 6,
+                    note=("Both signals agree. Guards the action-grounding "
+                          "suppression against becoming a blanket amnesty.")),
+        recovery_branch=_recovery_steps(rng, d),
+        responds_to=_responds_to(rng),
+    )
+
+
+def gen_benign_narrated_failure(rng: random.Random, idx: int) -> Scenario:
+    """Prose diverges while the agent keeps working on the goal. Must NOT trip.
+
+    Taken from a real captured run, not invented. The agent searched the
+    directory its goal named, four different ways, got "0 files matched" every
+    time, and correctly concluded the credential did not exist. Its narration
+    drifted toward the absence -- "there are no .yml files here" -- because that
+    is what there was to narrate. Drift tripped, and halting that run would have
+    destroyed the one result a human actually needed.
+
+    The distinguishing evidence is that every ACTION still named the goal's own
+    target. That is reproduced literally here: each call carries the goal's
+    entity in its arguments, exactly as the real trace carried "./config".
+
+    Deliberately kept SHORT, and it ends on a real advance. A longer barren
+    stretch would also be a genuine stall, and a scenario that is two failures at
+    once cannot tell you which detector was wrong. One phenomenon per family.
+    """
+    d = rng.choice(DOMAINS)
+    # The goal's most distinctive word, standing in for the "./config" that the
+    # real agent kept passing to its tools. Derived from the goal TEXT, not from
+    # the detector's own anchor logic, which would make this circular.
+    target = max((w.strip(".,:;") for w in d["goal"].split()), key=len)
+    tool_name = d["tools"][0]
+    misses = [
+        "Nothing matched under that target; trying another pattern.",
+        "That came back empty as well; widening the search.",
+        "Still no matching entries of any kind there.",
+    ]
+
+    # No healthy prefix, matching the captured run: this agent explores from the
+    # very first step and never gets an advance. That is not incidental. The
+    # progress detector deliberately grants a run that has NOT yet advanced extra
+    # room (GRACE_MULTIPLIER) so exploration is not punished, and the real trace
+    # sits inside that grace. Bolting a successful step on the front would switch
+    # the grace off and make this a genuine stall as well as a drift case -- two
+    # failures in one scenario, which cannot tell you which detector was wrong.
+    steps: list[StepSpec] = []
+    for i in range(3):
+        ti, to = _tokens(rng)
+        steps.append(think(misses[i], tokens_in=ti, tokens_out=to))
+        # Distinct arguments each time: a genuine search, not a loop.
+        steps.append(tool(tool_name, {"target": target, "pattern": f"variant-{i}"},
+                          result="0 matches", tokens_in=ti, tokens_out=to))
+    steps.append(think(f"Confirmed: no such entry exists under {target}. Reporting it.",
+                       progress=True))
+
+    return Scenario(
+        id=f"gen_narrated_failure_{idx:04d}",
+        title=f"Narrating repeated tool failures ({d['key']})",
+        family="benign", goal=d["goal"], steps=steps,
+        description="Prose drifts toward the absence; actions never leave the goal.",
+        label=Label(should_trip=False,
+                    note=("REGRESSION CASE for a real false positive: drift fired "
+                          "on an agent correctly establishing that its task was "
+                          "impossible. Every action still named the goal's target.")),
+    )
+
+
+EXTRA_POSITIVES = [gen_oscillating_plan, gen_partial_progress_trap, gen_context_bloat,
+                   gen_drift_with_actions]
 EXTRA_NEGATIVES = [gen_benign_error_then_pivot, gen_benign_verification_heavy,
-                   gen_benign_batch]
+                   gen_benign_batch, gen_benign_narrated_failure]
