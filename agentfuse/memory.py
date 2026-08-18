@@ -314,21 +314,30 @@ class QdrantMemory:
         than no memory, because the engine swallows memory faults by design and
         the ladder just quietly stops climbing.
         """
-        try:
-            records, _ = self._client.scroll(
-                collection_name=self._collection, limit=10_000,
-                with_payload=True, with_vectors=False)
-        except Exception:                       # noqa: BLE001
-            return                              # empty or unreadable: start clean
-        for point in records or []:
-            payload = getattr(point, "payload", None)
-            if not payload:
-                continue
+        offset = None
+        while True:
             try:
-                rec = RecoveryRecord.from_dict(dict(payload))
-            except (TypeError, ValueError):
-                continue
-            self._by_id[rec.record_id] = rec
+                records, offset = self._client.scroll(
+                    collection_name=self._collection, limit=1_000, offset=offset,
+                    with_payload=True, with_vectors=False)
+            except Exception:                   # noqa: BLE001
+                return                          # empty or unreadable: start clean
+            for point in records or []:
+                payload = getattr(point, "payload", None)
+                if not payload:
+                    continue
+                try:
+                    rec = RecoveryRecord.from_dict(dict(payload))
+                except (TypeError, ValueError):
+                    continue
+                self._by_id[rec.record_id] = rec
+            # Paginate to exhaustion. A single scroll(limit=N) silently returns
+            # the first N and drops the rest, which would restore a PARTIAL
+            # memory -- strictly worse than an empty one, because the ladder
+            # would believe it knows what has been tried while missing the
+            # records that actually matter.
+            if offset is None or not records:
+                return
 
     def _text_for(self, record: RecoveryRecord) -> str:
         return f"{record.detector} failure on {record.tool or 'unknown tool'}: {record.goal}"

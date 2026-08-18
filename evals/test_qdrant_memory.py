@@ -205,3 +205,24 @@ def test_reopening_an_empty_store_does_not_crash(tmp_path):
     assert mem.recall("nothing") == []
     assert mem.failed_strategies("nothing") == set()
     mem._client.close()
+
+
+def test_rehydration_paginates_beyond_one_scroll_page(tmp_path):
+    """A single scroll(limit=N) returns the first N and drops the rest.
+
+    A PARTIAL memory is strictly worse than an empty one: the ladder would
+    believe it knows what has already been tried while missing exactly the
+    records that would have stopped it repeating a failed correction.
+    """
+    path = str(tmp_path / "qd")
+    mem = QdrantMemory(embedder=embed, path=path)
+    ids = [mem.remember(_rec(sig=f"sig-{i}", strategy=f"st-{i}"))
+           for i in range(1200)]          # > the 1000-record page size
+    for rid in ids:
+        mem.mark_outcome(rid, False)
+    mem._client.close()
+
+    reopened = QdrantMemory(embedder=embed, path=path)
+    assert len(reopened._by_id) == 1200
+    assert reopened.failed_strategies("sig-1199") == {"st-1199"}
+    reopened._client.close()
