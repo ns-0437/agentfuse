@@ -4,7 +4,6 @@
   "goal": null,
   "label": {
     "should_trip": false,
-    "known_gap": true,
-    "note": "completed cleanly. DOCUMENTED FALSE POSITIVE: the drift detector fires on this run. The agent searched ./config for *.yml, *.json, *.conf and then *, got '0 files matched' every time, and correctly reported that the credential does not exist. Four DISTINCT searches, max_identical=1, status=complete - healthy by any reading. Drift fires because the agent's stated intent moves from 'rotate the production credential' toward 'there are no files here', which is semantic divergence from the goal AND the correct conclusion. Penalising an agent for establishing that its task is impossible is a real-world false positive: in production it would halt the one run that had already finished its useful work. Kept with its true label rather than deleted or relabelled - it is the only evidence of this weakness. First surfaced 2026-08-17 by the real-trace corpus; the 936-scenario synthetic suite never produced it."
+    "note": "completed cleanly. Four DISTINCT searches of ./config, max_identical=1. Was a DOCUMENTED FALSE POSITIVE 2026-08-17: drift tripped because the agent's prose moved from 'rotate the credential' to 'there are no files here' while it narrated repeated tool failures. FIXED 2026-08-18 by requiring a drift trip to be corroborated by the agent's ACTIONS leaving the goal; every call here was search_files on the directory the goal names. Kept as the regression case for that fix."
   }
 }

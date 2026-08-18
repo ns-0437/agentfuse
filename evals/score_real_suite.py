@@ -13,7 +13,7 @@ needs the real number beside it.
 
 Two failure modes of this script are worth naming rather than hiding:
 
-1. **Small n.** A dozen runs cannot resolve a 1.2% FPR. Wilson intervals are
+1. **Small n.** A dozen runs cannot resolve a 0.6% FPR. Wilson intervals are
    printed so the width is visible instead of implied, and no claim is made that
    the interval will not support.
 2. **Trace-length confound.** Real runs are shorter than synthetic scenarios, and
@@ -127,10 +127,11 @@ def main() -> int:
             print("  ** healthy runs are much shorter — a low FPR here is partly an")
             print("     exposure artifact, not purely detector precision.")
 
-    print("\n  synthetic suite for comparison: precision 98.6%, recall 97.6%, FPR 1.2%")
+    print("\n  synthetic suite for comparison: precision 99.4%, recall 97.8%, "
+          "FPR 0.6%\n  (1016 scenarios, 23 families)")
     if fp + tn and fp + tn < 30:
         lo, hi = wilson(fp, fp + tn)
-        print(f"\n  HONEST LIMIT: {fp + tn} healthy runs cannot resolve a 1.2% FPR — "
+        print(f"\n  HONEST LIMIT: {fp + tn} healthy runs cannot resolve a 0.6% FPR — "
               f"the\n  interval [{lo:.1%}, {hi:.1%}] spans it either way. This suite "
               "detects gross\n  regressions, not small ones. More real healthy runs "
               "are the only fix.")
