@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-18** · 125 commits · 259 tests green · 1016 synthetic scenarios across 23 families + 62 captured real traces (12-run real suite: 3 positives / 9 negatives)
+**As of 2026-08-18** · 136 commits · 278 tests green · 1018 synthetic scenarios across 23 families + 62 captured real traces (12-run real suite: 3 positives / 9 negatives)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -29,7 +29,7 @@ found four bugs, §4.10.
 
 ## 2. Headline numbers
 
-Measured on 1016 generated scenarios across 23 families and 6 domains, replayed
+Measured on 1018 generated scenarios across 23 families and 6 domains, replayed
 deterministically through the production monitor.
 
 | Metric | Value | Read as |
@@ -40,7 +40,7 @@ deterministically through the production monitor.
 | False-positive rate | **0.6%** | healthy runs wrongly halted |
 | Attribution | **83.8%** | correct detector named |
 | Recovery rate | **67.6%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. §3.5–3.6 |
-| Confusion | TP 478 · FP 3 · FN 11 · TN 524 | |
+| Confusion | TP 479 · FP 3 · FN 11 · TN 525 | |
 
 Against trivial baselines — the complexity has to earn itself. **These three rows
 were measured on the previous 936-scenario suite and have not been re-run since
@@ -95,7 +95,7 @@ pinned by a test rather than a sentence.
 
 ### 3.1 The benchmark is saturated
 
-Three false positives and eleven false negatives out of 1016. **A suite you
+Three false positives and eleven false negatives out of 1018. **A suite you
 score 98% on has stopped being a measuring instrument** — it can no longer
 separate a good change from a neutral one, because the entire remaining signal is
 14 scenarios wide. This is now the top constraint on the project.
@@ -463,11 +463,39 @@ version is modelled on the captured trace — exploring from the first step, nev
 advancing, ending on the conclusion. The label was the questionable part, and the
 label is what changed.
 
-**Honest limits.** Grounding is lexical, so it only helps when the goal names
-concrete entities that also appear in tool arguments. It suppresses the false
-positive when the args carry `./config`; it does **nothing** for a goal like
-"research the top three competitors" whose tools take opaque URLs. That class of
-false positive is still open.
+**That limit was real, and it is now closed too.** Grounding by anchors is
+lexical, so it does nothing for a goal like "research the top three competitors"
+whose tools take opaque URLs — reproduced directly, `web_search {"url": "a.com"}`
+can never match anchors like `{research, competitors}`, so the same false
+positive survived for every goal of that shape.
+
+A second signal closes it: **tool continuity**. Drift means the agent started
+doing a different *kind* of work; an agent still reaching for the instruments it
+used while its trajectory was healthy has not changed kind, whatever its prose
+says while it narrates failures. Tools are learned only on positive evidence
+that the trend is healthy — learning one during a low streak would let a
+drifting agent's new tools grant themselves amnesty.
+
+**Its first version introduced a false negative, and how that was caught is the
+point.** `drift_abrupt_hijack` stopped tripping: the agent made *one* on-goal
+`read_notes` call during its healthy opening turn, then drifted purely in
+reasoning and took no further action. That single stale call was suppressing
+every turn after it. Grounding now **expires** — an action older than one model
+turn no longer describes what the agent is doing.
+
+The generated suite could not see that bug. Measured, generated drift families
+score **112/120 with tool continuity and 112/120 without** — identical. It was
+caught by `drift_abrupt_hijack`, one of sixteen hand-authored scenarios.
+**Sixteen hand-written cases found what 1016 generated ones could not**, which is
+a direct argument for writing more of them rather than generating more. Two were
+added as a matched pair (`drift_narrated_failure_opaque_args` and
+`drift_tool_switch_opaque_args`), because either alone can be satisfied by moving
+a threshold in the wrong direction.
+
+**Still open, stated plainly:** an agent that drifts while continuing to use the
+same generic tool — searching the web for something unrelated — stays grounded
+and will not trip on prose alone. That case is genuinely ambiguous from outside
+the agent.
 
 **The headline FP drop is not attributable to this fix.** Suite-level FPR moved
 1.2% → 0.6%, but adding two generators changes the shared RNG stream, so every
