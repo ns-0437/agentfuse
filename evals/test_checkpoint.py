@@ -16,6 +16,7 @@ supervisor still trips when it should.
 
 from __future__ import annotations
 
+import time
 import os
 import sys
 from pathlib import Path
@@ -227,3 +228,57 @@ def test_checkpointing_is_off_by_default_and_costs_nothing():
     assert mon._store is None
     mon.checkpoint()          # must be a silent no-op, not an error
     assert mon.restore() is False
+
+
+# ------------------------------------------------------------------ retention
+def test_prune_keeps_the_most_recent_runs(tmp_path):
+    """A service running agents continuously accumulated one row per run
+    forever. Not visible in testing, where run counts are small; visible in
+    month three of production."""
+    store = SQLiteCheckpointStore(str(tmp_path / "runs.db"))
+    for i in range(10):
+        store.save(f"run-{i}", {"i": i}, step=i)
+        time.sleep(0.002)          # distinct updated_at ordering
+
+    removed = store.prune(keep_last=3)
+    assert removed == 7
+    survivors = {r["run_id"] for r in store.runs()}
+    assert survivors == {"run-7", "run-8", "run-9"}
+    store.close()
+
+
+def test_prune_drops_only_what_is_older_than_the_window(tmp_path):
+    store = SQLiteCheckpointStore(str(tmp_path / "runs.db"))
+    store.save("fresh", {"a": 1})
+    store.save("stale", {"a": 2})
+    # Age one row by rewriting its timestamp directly.
+    store._conn.execute("UPDATE runs SET updated_at = ? WHERE run_id = 'stale'",
+                        (time.time() - 40 * 86400,))
+    store._conn.commit()
+
+    assert store.prune(older_than_days=30) == 1
+    assert {r["run_id"] for r in store.runs()} == {"fresh"}
+    store.close()
+
+
+def test_pruned_runs_are_gone_but_survivors_still_restore(tmp_path):
+    """Retention must not corrupt the runs it keeps — the whole point of the
+    store is that a survivor can still resume after a crash."""
+    store = SQLiteCheckpointStore(str(tmp_path / "runs.db"))
+    store.save("old", {"tokens": 1})
+    time.sleep(0.002)
+    store.save("live", {"tokens": 99})
+
+    store.prune(keep_last=1)
+    assert store.load("old") is None
+    assert store.load("live") == {"tokens": 99}
+    store.close()
+
+
+def test_prune_with_no_arguments_deletes_nothing(tmp_path):
+    """Deleting run state is irreversible, so the default must be inert."""
+    store = SQLiteCheckpointStore(str(tmp_path / "runs.db"))
+    store.save("a", {"x": 1})
+    assert store.prune() == 0
+    assert store.load("a") == {"x": 1}
+    store.close()

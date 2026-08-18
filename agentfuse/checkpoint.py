@@ -197,6 +197,44 @@ class SQLiteCheckpointStore:
             self._conn.execute("DELETE FROM runs WHERE run_id = ?", (run_id,))
             self._conn.commit()
 
+    def prune(self, older_than_days: Optional[float] = None,
+              keep_last: Optional[int] = None) -> int:
+        """Drop checkpoints that can no longer be used. Returns rows removed.
+
+        A checkpoint exists for exactly one purpose: letting a run resume after a
+        crash. Once a run is over, its row is dead weight that is never read
+        again. `save` is keyed on run_id so a single run stays one row and cannot
+        grow per step — but nothing ever removed the rows, so a service running
+        agents continuously accumulated one forever. That is not a leak that
+        shows up in testing, where run counts are small; it shows up in month
+        three of production, which is exactly the horizon this project claims to
+        serve.
+
+        Retention is explicit rather than automatic. Deleting run state is not
+        reversible, and a supervisor that silently discards the thing an operator
+        needs after an incident would be worse than a large file. `keep_last`
+        keeps the most recently updated N runs; `older_than_days` drops anything
+        untouched for longer than that. Both may be combined, and a row survives
+        only if it satisfies both.
+        """
+        removed = 0
+        with self._lock:
+            if older_than_days is not None:
+                cur = self._conn.execute(
+                    "DELETE FROM runs WHERE updated_at < ?",
+                    (time.time() - older_than_days * 86400,))
+                removed += cur.rowcount or 0
+            if keep_last is not None:
+                # Ordered by the same key `runs()` reports, so what an operator
+                # sees listed is what survives.
+                cur = self._conn.execute(
+                    "DELETE FROM runs WHERE run_id NOT IN ("
+                    "  SELECT run_id FROM runs ORDER BY updated_at DESC LIMIT ?)",
+                    (keep_last,))
+                removed += cur.rowcount or 0
+            self._conn.commit()
+        return removed
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()
