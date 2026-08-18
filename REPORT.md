@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-18** · 151 commits · 294 tests green · 1018 synthetic scenarios across 23 families + 69 captured real traces (22-run real suite: 2 positives / 20 negatives)
+**As of 2026-08-18** · 157 commits · 298 tests green · 1018 synthetic scenarios across 23 families + 93 captured real traces (22-run real suite: 2 positives / 20 negatives · 11 real drift traces)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -125,58 +125,67 @@ suite that replaced them (§3.8) scores 12/12 — so saturation is **not fixed**
 and the honest statement is that it has been *re-based on real behaviour* while
 remaining too easy and far too small.
 
-### 3.10 Real drift finally captured — and the detector cannot see it
+### 3.10 Real drift captured at last — and `drift` never fires on any of it
 
 Every real trace this project held was a **loop**. Drift, the detector rewritten
-twice this week, had never once been observed in real behaviour. That is now
-fixed, and the result is worse than not having it.
+twice this week, had never been observed in real behaviour at all. There are now
+**11 real drift traces**, and they say something more useful than the first one
+did alone.
 
-**The stimulus, not the model, was the problem.** Attempt 1 (§3.8) dangled an
-unrelated job behind an explicit instruction and moved nothing. Attempt 2 gives a
-**vague** goal and a world that returns a *chain* — each link closing the current
-thread and opening a plausible next one. Nothing tells the agent to abandon the
-goal; the goal simply stops being the thing in front of it. Qwen2.5-7B followed
-it five links: connection config → deployment manifest → release checklist →
-staging smoke tests → payment gateway migration.
+**Eliciting it needed a different stimulus, not a bigger model.** Attempt 1
+dangled an unrelated job behind an explicit instruction and moved nothing.
+Attempt 2 gives a **vague** goal and a world returning a *chain* — each link
+closing the current thread and opening a plausible next one, never instructing
+the agent to abandon anything. Swept 3 tasks × 3 chains × 2 repeats:
+**10 of 18 runs drifted**, most to full depth 6/6.
 
-**I predicted the opposite result.** My reasoning was that a stronger
-instruction-follower drifts *less*. Measured across the gradient:
+**I predicted the opposite result.** I expected a stronger instruction-follower
+to drift *less*:
 
-| model | drifted | deepest chain depth |
+| model | drifted | deepest depth |
 |---|---:|---:|
 | Qwen2.5-3B | 0/3 | 3/6 |
-| Qwen2.5-7B | **1/3** | **5/6** |
+| Qwen2.5-7B | **10/18** | **6/6** |
 
 Gradual drift requires the **competence** to follow a chain of locally reasonable
-steps. The weaker model stops early. **Bigger models are more exposed to this
-failure mode, not less** — which inverts the usual assumption that scale fixes
-reliability problems.
+steps. The weaker model stops early. **Scale increases exposure to this failure
+mode.**
 
-**The breaker is silent on the trace.** The EMA falls 0.767 → 0.650 and never
-holds below the 0.65 threshold for the two turns patience requires. This is *not*
-the action-grounding fix of §3.9: replayed with grounding disabled, still silent.
+**The result that matters, and it is split:**
 
-**The deeper problem — the signal is ordered backwards on real data.** On the only
-two real traces where the truth is known:
+| | outcome |
+|---|---|
+| real drift traces caught by the breaker | **10 / 11** |
+| caught by the `drift` detector | **0 / 11** |
+| false positives on 20 real healthy runs | **0** |
 
-| | drifted run (should trip) | healthy run (must not) |
-|---|---:|---:|
-| lowest prose similarity | 0.650 | **0.533** |
-| tool-result similarity | 0.52–0.60 | **0.435** |
+The breaker **does** halt real drifting agents — the thing an operator actually
+cares about. But every catch came from `progress`. The detector purpose-built for
+this mode has still never fired on real drift, so **attribution on real drift is
+0%**. That is not cosmetic: attribution decides which steering gets written, so a
+drifting agent is told *"you are not making progress"* rather than *"you have
+wandered off your goal"*, and the ladder climbs from the wrong diagnosis (the
+same reason `loop`'s attribution matters, §2).
 
-The *healthy* run looks more divergent than the *drifted* one, on both signals.
-`"0 files matched"` is semantically empty and sits far from any goal, while
-cascade drift text stays full of infrastructure vocabulary close to "get the
-production database healthy". **No threshold separates them**: any threshold low
-enough to catch the drift fires on the healthy run first.
+**Why `drift` misses.** On the traces where truth is known, the similarity signal
+is **ordered backwards**: the drifted run bottoms out at 0.650 while the *healthy*
+`real_rotate_missing` reaches 0.533, and tool-result text inverts the same way
+(drift 0.52–0.60, healthy 0.435). `"0 files matched"` is semantically empty and
+sits far from any goal; cascade drift text stays full of infrastructure
+vocabulary near the goal. **No threshold separates them** — anything low enough to
+catch the drift fires on the healthy run first, so raising sensitivity would
+trade a real false negative for a real false positive.
 
-Filed as a documented known gap rather than patched. There is exactly **one** real
-drift trace, and designing a signal against one example is how a detector comes to
-work on precisely that example.
+**The control, because "long runs trip" would explain the catches without any
+detector being right.** 20 real healthy runs produce **zero** false positives,
+including runs of 10 and 11 events. So `progress` is not firing on length alone.
+Not fully settled: the longest healthy run is 11 events while drifted ones reach
+24, so a genuinely long healthy run is the missing cell.
 
-**What this costs the headline.** Drift's 93.5% recall and the −8.1 ΔF1 in the
-ablation are measured entirely on scenarios I wrote. The one time real behaviour
-was tested, the answer was a miss. Treat drift as **unvalidated on real traces**.
+**Elicitation is dominated by task phrasing, not by the chain**: `cascade_release`
+drifted 6/6, `cascade_vague` 4/6, `cascade_followup` 0/6 — that last one reads
+once and stops. Worth knowing before anyone concludes a model "does not drift"
+from a single prompt.
 
 ### 3.2 The statistics improved for the wrong reason
 
