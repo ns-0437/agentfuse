@@ -277,3 +277,86 @@ def test_observe_from_an_event_loop_never_raises_into_the_agent():
         await asyncio.gather(*(hostile(i) for i in range(8)))
 
     asyncio.run(main())          # must simply not raise
+
+
+# ------------------------------------------------- sharing one monitor (misuse)
+def _agent_events(step, agent, tool, text):
+    """Events tagged with an explicit agent identity."""
+    meta = {"call_id": f"{agent}-{tool}-{step}", "agent_id": agent}
+    return [
+        AgentEvent(type=EventType.LLM_CALL, step=step, node=agent, text=text,
+                   meta=meta),
+        AgentEvent(type=EventType.TOOL_CALL, step=step, node=agent,
+                   tool_name=tool, tool_args={"n": step}, meta=meta),
+    ]
+
+
+def test_sharing_one_monitor_across_agents_halts_healthy_runs():
+    """Pins the measured cost of the unsupported configuration.
+
+    REPORT once said locks "made it safe but not meaningful". That understates
+    it: measured, two agents on different goals driving one monitor produced
+    multiple spurious PAUSE directives while both were healthy on their own
+    terms. `original_goal` is singular, so every drift probe scores one agent's
+    reasoning against the other's objective.
+
+    Pinned so the claim stays evidence-backed, and so anyone who later tries to
+    support sharing has a test that tells them what they must fix.
+    """
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal="Rotate the production database credential.",
+                      echo=False, loop_threshold=3, max_recoveries=0),
+        tracer=Tracer(None, False))
+
+    pauses = 0
+    for step in range(1, 5):
+        for ev in (_agent_events(step, "agent_a", "read_secret",
+                                 "reading the production credential")
+                   + _agent_events(step, "agent_b", "send_email",
+                                   "drafting the marketing newsletter")):
+            d = mon.observe(ev)
+            if d is not None and d.kind is not DirectiveKind.CONTINUE:
+                pauses += 1
+    assert pauses > 0, (
+        "sharing a monitor no longer halts healthy agents — if that is now "
+        "genuinely supported, update REPORT §8 and delete this test")
+
+
+def test_a_shared_monitor_warns_once_when_it_can_tell():
+    """Silent misbehaviour in a configuration people will try is the bug class
+    this project keeps cataloguing. It cannot be prevented, so it is announced."""
+    import warnings as _w
+
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal="g", echo=False, max_recoveries=0),
+        tracer=Tracer(None, False))
+
+    with _w.catch_warnings(record=True) as caught:
+        _w.simplefilter("always")
+        for ev in _agent_events(1, "agent_a", "t", "a"):
+            mon.observe(ev)
+        for ev in _agent_events(1, "agent_b", "t", "b"):
+            mon.observe(ev)
+        for ev in _agent_events(2, "agent_b", "t", "b"):
+            mon.observe(ev)
+
+    shared = [w for w in caught if "more than" in str(w.message)]
+    assert len(shared) == 1, f"expected exactly one warning, got {len(shared)}"
+
+
+def test_a_single_agent_never_triggers_the_shared_warning():
+    """LangGraph runs walk many nodes. Warning on that would be noise on every
+    ordinary multi-node run, which is why node is not the discriminator."""
+    import warnings as _w
+
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal="g", echo=False, max_recoveries=0),
+        tracer=Tracer(None, False))
+
+    with _w.catch_warnings(record=True) as caught:
+        _w.simplefilter("always")
+        for step, node in enumerate(("plan", "search", "write", "verify"), start=1):
+            mon.observe(AgentEvent(type=EventType.LLM_CALL, step=step, node=node,
+                                   text="working", meta={"agent_id": "one-agent"}))
+
+    assert not [w for w in caught if "more than" in str(w.message)]

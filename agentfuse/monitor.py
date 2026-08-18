@@ -183,6 +183,9 @@ class CircuitBreakerMonitor:
         self._store = (SQLiteCheckpointStore(config.checkpoint_path)
                        if config.checkpoint_path else None)
         self._events_since_checkpoint = 0
+        # Misuse detection only; see _warn_if_shared_across_agents.
+        self._agent_id: Optional[str] = None
+        self._warned_shared = False
         self.notifier = notifier if notifier is not None else build_notifier(
             webhook_url=config.escalation_webhook, echo=config.echo,
             include_agent_text=config.escalation_include_agent_text,
@@ -312,7 +315,43 @@ class CircuitBreakerMonitor:
                 self.checkpoint()
             return directive
 
+    def _warn_if_shared_across_agents(self, event: AgentEvent) -> None:
+        """One monitor per agent run is the only supported model. Say so.
+
+        Sharing a monitor between agents does not merely fail to be useful, it
+        actively halts healthy runs. Measured with two agents on different goals
+        driving one monitor: **7 spurious PAUSE directives across 4 steps**, both
+        agents healthy on their own terms. The cause is structural rather than a
+        bug to patch -- ``original_goal`` is singular, so every drift probe scores
+        agent B's reasoning against agent A's objective, and the token and cost
+        ceilings pool into one budget nobody set.
+
+        Supporting it properly would mean per-agent goals, per-agent detector
+        state and per-agent budgets, which is one monitor per agent with extra
+        indirection. So this warns instead, once, rather than pretending.
+
+        It can only fire when events carry ``meta['agent_id']``. Nothing else in
+        an event distinguishes two agents from one agent walking several graph
+        nodes, and inventing a signal that is not there would produce false
+        alarms on ordinary LangGraph runs.
+        """
+        agent_id = (event.meta or {}).get("agent_id")
+        if agent_id is None:
+            return
+        if self._agent_id is None:
+            self._agent_id = agent_id
+        elif agent_id != self._agent_id and not self._warned_shared:
+            self._warned_shared = True
+            warnings.warn(
+                f"this CircuitBreakerMonitor is receiving events from more than "
+                f"one agent ({self._agent_id!r} and {agent_id!r}). Detector state, "
+                f"the original goal and the spend ceiling are all shared, so "
+                f"drift is scored against another agent's objective and healthy "
+                f"runs get paused. Use one monitor per agent run.",
+                RuntimeWarning, stacklevel=3)
+
     def _observe_locked(self, event: AgentEvent) -> Directive:
+        self._warn_if_shared_across_agents(event)
         self.history.append(event)
         self.total_tokens += event.tokens_in + event.tokens_out
         self.total_cost += event.cost_usd
