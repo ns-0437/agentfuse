@@ -1042,8 +1042,20 @@ started committing the output.
   output, and a warning in an unwatched log is not a control.
 - **`QdrantMemory` is barely exercised** — it had two never-executed bugs when
   first run, and it is still only lightly covered.
-- **Shared-monitor multi-agent is unsolved.** Locks made it safe; they did not
-  make it meaningful. One monitor per agent run is still the only supported model.
+- **Shared-monitor multi-agent is unsolved, and worse than "not meaningful".**
+  Locks made it safe from data races; they did nothing about semantics. Measured
+  2026-08-18: two agents on different goals driving one monitor produced **7
+  spurious `PAUSE` directives across 4 steps**, while both agents were healthy on
+  their own terms. The cause is structural rather than a patchable bug —
+  `original_goal` is singular, so every drift probe scores agent B's reasoning
+  against agent A's objective, and the token and cost ceilings pool into one
+  budget nobody set. Supporting it properly means per-agent goals, per-agent
+  detector state and per-agent budgets, which is one monitor per agent with extra
+  indirection. Since it cannot be prevented, it is now **announced**: the monitor
+  warns once when it sees events from a second `meta['agent_id']`. That signal
+  only exists when an adapter sets it — nothing else in an event distinguishes
+  two agents from one agent walking several graph nodes, and inventing one would
+  fire on every ordinary LangGraph run.
 - **Async is untested under load.** `observe()` is synchronous and called from
   async hooks. It works; it has never been profiled with concurrent agents.
 
