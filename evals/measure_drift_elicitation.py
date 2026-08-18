@@ -47,17 +47,19 @@ from agentfuse import CircuitBreakerMonitor, MonitorConfig, Tracer  # noqa: E402
 from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 from evals.capture_real_runs import TOOL_SCHEMA  # noqa: E402
 from evals.real_suite import (  # noqa: E402
-    _CASCADE_DRIFT_DEPTH, _CASCADE_MARKERS, TASKS, classify, make_router)
+    _CASCADE_DRIFT_DEPTH, CASCADE_CHAINS, CASCADE_MARKERS, TASKS, classify,
+    make_router)
 
 OUT = ROOT / "evals" / "captured" / "drift_elicitation"
 CASCADE = [t for t in TASKS if TASKS[t][1] == "cascade"]
 HIJACK = [t for t in TASKS if TASKS[t][1] == "hijack"]
 
 
-def run_one(task: str, base_url: str, model: str, tag: str, max_turns: int) -> dict:
+def run_one(task: str, base_url: str, model: str, tag: str, max_turns: int,
+            chain: str = "release", rep: int = 0) -> dict:
     prompt, world, _ = TASKS[task]
-    router, _ = make_router(world)
-    trace = OUT / f"{tag}__{task}.jsonl"
+    router, _ = make_router(world, chain=chain)
+    trace = OUT / f"{tag}__{task}__{chain}__r{rep}.jsonl"
     trace.parent.mkdir(parents=True, exist_ok=True)
     if trace.exists():
         trace.unlink()
@@ -83,8 +85,10 @@ def run_one(task: str, base_url: str, model: str, tag: str, max_turns: int) -> d
     results = [json.loads(l).get("text") or "" for l in
                trace.read_text(encoding="utf-8").splitlines()
                if l.strip() and json.loads(l).get("type") == "tool_result"]
-    depth = sum(1 for m in _CASCADE_MARKERS if any(m in r for r in results))
-    return {"task": task, "world": world, "depth": depth,
+    markers = CASCADE_MARKERS.get(chain, ())
+    depth = sum(1 for m in markers if any(m in r for r in results))
+    return {"task": task, "world": world, "chain": chain, "rep": rep,
+            "depth": depth, "trace": trace.name,
             "drifted": bool(obs["should_trip"]) and world == "cascade",
             "calls": obs["tool_calls"], "status": obs["status"],
             "reason": obs["reason"]}
@@ -100,6 +104,12 @@ def main() -> int:
     ap.add_argument("--max-turns", type=int, default=12)
     ap.add_argument("--include-hijack", action="store_true",
                     help="also re-run attempt 1's tasks for comparison")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="runs per (task, chain). The same task drifted 1 of 3 "
+                         "times, so a single run per cell measures sampling "
+                         "noise as though it were a property of the model.")
+    ap.add_argument("--chains", default=",".join(CASCADE_CHAINS),
+                    help="cascade chains to run")
     args = ap.parse_args()
 
     tasks = CASCADE + (HIJACK if args.include_hijack else [])
@@ -115,16 +125,23 @@ def main() -> int:
     for name, url in arms:
         print(f"\n--- {name} ---", flush=True)
         rows = []
+        chains = [c for c in args.chains.split(",") if c in CASCADE_CHAINS]
         for task in tasks:
-            try:
-                r = run_one(task, url, args.model, name, args.max_turns)
-            except Exception as e:                      # noqa: BLE001
-                print(f"  {task:<20} FAILED {type(e).__name__}: {str(e)[:60]}")
-                continue
-            rows.append(r)
-            mark = "DRIFTED" if r["drifted"] else "on task"
-            print(f"  {task:<20} {mark:<8} chain depth {r['depth']}/"
-                  f"{len(_CASCADE_MARKERS)}  calls={r['calls']} ({r['status']})")
+            cells = ([(c, r) for c in chains for r in range(args.repeat)]
+                     if TASKS[task][1] == "cascade" else [("release", 0)])
+            for chain, rep in cells:
+                try:
+                    r = run_one(task, url, args.model, name, args.max_turns,
+                                chain=chain, rep=rep)
+                except Exception as e:                  # noqa: BLE001
+                    print(f"  {task:<18} {chain:<8} FAILED "
+                          f"{type(e).__name__}: {str(e)[:44]}", flush=True)
+                    continue
+                rows.append(r)
+                mark = "DRIFTED" if r["drifted"] else "on task"
+                depth_of = len(CASCADE_MARKERS.get(chain, ()))
+                print(f"  {task:<18} {chain:<8} r{rep} {mark:<8} depth "
+                      f"{r['depth']}/{depth_of}  calls={r['calls']}", flush=True)
         summary[name] = rows
 
     print("\n" + "-" * 78)
@@ -132,9 +149,12 @@ def main() -> int:
         casc = [r for r in rows if r["world"] == "cascade"]
         drifted = sum(1 for r in casc if r["drifted"])
         deepest = max((r["depth"] for r in casc), default=0)
-        print(f"  {name:<14} drifted {drifted}/{len(casc)}   deepest chain "
-              f"depth {deepest}/{len(_CASCADE_MARKERS)} "
-              f"(drift labelled at >= {_CASCADE_DRIFT_DEPTH})")
+        print(f"  {name:<14} drifted {drifted}/{len(casc)}   deepest depth "
+              f"{deepest}  (labelled at >= {_CASCADE_DRIFT_DEPTH})")
+        for chain in sorted({r["chain"] for r in casc}):
+            cell = [r for r in casc if r["chain"] == chain]
+            print(f"      {chain:<10} {sum(1 for r in cell if r['drifted'])}"
+                  f"/{len(cell)} drifted")
 
     any_drift = any(r["drifted"] for rows in summary.values() for r in rows)
     print()
