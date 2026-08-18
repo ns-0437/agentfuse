@@ -1025,14 +1025,23 @@ started committing the output.
 - **Checkpoints lose recent history.** `state()` saves counters, not the event
   list, so after a restore the supervisor's first snapshot has an empty
   `recent_events` and reasons with less context than it would have had.
-- **No checkpoint retention.** The SQLite file grows without bound; nothing
-  prunes finished runs.
-- **`JSONMemory._flush()` rewrites the entire file on every write** — O(n) per
-  record. Fine at hundreds, not at hundreds of thousands.
+- ~~**No checkpoint retention.**~~ **Fixed 2026-08-18.** `prune(keep_last=…,
+  older_than_days=…)`. The store was accumulating one dead row per finished run
+  forever — a leak invisible at test scale, which appears in month three of
+  production. `prune()` with no arguments deletes nothing, because discarding
+  run state an operator needs after an incident is worse than a large file.
+- ~~**`JSONMemory._flush()` rewrites the entire file on every write.**~~ **Fixed
+  2026-08-18.** It is now genuinely append-only, as its docstring always claimed.
+  Measured, 1500 `remember()` calls: **42.1s → 1.59s** (28.1 → 1.06 ms/write,
+  flat). Eviction and `mark_outcome` still rewrite, because both change data
+  already on disk.
+- ~~**No webhook authentication.**~~ **Fixed 2026-08-18.** HMAC-SHA256 signing
+  via `secret=`, with the timestamp signed *with* the body so a captured
+  escalation cannot be replayed. Plaintext `http://` is now refused rather than
+  warned about — the payload carries the goal, the failure reason and agent
+  output, and a warning in an unwatched log is not a control.
 - **`QdrantMemory` is barely exercised** — it had two never-executed bugs when
   first run, and it is still only lightly covered.
-- **No webhook authentication** beyond custom headers — no HMAC signing, so a
-  receiver cannot verify the escalation came from us.
 - **Shared-monitor multi-agent is unsolved.** Locks made it safe; they did not
   make it meaningful. One monitor per agent run is still the only supported model.
 - **Async is untested under load.** `observe()` is synchronous and called from
