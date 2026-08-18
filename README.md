@@ -4,7 +4,7 @@
 
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
-**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. Rebuilt automatically by CI on every green push, and it includes a **real Qwen2.5-7B run the breaker caught three times and never rescued** (the old delivery mechanism — see [REPORT.md §3.6](REPORT.md)) — the failures are on the dashboard too, not just the successes.
+**▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. Rebuilt automatically by CI on every green push, and it includes a **real Qwen2.5-7B run the breaker caught three times and never rescued** (the old delivery mechanism — see [REPORT.md section 3.6](REPORT.md)) — the failures are on the dashboard too, not just the successes.
 
 **📄 [Full project report](REPORT.md)** — every result to date, phase status, and an
 honest readiness assessment, including the measurement showing the deterministic
@@ -42,7 +42,7 @@ intervenes** — a closed-loop, self-healing safety layer.
 **Measured, on a real agent:** with the default delivery mechanism, **6 of 8**
 tasks that were failing went on to complete, and 83% of corrections were obeyed.
 That number depends entirely on *how* the correction is delivered — the previous
-default completed **0 of 8**. See [REPORT.md §3.6](REPORT.md).
+default completed **0 of 8**. See [REPORT.md section 3.6](REPORT.md).
 
 ---
 
@@ -625,13 +625,13 @@ Two findings came out of building it, both unflattering:
   calls the tool again — so it stamped the same "10 identical calls" signature on
   every run regardless of task. Re-captured on the fixed stack, all four
   committed captures complete cleanly, including one whose agent was supposed to
-  succeed and had been labelled a loop. See [REPORT.md §3.7](REPORT.md).
+  succeed and had been labelled a loop. See [REPORT.md section 3.7](REPORT.md).
 - **The first real false positive — now fixed.** `drift` tripped on an agent that
   searched four different ways, found nothing, and correctly reported the task was
   impossible. Halting that run destroys the one result a human needed. The
   synthetic suite never produced this; 12 real traces did, immediately.
   A drift trip now requires the agent's **actions** to have left the goal too, not
-  just its prose. See [REPORT.md §3.9](REPORT.md) — including why the 936-scenario
+  just its prose. See [REPORT.md section 3.9](REPORT.md) — including why the 936-scenario
   suite could not see the fix at all, and the two families added so it can.
 
 **Real drift is now captured — 11 traces — and the results are split.** A
@@ -651,7 +651,7 @@ The breaker **does** halt real drifting agents. But every catch came from
 than *"you have wandered off your goal"* — and the steering ladder climbs from
 the wrong diagnosis. Counter to the usual assumption, the **3B did not drift and
 the 7B did**: gradual drift needs the competence to follow a chain, so scale
-increases exposure. See [REPORT.md §3.10](REPORT.md).
+increases exposure. See [REPORT.md section 3.10](REPORT.md).
 
 **It does not fix saturation.** 12/12 is still a ceiling, and 9 healthy runs
 cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
@@ -719,7 +719,7 @@ evals/                 the benchmark — ground-truth scenarios, metrics, ablati
   real_suite.py        capture real runs INCLUDING healthy ones; label from behaviour
   score_real_suite.py  replay them through the same runner the synthetic suite uses
   toolcall_shim.py     recover tool calls llama.cpp leaves as text in `content`
-  probe_termination.py can the serving stack stop at all? (it could not — §3.7)
+  probe_termination.py can the serving stack stop at all? (it could not — Section 3.7)
   relabel_captures.py  re-derive committed labels from the traces themselves
   capture_real_runs.py drive a real model to produce traces, breaker disarmed
   captured/            real traces, scored like any other case
