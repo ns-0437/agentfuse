@@ -276,13 +276,13 @@ with ground truth, confidence intervals, and a significance test — and the
 numbers are published, including the unflattering ones.
 
 ```bash
-python evals/run_eval.py --generated 40 --json    # 936 scenarios + ablation
+python evals/run_eval.py --generated 40 --json    # 1016 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 252-test CI gate
+pytest evals/ -q                                  # 259-test CI gate
 ```
 
-**936 scenarios** from **21 parameterised generator families** across 6 domains,
+**1016 scenarios** from **23 parameterised generator families** across 6 domains,
 with ground truth true *by construction*. 449 are genuine failures; **487 are
 hard negatives** — healthy runs that look like failures: a legitimate retry,
 polling that really is progressing, a sub-goal that reads as drift, a
@@ -292,20 +292,20 @@ make the false-positive rate measurable, and that rate decides whether anyone
 leaves a guardrail switched on. Everything replays deterministically in ~30s —
 no API key, no cost.
 
-### Current baseline (2026-08-13, replay mode, local embeddings)
+### Current baseline (2026-08-18, replay mode, local embeddings)
 
 | Metric | Value | Prev | Read as |
 |---|---:|---:|---|
-| Recall | **97.6%** | 88.4% | real failures caught |
-| Precision | **98.6%** | 90.9% | can you trust a trip |
-| F1 | **98.1%** | 89.6% | |
-| False-positive rate | **1.2%** | 8.9% | healthy runs halted |
+| Recall | **97.8%** | 97.6% | real failures caught |
+| Precision | **99.4%** | 98.6% | can you trust a trip |
+| F1 | **98.6%** | 98.1% | |
+| False-positive rate | **0.6%** | 1.2% | healthy runs halted |
 | Attribution | **83.8%** | 84.0% | right detector named |
 | Recovery rate | **67.6%** | 71.7% | caught failures put back on track |
-| **Recall, cluster-adjusted** | **97.7% [94.8–99.0]** | 84.6% [57.8–95.7] | ← see the warnings below |
+| **Recall, cluster-adjusted** | **97.8% [94.9–99.0]** | 97.7% [94.8–99.0] | ← see the warnings below |
 
-> **⚠ Do not read 98.1% F1 as "nearly production ready."** A benchmark you score
-> 98% on has stopped being a measuring instrument. Six false positives and eleven
+> **⚠ Do not read 98.6% F1 as "nearly production ready."** A benchmark you score
+> 98% on has stopped being a measuring instrument. Three false positives and eleven
 > false negatives is the entire remaining signal — it can no longer distinguish a
 > good change from a neutral one. Part of this run's gain came from **fixing a
 > generator that was wrong**: a legitimate correction with evidence (below), but
@@ -334,7 +334,7 @@ after N steps" or the complexity is unjustified:
 
 | System | Recall | Precision | F1 |
 |---|---:|---:|---:|
-| **AgentFuse** | 97.6% | **98.6%** | **98.1%** |
+| **AgentFuse** | 97.8% | **99.4%** | **98.6%** |
 | step cap = 12 | 96.2% | 54.0% | 69.2% |
 | naive repeat counter | 49.1% | 66.2% | 56.4% |
 
@@ -359,7 +359,7 @@ destroying work that was fine. It is now asserted for every stateful detector in
 
 **What's still broken, stated plainly:**
 
-- **The benchmark is saturated** — 6 FPs and 11 FNs out of 936. It cannot measure
+- **The benchmark is saturated** — 3 FPs and 11 FNs out of 1016. It cannot measure
   further improvement, and that is now the top constraint on the project.
 - **Subtle drift is the main real miss** (8 of 11 FNs, `gen_driftsub`), plus 6 FPs
   where a legitimate sub-goal reads as drift. Both sit on the ±0.043 embedding
@@ -549,16 +549,16 @@ F1. It is the control that makes the headline number mean anything.
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
-| full system | 97.6% | 98.6% | 98.1% | |
-| ablate `progress` | 78.8% | 98.3% | 87.5% | **−10.6** |
-| ablate `spend` | 80.2% | 98.4% | 88.3% | −9.8 |
-| ablate `drift` | 81.1% | 100.0% | 89.5% | −8.6 |
-| ablate `rate` | 88.6% | 98.5% | 93.3% | −4.8 |
-| ablate `loop` | 97.6% | 98.6% | 98.1% | **+0.0** |
-| random control (rate-matched) | 82.9% | 50.0% | 62.4% | −35.7 |
+| full system | 97.8% | 99.4% | 98.6% | |
+| ablate `progress` | 80.6% | 99.2% | 88.9% | **−9.6** |
+| ablate `spend` | 81.8% | 99.3% | 89.7% | −8.9 |
+| ablate `drift` | 82.6% | 100.0% | 90.5% | −8.1 |
+| ablate `rate` | 89.6% | 99.3% | 94.2% | −4.4 |
+| ablate `loop` | 97.8% | 99.4% | 98.6% | **+0.0** |
+| random control (rate-matched) | 84.5% | 51.2% | 63.7% | −34.8 |
 
 The random control is the row that makes the rest mean anything: a detector that
-simply trips at our frequency reaches F1 62.4%.
+simply trips at our frequency reaches F1 63.7%.
 
 **The `loop` row deserves its own explanation.** It was at **+1.8** — removing it
 *improved* the system — and is now exactly neutral after the fixes above. It still
@@ -600,14 +600,16 @@ Two findings came out of building it, both unflattering:
   every run regardless of task. Re-captured on the fixed stack, all four
   committed captures complete cleanly, including one whose agent was supposed to
   succeed and had been labelled a loop. See [REPORT.md §3.7](REPORT.md).
-- **The first real false positive.** `drift` trips on an agent that searched four
-  different ways, found nothing, and correctly reported the task was impossible.
-  Halting that run destroys the one result a human needed. Kept in the corpus with
-  its true label rather than deleted. The 936-scenario synthetic suite never
-  produced this; 12 real traces did, immediately.
+- **The first real false positive — now fixed.** `drift` tripped on an agent that
+  searched four different ways, found nothing, and correctly reported the task was
+  impossible. Halting that run destroys the one result a human needed. The
+  synthetic suite never produced this; 12 real traces did, immediately.
+  A drift trip now requires the agent's **actions** to have left the goal too, not
+  just its prose. See [REPORT.md §3.9](REPORT.md) — including why the 936-scenario
+  suite could not see the fix at all, and the two families added so it can.
 
 **It does not fix saturation.** 12/12 is still a ceiling, and 9 healthy runs
-cannot resolve a 1.2% FPR — the interval spans it either way. It catches gross
+cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
 regressions, not small ones.
 
 ### Honest limitations of the benchmark itself
@@ -627,7 +629,7 @@ regressions, not small ones.
   the effective n (222).
 
 For scale context: AE Studio's ESR baseline ran **7,892 trials**. This suite runs
-936 across 21 independent families. Twenty-one is the number to reason about, and
+1016 across 23 independent families. Twenty-three is the number to reason about, and
 it is not enough to call anything settled.
 
 ### Prior work
