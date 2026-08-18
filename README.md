@@ -634,15 +634,24 @@ Two findings came out of building it, both unflattering:
   just its prose. See [REPORT.md §3.9](REPORT.md) — including why the 936-scenario
   suite could not see the fix at all, and the two families added so it can.
 
-**Real drift is now captured — and the detector misses it.** A Qwen2.5-7B given a
-vague goal followed a plausible chain five links from it (connection config →
-deployment manifest → release checklist → smoke tests → payment gateway). The
-breaker stays silent. Worse, on the only two real traces where the truth is
-known, the similarity signal is **ordered backwards**: the drifted run bottoms out
-at 0.650 while the *healthy* one reaches 0.533. Counter to the usual assumption,
-the **3B did not drift and the 7B did** — gradual drift needs the competence to
-follow a chain, so bigger models are *more* exposed. Treat drift as unvalidated
-on real behaviour. See [REPORT.md §3.10](REPORT.md).
+**Real drift is now captured — 11 traces — and the results are split.** A
+Qwen2.5-7B given a vague goal and a world returning a chain of plausible next
+steps followed it up to 6 links from its objective (connection config →
+deployment manifest → release checklist → smoke tests → payment gateway). Swept
+3 tasks × 3 chains × 2 repeats, **10 of 18 runs drifted**.
+
+| | outcome |
+|---|---|
+| real drift traces caught by the breaker | **10 / 11** |
+| caught by the `drift` detector | **0 / 11** |
+| false positives on 20 real healthy runs | **0** |
+
+The breaker **does** halt real drifting agents. But every catch came from
+`progress`, so a drifting agent is told *"you are not making progress"* rather
+than *"you have wandered off your goal"* — and the steering ladder climbs from
+the wrong diagnosis. Counter to the usual assumption, the **3B did not drift and
+the 7B did**: gradual drift needs the competence to follow a chain, so scale
+increases exposure. See [REPORT.md §3.10](REPORT.md).
 
 **It does not fix saturation.** 12/12 is still a ceiling, and 9 healthy runs
 cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
