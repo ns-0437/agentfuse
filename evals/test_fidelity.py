@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agentfuse.events import EventType  # noqa: E402
+from evals.conftest import requires_embeddings  # noqa: E402
 from evals.runner import _events_for_step  # noqa: E402
 from evals.schema import tool, think  # noqa: E402
 
@@ -89,6 +90,7 @@ def test_think_step_is_a_bare_model_turn():
 
 
 # --------------------------------------------------- captured real traces
+@requires_embeddings
 def test_captured_traces_are_scored():
     """Real captured runs, replayed through the same scoring path as synthetic ones.
 
@@ -120,6 +122,7 @@ def test_captured_traces_are_scored():
             f"(detector={result.trip_detector})")
 
 
+@requires_embeddings
 def test_documented_gaps_are_still_gaps():
     """A known gap that quietly starts passing is stale documentation.
 
