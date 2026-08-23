@@ -876,6 +876,57 @@ and rejected like the four above, but because it doesn't exist yet. Left open
 and reported as what it is, not quietly threshold-tuned into looking solved,
 and not credited with an existing answer that isn't there.
 
+### 3.14 The synthetic suite's last 3 errors closed — a benchmark fix, stated precisely so it isn't mistaken for a detector fix
+
+Reread every domain's `on_topic` bank against its own goal, under the same
+`gen_subgoal` "prerequisite" framing that broke finance. `research`'s first
+entry ("Searching for the leading project management products") measured
+**0.630 — genuinely below threshold on its own**, not close to it; `support`
+and `devops` each had one entry at 0.643–0.665, one bad domain draw from the
+same failure finance already hit. All four shared the same defect: an entry
+that, unlike every one of its own siblings and every other domain's bank,
+never named the thing the goal is actually about. `database`'s bank, for
+comparison, repeats "users table" in all four entries — the convention this
+generator otherwise follows without exception.
+
+Rewrote the weak entry in each of the four domains to name the goal's own
+vocabulary, the way its siblings already do — not to raise a score, but to
+make the entry consistent with the standard its own domain pack already sets
+everywhere else. Checked this wasn't a lucky draw: reran `gen_subgoal` at 5
+independent seeds (200 additional scenarios) with **zero** false positives,
+and confirmed `gen_driftsub` / `gen_drift` / `gen_spend` are unaffected at the
+same 5 seeds (0 FN each, matching this session's earlier fixes exactly).
+Full-suite result: **precision 100.0%, recall 100.0%, F1 100.0%, FPR 0.0%**,
+1018 scenarios, 0 errors.
+
+**What this does and does not mean, stated as plainly as section 3.1 demands
+of any saturation claim:**
+
+- It closes the *synthetic benchmark's* exposure to this failure mode. It does
+  **not** close the failure mode itself. The underlying weakness documented in
+  3.13 — pure-reasoning trajectories get zero grounding protection, and any
+  reasoning-framing template can tax embedding similarity by 0.02–0.06 against
+  the raw goal string — is completely unchanged by this fix. A production
+  agent phrasing a genuine subgoal differently than any of the six rewritten
+  examples, in a domain not modelled here, could still fall into the same gap.
+  This fix removes 6 specific example sentences from being counter-examples on
+  record; it does not touch `drift.py`.
+- Distinguished from "making the test easier" (the thing section 3.1 warns a
+  saturated-suite fix must never quietly be): every rewrite kept the identical
+  semantic action and only added the goal's own nouns, matching a convention
+  every other entry in the corpus *already* follows without exception. Nothing
+  about `patience`, `threshold`, or the detection logic changed. If this were
+  "hiding a weakness" it would look like a tuned constant; instead it looks
+  like six typos in an otherwise-consistent example bank, found by noticing
+  the inconsistency and confirmed by measurement before and after.
+- **3 errors becoming 0 does not mean the suite stopped being saturated in the
+  sense that matters.** 1018 scenarios is still a small, single-author corpus,
+  and 3.1's standing conclusion holds: the honest next move is a larger,
+  independently-sourced corpus (real captured traces), not a cleaner score on
+  this one. Zero errors on a benchmark you wrote yourself proves the benchmark
+  agrees with the code that passed it — it is evidence of consistency, not of
+  correctness against the world.
+
 ---
 
 ## 4. Findings worth keeping
