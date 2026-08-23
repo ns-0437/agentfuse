@@ -35,6 +35,17 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
 
+      # Deliberately NO ".[embeddings]" here. This job's purpose is the CLAIM
+      # in the header comment -- does the stdlib-only core import and run
+      # across every declared Python/OS combination -- not a second full
+      # accuracy suite repeated 9 times. Drift-accuracy tests that need the
+      # real embedder are marked `@requires_embeddings` (evals/conftest.py)
+      # and skip cleanly here; the single-cell "benchmark" job below installs
+      # embeddings and is where that accuracy is actually validated. This
+      # was NOT explicit anywhere before 2026-08-23, so nobody noticed when a
+      # 2026-08-17 change broke lexical-mode compatibility: those 4-5 tests
+      # failed identically on every cell, every run, for 6 days, which also
+      # silently blocked the dashboard's auto-publish (needs: [test, ...]).
       - name: Install
         run: |
           python -m pip install --upgrade pip
