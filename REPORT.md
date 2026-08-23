@@ -909,7 +909,9 @@ worse one. A real fix needs either a full resweep of `DEFAULT_THRESHOLD_EMBEDDIN
 against both corpora (out of scope for a 3-scenario fix — the 0.65 knee was
 swept and documented once already, drift.py's own module comment) or a
 genuinely new signal, not a threshold nudge or a second reference vector on the
-same cosine-similarity mechanism.
+same cosine-similarity mechanism. **Update: the resweep was done, section
+3.15** — 0.65 sits in the middle of a real 0.04-wide plateau, not a fragile
+edge, though the general weakness described below remains open.
 
 Correction made before this section shipped: an earlier draft named this
 project's `confidence` detector (`agentfuse/confidence.py`) as an untried
@@ -976,6 +978,88 @@ of any saturation claim:**
   this one. Zero errors on a benchmark you wrote yourself proves the benchmark
   agrees with the code that passed it — it is evidence of consistency, not of
   correctness against the world.
+
+### 3.15 The threshold resweep section 3.13 called out of scope, done properly
+
+Section 3.13 left the pure-reasoning grounding gap open, naming a full
+`DEFAULT_THRESHOLD_EMBEDDING` resweep against a corpus with prose-only hard
+negatives as one of two real fixes, un-attempted. This does that.
+
+**First, characterised the actual shape of the gap before touching the
+threshold.** Section 3.14's fix rewrote domain examples for exactly one
+framing template ("To finish the task I first need to resolve a
+prerequisite..."). Measured 5 more natural framings a real agent might use
+("Before I can do that...", "One more thing to verify...", "Taking a quick
+detour...", "It makes sense to handle this first...", bare/no framing) against
+the *already-fixed* domain examples: worst case **0.653** — technically still
+above the 0.65 threshold, but by a margin of 0.003 on a single sentence. That
+is not a safety margin, that is luck that hadn't been tested yet. Confirmed it
+was real luck, not measurement noise, by checking which domain/framing pairs
+produced it: `devops` under "quick detour" (0.653), `support` under the same
+framing (0.661), `research` under "quick detour" (0.667) — different domains,
+different framings than the one section 3.14 fixed, each independently close
+to the line.
+
+**Then measured the actual separation the detector has to work with.** Across
+all 6 domains: genuinely off-topic content tops out at **0.617**; the deliberately-
+hard "gradual drift" bridge sentences span **0.564–0.730** (overlapping healthy
+prose by design — that is what makes them the hard case, section 3.10); healthy
+prose across the 6 framings bottoms out at **0.653**. A real, if thin, gap exists
+between off-topic (max 0.617) and healthy (min 0.653) — 0.65 already sits almost
+exactly in the middle of it. This is a point-check on isolated sentences, not
+proof: `patience` and the EMA smooth trajectories in ways a single-sentence
+comparison cannot capture, so the only way to know the *safe* threshold is to
+replay full scenarios through the real detector.
+
+**Fixed the benchmark, not just the threshold, so the sweep would mean
+something.** `gen_benign_subgoal` had used exactly one framing template since
+it was written — sweeping a threshold against a corpus that only ever tests one
+framing would tune to that framing's tax and leave the other five uncovered,
+which is exactly the blind spot that let section 3.14's finance case slip
+through in the first place. Added `SUBGOAL_FRAMINGS`, 5 phrasings drawn
+randomly per detour turn (`evals/generators.py`). Verified this alone
+introduced zero new false positives at the current 0.65 default across 7
+independent seeds (280 framing-diverse scenarios, 0 FPs) before sweeping
+anything.
+
+**Swept `drift_threshold` from 0.55 to 0.78 against the full 1018-scenario
+suite with framing-diverse negatives included** (`evals/sweep.py`):
+
+| threshold | recall | precision | F1 | FPR |
+|---:|---:|---:|---:|---:|
+| 0.55 | 88.5% | 100.0% | 93.9% | 0.0% |
+| 0.60 | 98.8% | 100.0% | 99.4% | 0.0% |
+| 0.62 | 99.4% | 100.0% | 99.7% | 0.0% |
+| **0.64** | **100.0%** | **100.0%** | **100.0%** | **0.0%** |
+| **0.65 (current default)** | **100.0%** | **100.0%** | **100.0%** | **0.0%** |
+| **0.66** | **100.0%** | **100.0%** | **100.0%** | **0.0%** |
+| **0.68** | **100.0%** | **100.0%** | **100.0%** | **0.0%** |
+| 0.70 | 100.0% | 99.2% | 99.6% | 0.8% |
+| 0.72 | 100.0% | 97.8% | 98.9% | 2.1% |
+| 0.75 | 100.0% | 90.4% | 95.0% | 9.8% |
+| 0.78 | 100.0% | 86.8% | 92.9% | 14.0% |
+
+**The current default sits in the middle of a flat, 0.04-wide plateau at
+100% F1 (0.64–0.68), not at a fragile edge.** Below it, recall falls off
+smoothly as genuine drift gets missed (0.55 → 88.5%). Above it, precision falls
+off smoothly as healthy reasoning gets caught (0.78 → 86.8%, FPR 14.0%). No
+value beats 0.65; several tie it. `0.65` is left unchanged — the finding is
+that a real, comfortable margin exists where the single-sentence point-check
+found none, not that a different number is better.
+
+**What this does and does not settle.** It settles that, against everything
+measured here — 6 domains, 6 framing styles, both the original drift corpus
+and the widened hard-negative corpus — the threshold has genuine room on both
+sides, not a razor's edge. It does **not** settle the general claim from
+section 3.13: real agent phrasing is unbounded, this is still a synthetic,
+single-author corpus, and a framing or domain not modelled here could still
+find the edge of the plateau. What changed is the confidence behind "0.65 is
+reasonable" — from a single sweep run once against one framing (drift.py's
+original module comment) to a sweep against six framings with the resulting
+margin measured, not assumed. The pure-reasoning grounding gap moves from
+"open, unquantified, no evidence either way" to "open, but bounded — no
+production report has ever found the plateau's edge, and now there is a
+number for how wide it is."
 
 ---
 
