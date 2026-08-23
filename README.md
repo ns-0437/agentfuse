@@ -647,22 +647,34 @@ deployment manifest → release checklist → smoke tests → payment gateway). 
 
 | | outcome |
 |---|---|
-| real drift traces caught by the breaker | **7 / 11** |
-| caught by `loop` / `progress` / `drift` | **4 / 2 / 1** |
+| real drift traces caught by the breaker | **9 / 11** |
+| caught by `loop` / `progress` / `drift` | **3 / 2 / 4** |
 | false positives on 21 real healthy runs (incl. one 33-event run) | **0** |
 
-That 7/11 replaced an earlier 10/11 that was not real: the eval importer only
-recognised a standalone `state_update` event as progress, but the real adapter
-attaches `state` directly to `TOOL_RESULT` and never emits that event — so real
-traces scored with zero progress signal, and `progress` was tripping on *length*,
-not on the absence of progress. Fixing that exposed a second, deeper bug live in
-both `progress` and `loop`: resetting on "differs from the immediately preceding
+That number moved twice, both times through measured bug fixes, not threshold
+tuning. It started at an unreal 10/11: the eval importer only recognised a
+standalone `state_update` event as progress, but the real adapter attaches
+`state` directly to `TOOL_RESULT` and never emits that event — so real traces
+scored with zero progress signal, and `progress` was tripping on *length*, not
+on the absence of progress. Fixing that also exposed a live bug in both
+`progress` and `loop`: resetting on "differs from the immediately preceding
 state hash" is gameable by any short cycle — an agent alternating two
 individually-static tool calls (e.g. read/write against an unchanging value)
-never repeats its own predecessor, so it evaded both detectors for 12 measured
-cycles. Both now use a bounded recent-window membership test instead of a single
-last-hash comparison. `drift` fired on real data for the first time as a result.
-See [REPORT.md section 3.10 and 3.11](REPORT.md).
+never repeats its own predecessor, evading both for 12 measured cycles. Both now
+use a bounded recent-window membership test instead of a single last-hash
+comparison, landing at an honest 7/11.
+
+The next 2 catches came from `drift` itself, not from the similarity signal —
+measured directly, the embedding trajectory on one missed trace descends
+cleanly from 0.77 to 0.49, well under threshold, for 5 straight turns. `drift`
+never tripped anyway because tool-continuity grounding was granting a tool
+*permanent* amnesty the instant it was used once while the trend was high, with
+no expiry as the trend fell or the tool's later targets left the goal entirely.
+Fixed to expire after `patience + 1` consecutive low-trend uses of that
+specific tool — enough grace to protect a legitimate retry or narrated-failure
+run (both break on revoking too eagerly), not enough to protect sustained real
+drift. `drift` is now the single most common catcher on real cascade traces (4)
+instead of the rarest (1). See [REPORT.md sections 3.10–3.12](REPORT.md).
 
 Counter to the usual assumption, the **3B did not drift and the 7B did**:
 gradual drift needs the competence to follow a chain, so scale increases
