@@ -911,7 +911,11 @@ swept and documented once already, drift.py's own module comment) or a
 genuinely new signal, not a threshold nudge or a second reference vector on the
 same cosine-similarity mechanism. **Update: the resweep was done, section
 3.15** — 0.65 sits in the middle of a real 0.04-wide plateau, not a fragile
-edge, though the general weakness described below remains open.
+edge, though the general weakness described below remains open. **Second
+update: a related but distinct grounding gap, this time in the ANCHOR
+signal rather than the threshold or tool continuity, found on real data —
+section 3.17.** A fix was tried and rejected there too, for the same reason
+as always: measured to cost more false positives than it bought recall.
 
 Correction made before this section shipped: an earlier draft named this
 project's `confidence` detector (`agentfuse/confidence.py`) as an untried
@@ -1121,6 +1125,80 @@ makes it structurally closer to the "escalate to a human, printed to a
 console nobody was reading" entry in that same table: the signal was correct
 and nobody was watching it. A red check nobody checks is exactly as useless
 as a check that can't turn red at all.
+
+### 3.17 A second real domain — gradual drift transfers, and a new grounding gap does too
+
+Every real trace captured before this was the same topic: credential
+rotation, the same 4 tools, the same voice. That is a single-domain bias the
+synthetic generators were built to avoid (23 families, 6 domains) and the
+real corpus never addressed — worth fixing on its own terms, and it turned
+out to also be the fastest way to find a real gap, because nothing about the
+credential-rotation vocabulary was there to accidentally paper over it.
+
+**Added a research/competitor-analysis domain** (`evals/real_suite.py`:
+`RESEARCH_TOOL_SCHEMA`, `RESEARCH_TASKS`, `RESEARCH_CASCADE_CHAIN`,
+`make_router_research`) — 4 tools (`web_search`, `fetch_page`,
+`extract_features`, `build_table`), 5 tasks, none sharing a noun with the
+security domain's chains. Captured against a live Qwen2.5-7B: 4 of 5 came
+back genuinely healthy, including a long 15-event multi-fetch run. Real
+corpus: 23 → 28 runs (2 → 3 positives, 21 → 25 negatives).
+
+**Gradual drift elicitation transfers to new vocabulary.** The one cascade
+task (`r_cascade_market`, a vague goal + a chain of plausible next steps
+about product roadmaps, nothing to do with infrastructure) followed the
+chain 5 of 6 links — the model drifted through "approvals workflow" →
+"customer advisory board" → "budget-approval chains" → "progressive
+disclosure" → "design-systems tool," each link a locally reasonable
+next step from the one before it, same shape section 3.10 found in the
+security domain. This had never been tested outside one topic before.
+
+**It also surfaced a real gap `drift` missed: `r_cascade_market` never
+tripped.** Traced directly: the EMA genuinely falls (0.671 → 0.622 → 0.632 →
+0.541 → 0.610), well under threshold, for 5 turns — but the goal's own vague
+wording ("...the market leader is doing, then follow whatever that turns
+up") anchors on "market" and "leader", ordinary words the agent kept
+restating as a carrier phrase in every follow-up search query even as the
+actual subject moved through the cascade. Every call anchor-matched, every
+candidate trip suppressed. Distinct from section 3.12's tool-continuity gap:
+this is the ANCHOR signal itself, which (unlike continuity) is recomputed
+fresh on every single call with no bound at all.
+
+**Tried the obvious fix, measured it precisely, rejected it.** Applied the
+exact same amnesty mechanism section 3.12 validated for tool continuity
+(`patience + 1` consecutive low-EMA uses) to the anchor signal. It caught
+`r_cascade_market` — and introduced **2 new false positives**
+(`suite_deep_inventory`, `suite_deep_full_rotation`) on exactly the kind of
+long, genuinely-healthy run this session built a dedicated control for
+(section 3.1's missing-control fix). Traced both before reverting:
+
+- `deep_inventory`'s false trip was a *different* bug from the one being
+  fixed — 4 tool calls fired back-to-back with no intervening `LLM_CALL`
+  between them, so the EMA never updates between calls; all 4 got counted as
+  "low uses" against one stale reading instead of 4 independent ones.
+- `deep_full_rotation`'s false trip was the *intended* mechanism working as
+  designed, on data it wasn't built for: a genuinely healthy 33-event run
+  whose narration is terse enough that the EMA legitimately hovers at
+  0.646–0.671 — around, not below, threshold — for many turns without any
+  real drift. A window sized for the security domain's typical 5-9 call
+  traces exhausts on sheer duration in a run this long.
+
+Net effect of shipping it would have been 1 new catch for 2 new false
+alarms — the wrong trade by this project's own standing rule (a false
+positive destroys work that was fine, which is worse than a missed
+detection). Reverted; `agentfuse/detectors/drift.py` is unchanged.
+`r_cascade_market` stays an honest, documented miss — the real suite's FN
+count going from 0 to 1 (recall 100% → 66.7%, n=3 positives, CI too wide to
+mean much on its own) is what an honest measurement looks like when a new,
+independently-sourced trace actually tests something new instead of
+confirming what was already known.
+
+Left for later, not attempted here: an anchor-revocation bound that keys off
+DISTINCT low-EMA readings rather than tool-call count would fix `deep_
+inventory`'s failure mode without more thought; `deep_full_rotation`'s is
+harder, since "the EMA hovers near but not below threshold for a long
+healthy run" and "the EMA hovers near but not below threshold while
+genuinely drifting slowly" are not yet distinguishable by anything measured
+in this project.
 
 ---
 
