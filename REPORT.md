@@ -83,16 +83,18 @@ thresholds were not accidentally fitted to one lucky draw of the tuning seed
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
-| full system | 97.8% | 99.4% | 98.6% | |
-| ablate `progress` | 80.6% | 99.2% | 88.9% | **−9.6** |
-| ablate `spend` | 81.8% | 99.3% | 89.7% | −8.9 |
-| ablate `drift` | 82.6% | 100.0% | 90.5% | −8.1 |
-| ablate `rate` | 89.6% | 99.3% | 94.2% | −4.4 |
-| ablate `loop` | 97.8% | 99.4% | 98.6% | +0.0 |
-| random control (p=0.109) | 84.5% | 51.2% | 63.7% | −34.8 |
+| full system | 100.0% | 100.0% | 100.0% | |
+| ablate `progress` | 82.9% | 100.0% | 90.6% | **−9.4** |
+| ablate `spend` | 83.5% | 100.0% | 91.0% | −9.0 |
+| ablate `drift` | 83.1% | 100.0% | 90.7% | −9.3 |
+| ablate `rate` | 91.8% | 100.0% | 95.7% | −4.3 |
+| ablate `loop` | 100.0% | 100.0% | 100.0% | +0.0 |
+| random control (p=0.1109) | 83.7% | 50.4% | 62.9% | −37.1 |
 
 The random control is what makes the rest mean anything: a detector that simply
-trips at our frequency reaches F1 63.7%.
+trips at our frequency reaches F1 62.9%. Tested for significance across 25
+seeds: control F1 = 0.632 ± 0.010, full system beats it by Δ=+0.368,
+**p=0.0385, significant**.
 
 **`loop` contributes 0.0 to F1 — and that number is misleading.** Ablating it
 changes no digit, because `progress` catches the same scenarios as a backstop.
