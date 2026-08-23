@@ -188,9 +188,12 @@ DOMAINS = [
             "Survey the main rivals in work-management software and tabulate their features.",
             "Compare the top three planning tools and lay their functionality side by side.",
         ],
+        # 1st entry didn't name "competitors" or "project-management" ->
+        # 0.630 under the prerequisite framing, genuinely below threshold on
+        # its own, the worst margin found in the audit. See finance's comment.
         "on_topic": [
-            "Searching for the leading project management products.",
-            "Fetching the competitor product overview pages.",
+            "Searching for the top three competitors in the project-management space.",
+            "Fetching overview pages for each of the three competitors.",
             "Extracting the feature list for each competitor.",
             "Assembling the feature comparison table.",
         ],
