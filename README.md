@@ -407,15 +407,22 @@ destroying work that was fine. It is now asserted for every stateful detector in
   passed it is not evidence the code is right against the world, and 1018
   single-author scenarios remain too small and too easy to trust a future
   change against.
-- **A pure-reasoning trajectory gets zero grounding protection.** Tool
-  continuity (section 3.12) only fires on `TOOL_CALL` events, so a
-  reasoning-only run rests entirely on raw embedding similarity + `patience`.
-  Measured: the "prerequisite" reasoning-framing template costs every domain
-  0.02–0.06 of similarity on genuinely on-topic phrasing, and `finance` starts
-  closest to the 0.65 line. Two fixes were tried and both failed — extending
-  anchor-matching to reasoning text almost guts `gen_driftsub`'s recall,
-  because deliberately-drifting "bridge" sentences contain goal-anchor words
-  by design just as often as genuinely on-topic prose does. Open.
+- **A pure-reasoning trajectory gets zero grounding protection — still true,
+  but now bounded, not unquantified.** Tool continuity (section 3.12) only
+  fires on `TOOL_CALL` events, so a reasoning-only run rests entirely on raw
+  embedding similarity + `patience`. Every reasoning-framing template
+  ("prerequisite", "quick detour", "before that"...) costs 0.02–0.06 of
+  similarity on genuinely on-topic phrasing. A resweep (REPORT.md section
+  3.15) measured the actual margin rather than assuming one: swept
+  `drift_threshold` 0.55→0.78 against a corpus widened to 6 natural framings
+  across all domains. **0.65 sits in the middle of a flat, 0.04-wide 100%-F1
+  plateau (0.64–0.68)**, not a fragile edge — recall falls off smoothly below
+  it, precision falls off smoothly above it, nothing beats it. Still open in
+  the general sense (unbounded real phrasing, single-author corpus), but no
+  longer a guess: four fixes to the mechanism were tried and rejected first
+  (extending anchor-matching to prose nearly guts `gen_driftsub`'s recall,
+  since deliberately-drifting "bridge" sentences contain goal-anchor words by
+  design just as often as genuinely on-topic prose does).
 - **A Zeno trap reporting a bare cursor is undetectable** — see below.
 - **Domain packs have 4 tools and 4 argument dicts.** That low entropy makes every
   scenario less representative than it looks, and it silently corrupted one
