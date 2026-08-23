@@ -648,6 +648,72 @@ byte-for-byte identical. That is itself informative: a benchmark built from
 generators the author wrote cannot find a failure mode the author did not think
 to write a generator for.
 
+### 3.12 The lexical-similarity gap was mostly a grounding gap
+
+Section 3.10 left `drift`'s lexical/embedding similarity ordered against 4
+uncaught real cascade traces and asked whether the signal itself needed
+replacing. Measuring it directly first: the raw embedding trajectory on
+`real_drift_cascade_release__release__r0` descends cleanly from 0.77 to 0.49,
+well under the 0.65 threshold, for 5 consecutive turns. **The similarity signal
+was not the problem on this trace.** `drift` never tripped anyway, because
+`_still_acting_on_goal()` suppressed every candidate trip — 4 of them.
+
+The cause: `_note_action`'s tool-continuity signal (`_on_goal_tools`) granted a
+tool permanent "on-goal" status the instant it was used once while the EMA was
+still high, and never revoked it — not when the EMA later fell, not when the
+same tool was later pointed at something with no relation to the goal.
+`search_files` earned its blessing at turn 3 while the agent was still
+discussing the release checklist, then kept covering every later call to
+`search_files` including ones about on-call rotation logs and checkout-flow
+logs the chain had since wandered into. This is the "known limit" the
+detector's own docstring already named in the abstract; it turned out to be the
+actual, measured cause of 4 real suppressions, not a hypothetical edge case.
+
+**First fix tried: revoke the instant the EMA drops below threshold.** This
+broke a real healthy shape immediately — `flaky_write` (a legitimate retry
+against a transient error) dips to EMA 0.57 on the retry-narration turn alone,
+then recovers to 0.71 the moment the retry succeeds. Revoking on that single
+dip stripped `list_secrets` of its amnesty at exactly the wrong moment and
+produced a false trip. The retry shape this project has now broken on three
+times, in three different detectors (`loop`, `progress`, and now `drift`) — see
+their module docstrings for the first two.
+
+**Fix that held: revoke after `patience + 1` consecutive low-EMA uses of that
+specific tool**, not one, and not `patience` itself — using `patience` exactly
+reintroduces a *different* real regression
+(`drift_narrated_failure_opaque_args`, a hand-authored guard for repeated
+failed searches with opaque URL args that correctly conclude nothing exists):
+revoking in lockstep with the trip condition means the amnesty and the trip
+fire on the same turn, so the tool never actually covers the run it exists to
+cover. Swept both corpora before landing on `patience + 1`:
+
+| revoke rule | synthetic FPs | real cascade caught |
+|---|---|---|
+| instant (any low EMA) | +1 (`flaky_write`) | — |
+| `patience` | +1 (`drift_narrated_failure_opaque_args`) | — |
+| **`patience + 1`** | **0** | **9 / 11** |
+| `patience * 2` | 0 | 8 / 11 |
+
+**Result:**
+
+| | before this section | after |
+|---|---|---|
+| real cascade drift caught | 7 / 11 | **9 / 11** |
+| caught by `drift` | 1 | **4** |
+| caught by `loop` / `progress` | 4 / 2 | 3 / 2 |
+| real-suite false positives (21 healthy runs) | 0 | **0** |
+| synthetic suite (precision / recall / F1) | 99.4% / 97.8% / 98.6% | unchanged |
+
+`drift` is now the single most common catcher on real cascade traces instead of
+the rarest. The 2 traces still missed (`real_drift_cascade`,
+`real_drift_cascade_release__support__r1`) are honestly structural, not a
+grounding or similarity defect: both are short or oscillating trajectories
+whose EMA never sustains 2 consecutive low turns — `real_drift_cascade`
+completes in only 9 steps, and `support__r1`'s EMA hovers 0.64–0.73 the entire
+run without a sustained decline. Lowering `patience` to catch these would
+reopen the exact false positives `patience=2` exists to prevent; both remain
+documented `known_gap`s.
+
 ---
 
 ## 4. Findings worth keeping
@@ -677,6 +743,7 @@ problem, but destroying work that was fine. Fixing one instance moved FPR 7.4% �
 | Identical error treated as a loop | benign retries halted | FP 22 → 6 |
 | `progress`/`loop` reset on "changed from last hash" only | a 2+-cycle of alternating static results evades both forever | 12-cycle live evasion → trips at 4th repeat (section 3.11) |
 | `trace_import.py` only recognised standalone `state_update` events | real traces (state on `TOOL_RESULT`) scored with zero progress signal | inflated a real-drift "catch" from an artifact to a measured 7/11 (section 3.10) |
+| `drift`'s tool continuity granted permanent amnesty | one early high-EMA use blessed a tool forever, regardless of later targets or trend | suppressed 4 real trips on one trace alone; cascade recall 7/11 → 9/11 (section 3.12) |
 
 ### 4.3 Sometimes the benchmark is what's wrong
 
