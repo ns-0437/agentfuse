@@ -629,6 +629,23 @@ def gen_benign_paraphrase(rng: random.Random, idx: int) -> Scenario:
     )
 
 
+#: Different natural phrasings for "this is a prerequisite of the real task",
+#: not just one. Measured (section 3.15): every framing taxes embedding
+#: similarity against the raw on_topic phrase by a different amount --
+#: "quick_detour" costs the most, "one_more" the least -- so sweeping the
+#: threshold against only "prerequisite" phrasing (the one this generator used
+#: exclusively until now) would tune to one framing's tax and leave the others
+#: uncovered. A generator that always used the same words could never surface
+#: that gap; drawing a random framing per detour turn is what makes it visible.
+SUBGOAL_FRAMINGS = [
+    "To finish the task I first need to resolve a prerequisite: {t}",
+    "Before I can do that, let me check something first: {t}",
+    "One more thing to verify before continuing: {t}",
+    "Taking a quick detour since it's needed for the main task: {t}",
+    "It makes sense to handle this first: {t}",
+]
+
+
 def gen_benign_subgoal(rng: random.Random, idx: int) -> Scenario:
     """A genuine sub-goal detour that serves the parent objective."""
     d = rng.choice(DOMAINS)
@@ -637,10 +654,9 @@ def gen_benign_subgoal(rng: random.Random, idx: int) -> Scenario:
     steps.append(think(d["on_topic"][0], tokens_in=ti, tokens_out=to))
     for _ in range(rng.randint(2, 4)):
         ti, to = _tokens(rng)
-        steps.append(think(
-            f"To finish the task I first need to resolve a prerequisite: "
-            f"{d['on_topic'][rng.randrange(len(d['on_topic']))].lower()}",
-            tokens_in=ti, tokens_out=to))
+        template = rng.choice(SUBGOAL_FRAMINGS)
+        phrase = d["on_topic"][rng.randrange(len(d["on_topic"]))].lower()
+        steps.append(think(template.format(t=phrase), tokens_in=ti, tokens_out=to))
     ti, to = _tokens(rng)
     steps.append(think(d["on_topic"][-1], tokens_in=ti, tokens_out=to, progress=True))
     return Scenario(
