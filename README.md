@@ -616,6 +616,12 @@ simply trips at our frequency reaches F1 62.9%. Tested for significance across
 25 seeds: control F1 = 0.632 ± 0.010, full system beats it by Δ=+0.368,
 **p=0.0385, significant**.
 
+Every detector's marginal contribution moved a little versus the 2026-08-18
+run — `drift` and `spend`'s gaps widened (this session strengthened both: the
+tool-continuity fix and the corrected spend ceiling), `progress` and `rate`'s
+narrowed slightly (suite-composition noise, their own recall is unchanged
+elsewhere). `loop` still contributes exactly 0.0 to F1.
+
 **† `loop` at ΔF1 +0.0 is not dead weight, and reading it that way was a mistake
 this project made.** F1 measures *whether* a failure is caught, never *when* —
 and "when" is the entire economic argument for a circuit breaker. Measured across
