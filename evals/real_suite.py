@@ -599,6 +599,31 @@ def _resolve_task(name: str) -> tuple[str, str, list[dict], callable]:
     return prompt, world, RESEARCH_TOOL_SCHEMA, make_router_research
 
 
+def merge_label_specs(existing: list[dict], incoming: list[dict]) -> list[dict]:
+    """Fold this run's specs into the corpus, keyed by id. NEVER a replacement.
+
+    Extracted from `main()` so it can actually be tested. Inline, it could
+    only be exercised by running the whole capture pipeline against a live
+    model, which is why the bug below survived being written, being hit, and
+    being fixed without anything ever guarding it.
+
+    A `--tasks` subset run must not discard the specs for tasks it did not
+    run. Writing `specs` straight out clobbered labels.json down to just the
+    names passed on the command line -- bitten twice on 2026-08-23 (both
+    times restored from git afterwards): once running `--relabel --tasks` on
+    an unrelated investigation, again running `--relabel --tasks` on the
+    research-domain tasks. A tool that requires the operator to remember
+    "always pass every task name or lose the rest of the corpus" will
+    eventually not be remembered.
+
+    Incoming specs win on id collision -- a fresh capture supersedes the old
+    one, which is what `--force` is for.
+    """
+    merged = {s["id"]: s for s in existing}
+    merged.update({s["id"]: s for s in incoming})
+    return list(merged.values())
+
+
 def capture(name: str, base_url: str, model: str, max_turns: int) -> Path:
     prompt, world, tool_schema, router_factory = _resolve_task(name)
     router, _ = router_factory(world)
@@ -696,22 +721,13 @@ def main() -> int:
         print(f"    -> {kind:<9} {obs['reason']}  "
               f"(calls={obs['tool_calls']}, status={obs['status']})")
 
-    # Merge into whatever labels.json already holds, keyed by id -- do NOT
-    # just overwrite. A `--tasks` subset run used to silently discard every
-    # spec for a task not in this run's list, which clobbered the file down
-    # to just the tasks passed on the command line. Bitten by this twice
-    # (2026-08-23, both times restored from git afterwards): once running
-    # --relabel with --tasks on an unrelated investigation, again running
-    # --relabel --tasks on the new research-domain tasks below. A tool that
-    # requires the operator to remember "always pass every task name or lose
-    # the rest of the corpus" will eventually not be remembered.
+    # Merge into whatever labels.json already holds -- see merge_label_specs
+    # for why this must never be a plain overwrite.
     labels_path = OUT / "labels.json"
     existing = json.loads(labels_path.read_text(encoding="utf-8")) if labels_path.exists() else []
-    merged = {s["id"]: s for s in existing}
-    merged.update({s["id"]: s for s in specs})
-    labels_path.write_text(json.dumps(list(merged.values()), indent=2) + "\n",
+    all_specs = merge_label_specs(existing, specs)
+    labels_path.write_text(json.dumps(all_specs, indent=2) + "\n",
                            encoding="utf-8", newline="\n")
-    all_specs = list(merged.values())
     pos = sum(1 for s in all_specs if s["label"]["should_trip"])
     neg = len(all_specs) - pos
     print("\n" + "-" * 78)
