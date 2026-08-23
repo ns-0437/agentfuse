@@ -599,24 +599,22 @@ detector rate-matched to our own trip frequency and run across 25 seeds.
 Without the control, a system that simply trips often would post a respectable
 F1. It is the control that makes the headline number mean anything.
 
-*Table below is from the 2026-08-18 ablation run, predating the 2026-08-23
-generator fixes above (`full system` here reads 97.8%/98.6%, not the current
-100.0%/100.0%) — not yet re-run against the corrected suite. Relative deltas
-between detectors are unlikely to move much; the absolute `full system` row
-should not be quoted as current.*
+*Re-run 2026-08-23 against the corrected (0-error) suite.*
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
-| full system | 97.8% | 99.4% | 98.6% | |
-| ablate `progress` | 80.6% | 99.2% | 88.9% | **−9.6** |
-| ablate `spend` | 81.8% | 99.3% | 89.7% | −8.9 |
-| ablate `drift` | 82.6% | 100.0% | 90.5% | −8.1 |
-| ablate `rate` | 89.6% | 99.3% | 94.2% | −4.4 |
-| ablate `loop` | 97.8% | 99.4% | 98.6% | **+0.0** † |
-| random control (rate-matched) | 84.5% | 51.2% | 63.7% | −34.8 |
+| full system | 100.0% | 100.0% | 100.0% | |
+| ablate `progress` | 82.9% | 100.0% | 90.6% | **−9.4** |
+| ablate `spend` | 83.5% | 100.0% | 91.0% | −9.0 |
+| ablate `drift` | 83.1% | 100.0% | 90.7% | −9.3 |
+| ablate `rate` | 91.8% | 100.0% | 95.7% | −4.3 |
+| ablate `loop` | 100.0% | 100.0% | 100.0% | **+0.0** † |
+| random control (rate-matched, p=0.1109) | 83.7% | 50.4% | 62.9% | −37.1 |
 
 The random control is the row that makes the rest mean anything: a detector that
-simply trips at our frequency reaches F1 63.7%.
+simply trips at our frequency reaches F1 62.9%. Tested for significance across
+25 seeds: control F1 = 0.632 ± 0.010, full system beats it by Δ=+0.368,
+**p=0.0385, significant**.
 
 **† `loop` at ΔF1 +0.0 is not dead weight, and reading it that way was a mistake
 this project made.** F1 measures *whether* a failure is caught, never *when* —
