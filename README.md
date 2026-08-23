@@ -314,7 +314,7 @@ no API key, no cost.
 | F1 | **100.0%** | 98.6% | |
 | False-positive rate | **0.0%** | 0.6% | healthy runs halted |
 | Attribution | **85.5%** | 83.8% | right detector named |
-| Recovery rate | **67.6%** | 67.6% | caught failures put back on track (not re-measured this session) |
+| Recovery rate | **68.5%** | 67.6% | caught failures put back on track |
 
 > **⚠ Do not read 100% F1 as "nearly production ready" or "the benchmark is
 > solved."** Every one of the 14 errors behind the previous 98.6% turned out
