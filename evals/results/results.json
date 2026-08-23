@@ -1,31 +1,31 @@
 {
-  "generated_at": "2026-08-13T07:50:15.533610+00:00",
+  "generated_at": "2026-08-23T10:58:59.276077+00:00",
   "mode": "replay",
   "cost_model": "recovery=1500tok \u00b7 drift_probe=0tok \u00b7 fp_penalty=1500tok",
   "headline": {
     "label": "full system",
-    "n": 936,
-    "tp": 438,
-    "fp": 6,
-    "fn": 11,
-    "tn": 481,
-    "attribution_correct": 367,
-    "attribution_total": 438,
+    "n": 1018,
+    "tp": 490,
+    "fp": 0,
+    "fn": 0,
+    "tn": 528,
+    "attribution_correct": 419,
+    "attribution_total": 490,
     "detected_late": 0,
     "detected_premature": 0,
-    "mean_steps_late": 3.29,
+    "mean_steps_late": 3.26,
     "known_gap_misses": 0,
-    "tokens_saved": 4734157,
-    "supervision_cost": 1882500,
-    "tokens_spent": 16324808,
-    "wasted_if_unsupervised": 8806063,
-    "recovery_eligible": 429,
-    "recovery_attempted": 429,
-    "recovery_usable": 429,
-    "recovery_succeeded": 290,
-    "recovery_escalated": 92,
-    "steering_quality_sum": 1053.0000000000052,
-    "steering_quality_n": 1232,
+    "tokens_saved": 4992422,
+    "supervision_cost": 2124000,
+    "tokens_spent": 17151945,
+    "wasted_if_unsupervised": 9242549,
+    "recovery_eligible": 480,
+    "recovery_attempted": 480,
+    "recovery_usable": 480,
+    "recovery_succeeded": 329,
+    "recovery_escalated": 106,
+    "steering_quality_sum": 1203.5,
+    "steering_quality_n": 1404,
     "clusters_recall": {
       "loop_exact": [
         1
@@ -52,6 +52,9 @@
         1
       ],
       "spend_burn_rate": [
+        1
+      ],
+      "drift_tool_switch_opaque": [
         1
       ],
       "gen_loop": [
@@ -227,19 +230,6 @@
         1,
         1,
         1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        0,
         1,
         1,
         1,
@@ -249,19 +239,32 @@
         1,
         1,
         1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
         1,
         1,
         1,
         1,
         1,
         1,
-        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
         1
       ],
       "gen_stall": [
@@ -330,19 +333,19 @@
         1,
         1,
         1,
-        0,
         1,
         1,
         1,
         1,
         1,
-        0,
         1,
         1,
         1,
         1,
         1,
-        0,
+        1,
+        1,
+        1,
         1,
         1,
         1,
@@ -515,6 +518,48 @@
         1,
         1,
         1
+      ],
+      "gen_drift_actions": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ]
     },
     "clusters_fpr": {
@@ -537,6 +582,9 @@
         0
       ],
       "short_clean": [
+        0
+      ],
+      "drift_narrated_failure_opaque": [
         0
       ],
       "gen_retry": [
@@ -668,19 +716,6 @@
       "gen_subgoal": [
         0,
         0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
         0,
         0,
         0,
@@ -694,12 +729,25 @@
         0,
         0,
         0,
-        1,
         0,
         0,
         0,
         0,
-        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         0,
         0,
         0,
@@ -1042,6 +1090,48 @@
         0,
         0,
         0
+      ],
+      "gen_narrated_failure": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
       ]
     },
     "per_family": {
@@ -1052,9 +1142,9 @@
         "TN": 0
       },
       "drift": {
-        "TP": 74,
+        "TP": 123,
         "FP": 0,
-        "FN": 8,
+        "FN": 0,
         "TN": 0
       },
       "progress": {
@@ -1064,227 +1154,73 @@
         "TN": 0
       },
       "spend": {
-        "TP": 79,
+        "TP": 82,
         "FP": 0,
-        "FN": 3,
+        "FN": 0,
         "TN": 0
       },
       "benign": {
         "TP": 0,
-        "FP": 6,
+        "FP": 0,
         "FN": 0,
-        "TN": 481
+        "TN": 528
       }
     },
-    "failures": [
-      {
-        "scenario": "gen_driftsub_0004",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0013",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0016",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0026",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0028",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0030",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0031",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_driftsub_0038",
-        "outcome": "FN",
-        "family": "drift",
-        "known_gap": false,
-        "expected_detector": "drift",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_spend_0023",
-        "outcome": "FN",
-        "family": "spend",
-        "known_gap": false,
-        "expected_detector": "spend",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_spend_0029",
-        "outcome": "FN",
-        "family": "spend",
-        "known_gap": false,
-        "expected_detector": "spend",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_spend_0035",
-        "outcome": "FN",
-        "family": "spend",
-        "known_gap": false,
-        "expected_detector": "spend",
-        "actual_detector": null,
-        "trip_step_index": null
-      },
-      {
-        "scenario": "gen_subgoal_0002",
-        "outcome": "FP",
-        "family": "benign",
-        "known_gap": false,
-        "expected_detector": null,
-        "actual_detector": "drift",
-        "trip_step_index": 3
-      },
-      {
-        "scenario": "gen_subgoal_0012",
-        "outcome": "FP",
-        "family": "benign",
-        "known_gap": false,
-        "expected_detector": null,
-        "actual_detector": "drift",
-        "trip_step_index": 4
-      },
-      {
-        "scenario": "gen_subgoal_0013",
-        "outcome": "FP",
-        "family": "benign",
-        "known_gap": false,
-        "expected_detector": null,
-        "actual_detector": "drift",
-        "trip_step_index": 2
-      },
-      {
-        "scenario": "gen_subgoal_0014",
-        "outcome": "FP",
-        "family": "benign",
-        "known_gap": false,
-        "expected_detector": null,
-        "actual_detector": "drift",
-        "trip_step_index": 2
-      },
-      {
-        "scenario": "gen_subgoal_0028",
-        "outcome": "FP",
-        "family": "benign",
-        "known_gap": false,
-        "expected_detector": null,
-        "actual_detector": "drift",
-        "trip_step_index": 2
-      },
-      {
-        "scenario": "gen_subgoal_0033",
-        "outcome": "FP",
-        "family": "benign",
-        "known_gap": false,
-        "expected_detector": null,
-        "actual_detector": "drift",
-        "trip_step_index": 2
-      }
-    ],
-    "precision": 0.9865,
-    "recall": 0.9755,
-    "f1": 0.981,
-    "false_positive_rate": 0.0123,
-    "attribution_accuracy": 0.8379,
-    "net_tokens": 2851657,
-    "roi": 2.515,
+    "failures": [],
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "false_positive_rate": 0.0,
+    "attribution_accuracy": 0.8551,
+    "net_tokens": 2868422,
+    "roi": 2.35,
     "recall_ci": {
-      "point": 0.9755,
-      "ci_low": 0.9567,
-      "ci_high": 0.9863,
-      "n": 449
+      "point": 1.0,
+      "ci_low": 0.9922,
+      "ci_high": 1.0,
+      "n": 490
     },
     "precision_ci": {
-      "point": 0.9865,
-      "ci_low": 0.9708,
-      "ci_high": 0.9938,
-      "n": 444
+      "point": 1.0,
+      "ci_low": 0.9922,
+      "ci_high": 1.0,
+      "n": 490
     },
     "fpr_ci": {
-      "point": 0.0123,
-      "ci_low": 0.0057,
-      "ci_high": 0.0266,
-      "n": 487
+      "point": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0072,
+      "n": 528
     },
     "attribution_ci": {
-      "point": 0.8379,
-      "ci_low": 0.8005,
-      "ci_high": 0.8695,
-      "n": 438
+      "point": 0.8551,
+      "ci_low": 0.8212,
+      "ci_high": 0.8835,
+      "n": 490
     },
     "recall_ci_clustered": {
-      "point": 0.9775,
-      "ci_low": 0.9484,
-      "ci_high": 0.9903,
-      "n": 222
+      "point": 1.0,
+      "ci_low": 0.9922,
+      "ci_high": 1.0,
+      "n": 490
     },
     "fpr_ci_clustered": {
-      "point": 0.01,
-      "ci_low": 0.0027,
-      "ci_high": 0.0357,
-      "n": 200
+      "point": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0072,
+      "n": 528
     },
-    "design_effect": 2.02,
-    "intra_cluster_correlation": 0.048,
-    "recovery_rate": 0.676,
+    "design_effect": 1.0,
+    "intra_cluster_correlation": 0.0,
+    "recovery_rate": 0.6854,
     "recovery_ci": {
-      "point": 0.676,
-      "ci_low": 0.6303,
-      "ci_high": 0.7185,
-      "n": 429
+      "point": 0.6854,
+      "ci_low": 0.6425,
+      "ci_high": 0.7253,
+      "n": 480
     },
     "steering_usable_rate": 1.0,
-    "mean_steering_quality": 0.8547
+    "mean_steering_quality": 0.8572
   },
   "families": {
     "benign": {
@@ -1292,18 +1228,18 @@
       "precision": 0.0,
       "counts": {
         "TP": 0,
-        "FP": 6,
+        "FP": 0,
         "FN": 0,
-        "TN": 481
+        "TN": 528
       }
     },
     "drift": {
-      "recall": 0.902,
+      "recall": 1.0,
       "precision": 1.0,
       "counts": {
-        "TP": 74,
+        "TP": 123,
         "FP": 0,
-        "FN": 8,
+        "FN": 0,
         "TN": 0
       }
     },
@@ -1328,12 +1264,12 @@
       }
     },
     "spend": {
-      "recall": 0.963,
+      "recall": 1.0,
       "precision": 1.0,
       "counts": {
-        "TP": 79,
+        "TP": 82,
         "FP": 0,
-        "FN": 3,
+        "FN": 0,
         "TN": 0
       }
     }
@@ -1341,11 +1277,11 @@
   "ablation": [
     {
       "label": "full system",
-      "recall": 0.9755,
-      "precision": 0.9865,
-      "f1": 0.981,
-      "fpr": 0.0123,
-      "net_tokens": 2851657,
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "fpr": 0.0,
+      "net_tokens": 2868422,
       "delta_recall": 0.0,
       "delta_precision": 0.0,
       "delta_f1": 0.0,
@@ -1353,75 +1289,75 @@
     },
     {
       "label": "ablate loop",
-      "recall": 0.9755,
-      "precision": 0.9865,
-      "f1": 0.981,
-      "fpr": 0.0123,
-      "net_tokens": 2776268,
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "fpr": 0.0,
+      "net_tokens": 2789456,
       "delta_recall": 0.0,
       "delta_precision": 0.0,
       "delta_f1": 0.0,
-      "delta_net_tokens": -75389
+      "delta_net_tokens": -78966
     },
     {
       "label": "ablate drift",
-      "recall": 0.8107,
+      "recall": 0.8306,
       "precision": 1.0,
-      "f1": 0.8954,
+      "f1": 0.9075,
       "fpr": 0.0,
-      "net_tokens": 2873350,
-      "delta_recall": -0.1648,
-      "delta_precision": 0.0135,
-      "delta_f1": -0.0855,
-      "delta_net_tokens": 21693
+      "net_tokens": 2772861,
+      "delta_recall": -0.1694,
+      "delta_precision": 0.0,
+      "delta_f1": -0.0925,
+      "delta_net_tokens": -95561
     },
     {
       "label": "ablate progress",
-      "recall": 0.7884,
-      "precision": 0.9833,
-      "f1": 0.8752,
-      "fpr": 0.0123,
-      "net_tokens": 2788517,
-      "delta_recall": -0.1871,
-      "delta_precision": -0.0032,
-      "delta_f1": -0.1058,
-      "delta_net_tokens": -63140
+      "recall": 0.8286,
+      "precision": 1.0,
+      "f1": 0.9062,
+      "fpr": 0.0,
+      "net_tokens": 2796276,
+      "delta_recall": -0.1714,
+      "delta_precision": 0.0,
+      "delta_f1": -0.0938,
+      "delta_net_tokens": -72146
     },
     {
       "label": "ablate rate",
-      "recall": 0.8864,
-      "precision": 0.9851,
-      "f1": 0.9332,
-      "fpr": 0.0123,
-      "net_tokens": 2633910,
-      "delta_recall": -0.0891,
-      "delta_precision": -0.0013,
-      "delta_f1": -0.0478,
+      "recall": 0.9184,
+      "precision": 1.0,
+      "f1": 0.9574,
+      "fpr": 0.0,
+      "net_tokens": 2650675,
+      "delta_recall": -0.0816,
+      "delta_precision": 0.0,
+      "delta_f1": -0.0426,
       "delta_net_tokens": -217747
     },
     {
       "label": "ablate spend",
-      "recall": 0.8018,
-      "precision": 0.9836,
-      "f1": 0.8834,
-      "fpr": 0.0123,
-      "net_tokens": 729118,
-      "delta_recall": -0.1737,
-      "delta_precision": -0.0029,
-      "delta_f1": -0.0975,
-      "delta_net_tokens": -2122539
+      "recall": 0.8347,
+      "precision": 1.0,
+      "f1": 0.9099,
+      "fpr": 0.0,
+      "net_tokens": 763844,
+      "delta_recall": -0.1653,
+      "delta_precision": 0.0,
+      "delta_f1": -0.0901,
+      "delta_net_tokens": -2104578
     },
     {
-      "label": "random control (p=0.1037)",
-      "recall": 0.8285,
-      "precision": 0.5,
-      "f1": 0.6236,
-      "fpr": 0.7639,
-      "net_tokens": 10163462,
-      "delta_recall": -0.147,
-      "delta_precision": -0.4865,
-      "delta_f1": -0.3573,
-      "delta_net_tokens": 7311805
+      "label": "random control (p=0.1109)",
+      "recall": 0.8367,
+      "precision": 0.5043,
+      "f1": 0.6293,
+      "fpr": 0.7633,
+      "net_tokens": 9957445,
+      "delta_recall": -0.1633,
+      "delta_precision": -0.4957,
+      "delta_f1": -0.3707,
+      "delta_net_tokens": 7089023
     }
   ],
   "scenarios": [
@@ -1648,6 +1584,34 @@
       "tokens_saved": 0,
       "supervision_cost": 0,
       "steps_late": null
+    },
+    {
+      "id": "drift_narrated_failure_opaque_args",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "drift_tool_switch_opaque_args",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 1980,
+      "supervision_cost": 1500,
+      "steps_late": 2
     },
     {
       "id": "gen_loop_0000",
@@ -3561,11 +3525,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2898,
+      "tokens_saved": 1328,
       "supervision_cost": 3000,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0017",
@@ -3631,11 +3595,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 3007,
+      "tokens_saved": 1492,
       "supervision_cost": 4500,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0022",
@@ -3645,11 +3609,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 3736,
+      "tokens_saved": 2792,
       "supervision_cost": 7500,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0023",
@@ -3659,11 +3623,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 1384,
+      "tokens_saved": 0,
       "supervision_cost": 6000,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0024",
@@ -3673,11 +3637,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 1352,
+      "tokens_saved": 0,
       "supervision_cost": 1500,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0025",
@@ -3771,11 +3735,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 3120,
+      "tokens_saved": 2331,
       "supervision_cost": 6000,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0032",
@@ -3813,11 +3777,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2336,
+      "tokens_saved": 1078,
       "supervision_cost": 3000,
-      "steps_late": 1
+      "steps_late": 2
     },
     {
       "id": "gen_drift_0035",
@@ -3911,11 +3875,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 2671,
+      "tokens_saved": 1470,
       "supervision_cost": 6000,
-      "steps_late": 2
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0002",
@@ -3927,8 +3891,8 @@
       "expected_detector": "drift",
       "trip_step_index": 3,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 1500,
+      "tokens_saved": 2949,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -3939,25 +3903,25 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2312,
-      "supervision_cost": 6000,
-      "steps_late": 2
+      "tokens_saved": 0,
+      "supervision_cost": 3000,
+      "steps_late": 4
     },
     {
       "id": "gen_driftsub_0004",
       "family": "drift",
-      "outcome": "FN",
+      "outcome": "TP",
       "should_trip": true,
-      "tripped": false,
-      "detector": null,
+      "tripped": true,
+      "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": null,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "tokens_saved": 1607,
+      "supervision_cost": 6000,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0005",
@@ -3970,7 +3934,7 @@
       "trip_step_index": 6,
       "known_gap": false,
       "tokens_saved": 0,
-      "supervision_cost": 7500,
+      "supervision_cost": 4500,
       "steps_late": 4
     },
     {
@@ -3983,9 +3947,9 @@
       "expected_detector": "drift",
       "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 1518,
-      "supervision_cost": 6000,
-      "steps_late": 4
+      "tokens_saved": 1569,
+      "supervision_cost": 3000,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0007",
@@ -3995,10 +3959,10 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2832,
-      "supervision_cost": 3000,
+      "tokens_saved": 2646,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -4009,11 +3973,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 6,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 1500,
-      "steps_late": 3
+      "tokens_saved": 2452,
+      "supervision_cost": 4500,
+      "steps_late": 2
     },
     {
       "id": "gen_driftsub_0009",
@@ -4023,11 +3987,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 1200,
-      "supervision_cost": 4500,
-      "steps_late": 2
+      "tokens_saved": 0,
+      "supervision_cost": 6000,
+      "steps_late": 4
     },
     {
       "id": "gen_driftsub_0010",
@@ -4040,7 +4004,7 @@
       "trip_step_index": 6,
       "known_gap": false,
       "tokens_saved": 0,
-      "supervision_cost": 1500,
+      "supervision_cost": 3000,
       "steps_late": 4
     },
     {
@@ -4051,11 +4015,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 7,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 967,
-      "supervision_cost": 4500,
-      "steps_late": 4
+      "tokens_saved": 1297,
+      "supervision_cost": 1500,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0012",
@@ -4065,25 +4029,25 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 6,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 7500,
-      "steps_late": 4
+      "tokens_saved": 1221,
+      "supervision_cost": 3000,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0013",
       "family": "drift",
-      "outcome": "FN",
+      "outcome": "TP",
       "should_trip": true,
-      "tripped": false,
-      "detector": null,
+      "tripped": true,
+      "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": null,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "tokens_saved": 1397,
+      "supervision_cost": 3000,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0014",
@@ -4093,11 +4057,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 5,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 1559,
-      "supervision_cost": 3000,
-      "steps_late": 2
+      "tokens_saved": 2129,
+      "supervision_cost": 1500,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0015",
@@ -4109,23 +4073,23 @@
       "expected_detector": "drift",
       "trip_step_index": 3,
       "known_gap": false,
-      "tokens_saved": 1981,
-      "supervision_cost": 6000,
+      "tokens_saved": 3638,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
       "id": "gen_driftsub_0016",
       "family": "drift",
-      "outcome": "FN",
+      "outcome": "TP",
       "should_trip": true,
-      "tripped": false,
-      "detector": null,
+      "tripped": true,
+      "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": null,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "tokens_saved": 2212,
+      "supervision_cost": 1500,
+      "steps_late": 2
     },
     {
       "id": "gen_driftsub_0017",
@@ -4137,9 +4101,9 @@
       "expected_detector": "drift",
       "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 3000,
-      "steps_late": 2
+      "tokens_saved": 1052,
+      "supervision_cost": 1500,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0018",
@@ -4151,8 +4115,8 @@
       "expected_detector": "drift",
       "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 1117,
-      "supervision_cost": 1500,
+      "tokens_saved": 2646,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -4163,9 +4127,9 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 958,
+      "tokens_saved": 4463,
       "supervision_cost": 3000,
       "steps_late": 2
     },
@@ -4177,11 +4141,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 6,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 901,
+      "tokens_saved": 761,
       "supervision_cost": 3000,
-      "steps_late": 4
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0021",
@@ -4191,11 +4155,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 3116,
-      "supervision_cost": 1500,
-      "steps_late": 2
+      "tokens_saved": 1592,
+      "supervision_cost": 3000,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0022",
@@ -4207,9 +4171,9 @@
       "expected_detector": "drift",
       "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2397,
-      "supervision_cost": 4500,
-      "steps_late": 2
+      "tokens_saved": 890,
+      "supervision_cost": 1500,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0023",
@@ -4219,14 +4183,98 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 5,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 1579,
+      "tokens_saved": 1178,
+      "supervision_cost": 1500,
+      "steps_late": 3
+    },
+    {
+      "id": "gen_driftsub_0024",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 2444,
       "supervision_cost": 1500,
       "steps_late": 2
     },
     {
-      "id": "gen_driftsub_0024",
+      "id": "gen_driftsub_0025",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 6,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 3000,
+      "steps_late": 4
+    },
+    {
+      "id": "gen_driftsub_0026",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 2367,
+      "supervision_cost": 6000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_driftsub_0027",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 2969,
+      "supervision_cost": 7500,
+      "steps_late": 3
+    },
+    {
+      "id": "gen_driftsub_0028",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 2836,
+      "supervision_cost": 3000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_driftsub_0029",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 5,
+      "known_gap": false,
+      "tokens_saved": 1580,
+      "supervision_cost": 1500,
+      "steps_late": 3
+    },
+    {
+      "id": "gen_driftsub_0030",
       "family": "drift",
       "outcome": "TP",
       "should_trip": true,
@@ -4240,7 +4288,7 @@
       "steps_late": 4
     },
     {
-      "id": "gen_driftsub_0025",
+      "id": "gen_driftsub_0031",
       "family": "drift",
       "outcome": "TP",
       "should_trip": true,
@@ -4249,93 +4297,9 @@
       "expected_detector": "drift",
       "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 1363,
-      "supervision_cost": 7500,
-      "steps_late": 2
-    },
-    {
-      "id": "gen_driftsub_0026",
-      "family": "drift",
-      "outcome": "FN",
-      "should_trip": true,
-      "tripped": false,
-      "detector": null,
-      "expected_detector": "drift",
-      "trip_step_index": null,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
-    },
-    {
-      "id": "gen_driftsub_0027",
-      "family": "drift",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "drift",
-      "expected_detector": "drift",
-      "trip_step_index": 3,
-      "known_gap": false,
       "tokens_saved": 0,
       "supervision_cost": 1500,
-      "steps_late": 2
-    },
-    {
-      "id": "gen_driftsub_0028",
-      "family": "drift",
-      "outcome": "FN",
-      "should_trip": true,
-      "tripped": false,
-      "detector": null,
-      "expected_detector": "drift",
-      "trip_step_index": null,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
-    },
-    {
-      "id": "gen_driftsub_0029",
-      "family": "drift",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "drift",
-      "expected_detector": "drift",
-      "trip_step_index": 6,
-      "known_gap": false,
-      "tokens_saved": 1404,
-      "supervision_cost": 3000,
-      "steps_late": 3
-    },
-    {
-      "id": "gen_driftsub_0030",
-      "family": "drift",
-      "outcome": "FN",
-      "should_trip": true,
-      "tripped": false,
-      "detector": null,
-      "expected_detector": "drift",
-      "trip_step_index": null,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
-    },
-    {
-      "id": "gen_driftsub_0031",
-      "family": "drift",
-      "outcome": "FN",
-      "should_trip": true,
-      "tripped": false,
-      "detector": null,
-      "expected_detector": "drift",
-      "trip_step_index": null,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "steps_late": 4
     },
     {
       "id": "gen_driftsub_0032",
@@ -4345,11 +4309,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2308,
-      "supervision_cost": 3000,
-      "steps_late": 2
+      "tokens_saved": 2063,
+      "supervision_cost": 7500,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0033",
@@ -4359,11 +4323,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 5,
+      "trip_step_index": 7,
       "known_gap": false,
-      "tokens_saved": 3146,
-      "supervision_cost": 3000,
-      "steps_late": 3
+      "tokens_saved": 0,
+      "supervision_cost": 6000,
+      "steps_late": 4
     },
     {
       "id": "gen_driftsub_0034",
@@ -4373,11 +4337,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 6,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 0,
+      "tokens_saved": 1537,
       "supervision_cost": 3000,
-      "steps_late": 4
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0035",
@@ -4389,7 +4353,7 @@
       "expected_detector": "drift",
       "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 0,
+      "tokens_saved": 2572,
       "supervision_cost": 7500,
       "steps_late": 2
     },
@@ -4401,11 +4365,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 3858,
-      "supervision_cost": 7500,
-      "steps_late": 2
+      "tokens_saved": 0,
+      "supervision_cost": 6000,
+      "steps_late": 4
     },
     {
       "id": "gen_driftsub_0037",
@@ -4415,25 +4379,25 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 4,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 1500,
-      "steps_late": 2
+      "tokens_saved": 2463,
+      "supervision_cost": 6000,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0038",
       "family": "drift",
-      "outcome": "FN",
+      "outcome": "TP",
       "should_trip": true,
-      "tripped": false,
-      "detector": null,
+      "tripped": true,
+      "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": null,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "tokens_saved": 1485,
+      "supervision_cost": 1500,
+      "steps_late": 3
     },
     {
       "id": "gen_driftsub_0039",
@@ -4443,10 +4407,10 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "drift",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 6000,
+      "tokens_saved": 2477,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -4457,9 +4421,9 @@
       "tripped": true,
       "detector": "progress",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 4139,
+      "tokens_saved": 6667,
       "supervision_cost": 6000,
       "steps_late": 3
     },
@@ -4473,8 +4437,8 @@
       "expected_detector": "progress",
       "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 8144,
-      "supervision_cost": 7500,
+      "tokens_saved": 4592,
+      "supervision_cost": 6000,
       "steps_late": 3
     },
     {
@@ -4485,10 +4449,10 @@
       "tripped": true,
       "detector": "progress",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 4535,
-      "supervision_cost": 7500,
+      "tokens_saved": 8277,
+      "supervision_cost": 4500,
       "steps_late": 3
     },
     {
@@ -4501,8 +4465,8 @@
       "expected_detector": "progress",
       "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 9098,
-      "supervision_cost": 6000,
+      "tokens_saved": 7917,
+      "supervision_cost": 1500,
       "steps_late": 3
     },
     {
@@ -4513,42 +4477,14 @@
       "tripped": true,
       "detector": "progress",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 5836,
+      "tokens_saved": 8926,
       "supervision_cost": 1500,
       "steps_late": 3
     },
     {
       "id": "gen_stall_0005",
-      "family": "progress",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "progress",
-      "expected_detector": "progress",
-      "trip_step_index": 4,
-      "known_gap": false,
-      "tokens_saved": 8073,
-      "supervision_cost": 4500,
-      "steps_late": 3
-    },
-    {
-      "id": "gen_stall_0006",
-      "family": "progress",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "progress",
-      "expected_detector": "progress",
-      "trip_step_index": 5,
-      "known_gap": false,
-      "tokens_saved": 7219,
-      "supervision_cost": 1500,
-      "steps_late": 3
-    },
-    {
-      "id": "gen_stall_0007",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4562,7 +4498,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0008",
+      "id": "gen_stall_0006",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4576,7 +4512,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0009",
+      "id": "gen_stall_0007",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4590,7 +4526,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0010",
+      "id": "gen_stall_0008",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4604,7 +4540,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0011",
+      "id": "gen_stall_0009",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4618,7 +4554,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0012",
+      "id": "gen_stall_0010",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4632,7 +4568,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0013",
+      "id": "gen_stall_0011",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4646,7 +4582,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0014",
+      "id": "gen_stall_0012",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4660,7 +4596,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0015",
+      "id": "gen_stall_0013",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4674,7 +4610,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0016",
+      "id": "gen_stall_0014",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4688,7 +4624,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0017",
+      "id": "gen_stall_0015",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4702,7 +4638,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0018",
+      "id": "gen_stall_0016",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4716,7 +4652,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0019",
+      "id": "gen_stall_0017",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4730,7 +4666,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0020",
+      "id": "gen_stall_0018",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4744,7 +4680,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0021",
+      "id": "gen_stall_0019",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4758,7 +4694,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0022",
+      "id": "gen_stall_0020",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4772,7 +4708,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0023",
+      "id": "gen_stall_0021",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4786,7 +4722,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0024",
+      "id": "gen_stall_0022",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4800,7 +4736,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0025",
+      "id": "gen_stall_0023",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4814,7 +4750,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0026",
+      "id": "gen_stall_0024",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4828,7 +4764,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0027",
+      "id": "gen_stall_0025",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4842,7 +4778,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0028",
+      "id": "gen_stall_0026",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4856,7 +4792,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0029",
+      "id": "gen_stall_0027",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4870,7 +4806,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0030",
+      "id": "gen_stall_0028",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4884,7 +4820,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0031",
+      "id": "gen_stall_0029",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4898,7 +4834,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0032",
+      "id": "gen_stall_0030",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4912,7 +4848,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0033",
+      "id": "gen_stall_0031",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4926,7 +4862,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0034",
+      "id": "gen_stall_0032",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4940,7 +4876,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0035",
+      "id": "gen_stall_0033",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4954,7 +4890,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0036",
+      "id": "gen_stall_0034",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4968,7 +4904,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0037",
+      "id": "gen_stall_0035",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4982,7 +4918,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0038",
+      "id": "gen_stall_0036",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -4996,7 +4932,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_stall_0039",
+      "id": "gen_stall_0037",
       "family": "progress",
       "outcome": "TP",
       "should_trip": true,
@@ -5010,6 +4946,34 @@
       "steps_late": 3
     },
     {
+      "id": "gen_stall_0038",
+      "family": "progress",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "progress",
+      "expected_detector": "progress",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 8556,
+      "supervision_cost": 9000,
+      "steps_late": 3
+    },
+    {
+      "id": "gen_stall_0039",
+      "family": "progress",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "progress",
+      "expected_detector": "progress",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 6615,
+      "supervision_cost": 1500,
+      "steps_late": 3
+    },
+    {
       "id": "gen_spend_0000",
       "family": "spend",
       "outcome": "TP",
@@ -5017,42 +4981,14 @@
       "tripped": true,
       "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": 5,
+      "trip_step_index": 7,
       "known_gap": false,
-      "tokens_saved": 41186,
-      "supervision_cost": 3000,
-      "steps_late": 3
+      "tokens_saved": 4649,
+      "supervision_cost": 4500,
+      "steps_late": 7
     },
     {
       "id": "gen_spend_0001",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 5,
-      "known_gap": false,
-      "tokens_saved": 41617,
-      "supervision_cost": 4500,
-      "steps_late": 3
-    },
-    {
-      "id": "gen_spend_0002",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 11115,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0003",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5066,7 +5002,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0004",
+      "id": "gen_spend_0002",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5080,7 +5016,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0005",
+      "id": "gen_spend_0003",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5094,7 +5030,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0006",
+      "id": "gen_spend_0004",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5108,7 +5044,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0007",
+      "id": "gen_spend_0005",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5122,7 +5058,7 @@
       "steps_late": 9
     },
     {
-      "id": "gen_spend_0008",
+      "id": "gen_spend_0006",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5136,35 +5072,35 @@
       "steps_late": 3
     },
     {
+      "id": "gen_spend_0007",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 6,
+      "known_gap": false,
+      "tokens_saved": 4186,
+      "supervision_cost": 4500,
+      "steps_late": 6
+    },
+    {
+      "id": "gen_spend_0008",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 6,
+      "known_gap": false,
+      "tokens_saved": 6540,
+      "supervision_cost": 4500,
+      "steps_late": 6
+    },
+    {
       "id": "gen_spend_0009",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0010",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 2054,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0011",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5178,7 +5114,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0012",
+      "id": "gen_spend_0010",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5192,6 +5128,34 @@
       "steps_late": 3
     },
     {
+      "id": "gen_spend_0011",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 7,
+      "known_gap": false,
+      "tokens_saved": 4404,
+      "supervision_cost": 4500,
+      "steps_late": 7
+    },
+    {
+      "id": "gen_spend_0012",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 9,
+      "known_gap": false,
+      "tokens_saved": 8761,
+      "supervision_cost": 4500,
+      "steps_late": 9
+    },
+    {
       "id": "gen_spend_0013",
       "family": "spend",
       "outcome": "TP",
@@ -5201,40 +5165,12 @@
       "expected_detector": "spend",
       "trip_step_index": 8,
       "known_gap": false,
-      "tokens_saved": 2050,
+      "tokens_saved": 8231,
       "supervision_cost": 4500,
       "steps_late": 8
     },
     {
       "id": "gen_spend_0014",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 10789,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0015",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 9,
-      "known_gap": false,
-      "tokens_saved": 6108,
-      "supervision_cost": 4500,
-      "steps_late": 9
-    },
-    {
-      "id": "gen_spend_0016",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5248,21 +5184,21 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0017",
+      "id": "gen_spend_0015",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
       "tripped": true,
       "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": 8,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 0,
+      "tokens_saved": 4368,
       "supervision_cost": 4500,
-      "steps_late": 8
+      "steps_late": 6
     },
     {
-      "id": "gen_spend_0018",
+      "id": "gen_spend_0016",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5276,7 +5212,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0019",
+      "id": "gen_spend_0017",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5290,6 +5226,34 @@
       "steps_late": 3
     },
     {
+      "id": "gen_spend_0018",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 9,
+      "known_gap": false,
+      "tokens_saved": 8881,
+      "supervision_cost": 4500,
+      "steps_late": 9
+    },
+    {
+      "id": "gen_spend_0019",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 9,
+      "known_gap": false,
+      "tokens_saved": 9042,
+      "supervision_cost": 4500,
+      "steps_late": 9
+    },
+    {
       "id": "gen_spend_0020",
       "family": "spend",
       "outcome": "TP",
@@ -5297,11 +5261,11 @@
       "tripped": true,
       "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": 8,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 11137,
+      "tokens_saved": 4770,
       "supervision_cost": 4500,
-      "steps_late": 8
+      "steps_late": 6
     },
     {
       "id": "gen_spend_0021",
@@ -5311,42 +5275,14 @@
       "tripped": true,
       "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": 8,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 11441,
+      "tokens_saved": 4324,
       "supervision_cost": 4500,
-      "steps_late": 8
+      "steps_late": 6
     },
     {
       "id": "gen_spend_0022",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0023",
-      "family": "spend",
-      "outcome": "FN",
-      "should_trip": true,
-      "tripped": false,
-      "detector": null,
-      "expected_detector": "spend",
-      "trip_step_index": null,
-      "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
-    },
-    {
-      "id": "gen_spend_0024",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5360,35 +5296,35 @@
       "steps_late": 3
     },
     {
+      "id": "gen_spend_0023",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 7,
+      "known_gap": false,
+      "tokens_saved": 6435,
+      "supervision_cost": 4500,
+      "steps_late": 7
+    },
+    {
+      "id": "gen_spend_0024",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 9,
+      "known_gap": false,
+      "tokens_saved": 9214,
+      "supervision_cost": 4500,
+      "steps_late": 9
+    },
+    {
       "id": "gen_spend_0025",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 4290,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0026",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 11380,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0027",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5402,7 +5338,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0028",
+      "id": "gen_spend_0026",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5416,21 +5352,21 @@
       "steps_late": 9
     },
     {
-      "id": "gen_spend_0029",
+      "id": "gen_spend_0027",
       "family": "spend",
-      "outcome": "FN",
+      "outcome": "TP",
       "should_trip": true,
-      "tripped": false,
-      "detector": null,
+      "tripped": true,
+      "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": null,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "tokens_saved": 4632,
+      "supervision_cost": 4500,
+      "steps_late": 6
     },
     {
-      "id": "gen_spend_0030",
+      "id": "gen_spend_0028",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5444,21 +5380,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0031",
-      "family": "spend",
-      "outcome": "TP",
-      "should_trip": true,
-      "tripped": true,
-      "detector": "spend",
-      "expected_detector": "spend",
-      "trip_step_index": 8,
-      "known_gap": false,
-      "tokens_saved": 8966,
-      "supervision_cost": 4500,
-      "steps_late": 8
-    },
-    {
-      "id": "gen_spend_0032",
+      "id": "gen_spend_0029",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5467,12 +5389,26 @@
       "expected_detector": "spend",
       "trip_step_index": 9,
       "known_gap": false,
-      "tokens_saved": 2081,
+      "tokens_saved": 6733,
       "supervision_cost": 4500,
       "steps_late": 9
     },
     {
-      "id": "gen_spend_0033",
+      "id": "gen_spend_0030",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 7,
+      "known_gap": false,
+      "tokens_saved": 6870,
+      "supervision_cost": 4500,
+      "steps_late": 7
+    },
+    {
+      "id": "gen_spend_0031",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5486,35 +5422,35 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0034",
+      "id": "gen_spend_0032",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
       "tripped": true,
       "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": 8,
+      "trip_step_index": 9,
       "known_gap": false,
-      "tokens_saved": 8845,
+      "tokens_saved": 6569,
       "supervision_cost": 4500,
-      "steps_late": 8
+      "steps_late": 9
     },
     {
-      "id": "gen_spend_0035",
+      "id": "gen_spend_0033",
       "family": "spend",
-      "outcome": "FN",
+      "outcome": "TP",
       "should_trip": true,
-      "tripped": false,
-      "detector": null,
+      "tripped": true,
+      "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": null,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 0,
-      "supervision_cost": 0,
-      "steps_late": null
+      "tokens_saved": 4135,
+      "supervision_cost": 4500,
+      "steps_late": 6
     },
     {
-      "id": "gen_spend_0036",
+      "id": "gen_spend_0034",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5528,7 +5464,7 @@
       "steps_late": 3
     },
     {
-      "id": "gen_spend_0037",
+      "id": "gen_spend_0035",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5542,7 +5478,7 @@
       "steps_late": 8
     },
     {
-      "id": "gen_spend_0038",
+      "id": "gen_spend_0036",
       "family": "spend",
       "outcome": "TP",
       "should_trip": true,
@@ -5556,6 +5492,34 @@
       "steps_late": 3
     },
     {
+      "id": "gen_spend_0037",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 7,
+      "known_gap": false,
+      "tokens_saved": 6766,
+      "supervision_cost": 4500,
+      "steps_late": 7
+    },
+    {
+      "id": "gen_spend_0038",
+      "family": "spend",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "spend",
+      "expected_detector": "spend",
+      "trip_step_index": 8,
+      "known_gap": false,
+      "tokens_saved": 6641,
+      "supervision_cost": 4500,
+      "steps_late": 8
+    },
+    {
       "id": "gen_spend_0039",
       "family": "spend",
       "outcome": "TP",
@@ -5563,11 +5527,11 @@
       "tripped": true,
       "detector": "spend",
       "expected_detector": "spend",
-      "trip_step_index": 9,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 2292,
-      "supervision_cost": 4500,
-      "steps_late": 9
+      "tokens_saved": 49239,
+      "supervision_cost": 7500,
+      "steps_late": 3
     },
     {
       "id": "gen_longloop_0000",
@@ -5577,10 +5541,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 35,
+      "trip_step_index": 29,
       "known_gap": false,
-      "tokens_saved": 6851,
-      "supervision_cost": 6000,
+      "tokens_saved": 4328,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -5591,9 +5555,9 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 31,
+      "trip_step_index": 28,
       "known_gap": false,
-      "tokens_saved": 2847,
+      "tokens_saved": 7823,
       "supervision_cost": 4500,
       "steps_late": 2
     },
@@ -5605,10 +5569,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 32,
+      "trip_step_index": 31,
       "known_gap": false,
-      "tokens_saved": 4335,
-      "supervision_cost": 7500,
+      "tokens_saved": 6553,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -5619,9 +5583,9 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 24,
+      "trip_step_index": 36,
       "known_gap": false,
-      "tokens_saved": 2775,
+      "tokens_saved": 7620,
       "supervision_cost": 1500,
       "steps_late": 2
     },
@@ -5633,10 +5597,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 29,
+      "trip_step_index": 22,
       "known_gap": false,
-      "tokens_saved": 5474,
-      "supervision_cost": 3000,
+      "tokens_saved": 4807,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -5647,10 +5611,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 23,
+      "trip_step_index": 35,
       "known_gap": false,
-      "tokens_saved": 3300,
-      "supervision_cost": 7500,
+      "tokens_saved": 5154,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -5661,10 +5625,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 24,
+      "trip_step_index": 28,
       "known_gap": false,
-      "tokens_saved": 6723,
-      "supervision_cost": 3000,
+      "tokens_saved": 5935,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -5675,10 +5639,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 26,
+      "trip_step_index": 32,
       "known_gap": false,
-      "tokens_saved": 6283,
-      "supervision_cost": 1500,
+      "tokens_saved": 6079,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -5689,9 +5653,9 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 34,
+      "trip_step_index": 25,
       "known_gap": false,
-      "tokens_saved": 5897,
+      "tokens_saved": 2410,
       "supervision_cost": 1500,
       "steps_late": 2
     },
@@ -5703,9 +5667,9 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 30,
+      "trip_step_index": 24,
       "known_gap": false,
-      "tokens_saved": 6545,
+      "tokens_saved": 4321,
       "supervision_cost": 7500,
       "steps_late": 2
     },
@@ -5717,10 +5681,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 34,
+      "trip_step_index": 22,
       "known_gap": false,
-      "tokens_saved": 3866,
-      "supervision_cost": 4500,
+      "tokens_saved": 4314,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -5731,10 +5695,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 26,
+      "trip_step_index": 22,
       "known_gap": false,
-      "tokens_saved": 7746,
-      "supervision_cost": 1500,
+      "tokens_saved": 2713,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -5747,7 +5711,7 @@
       "expected_detector": "loop",
       "trip_step_index": 30,
       "known_gap": false,
-      "tokens_saved": 4254,
+      "tokens_saved": 7921,
       "supervision_cost": 3000,
       "steps_late": 2
     },
@@ -5761,7 +5725,7 @@
       "expected_detector": "loop",
       "trip_step_index": 27,
       "known_gap": false,
-      "tokens_saved": 2498,
+      "tokens_saved": 4466,
       "supervision_cost": 3000,
       "steps_late": 2
     },
@@ -5773,10 +5737,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 24,
+      "trip_step_index": 33,
       "known_gap": false,
-      "tokens_saved": 3860,
-      "supervision_cost": 3000,
+      "tokens_saved": 3156,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -5787,10 +5751,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 22,
+      "trip_step_index": 26,
       "known_gap": false,
-      "tokens_saved": 2329,
-      "supervision_cost": 1500,
+      "tokens_saved": 4722,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -5801,10 +5765,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 35,
+      "trip_step_index": 32,
       "known_gap": false,
-      "tokens_saved": 3991,
-      "supervision_cost": 6000,
+      "tokens_saved": 6483,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -5815,10 +5779,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 27,
+      "trip_step_index": 23,
       "known_gap": false,
-      "tokens_saved": 5442,
-      "supervision_cost": 6000,
+      "tokens_saved": 2860,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -5829,10 +5793,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 26,
+      "trip_step_index": 32,
       "known_gap": false,
-      "tokens_saved": 6679,
-      "supervision_cost": 6000,
+      "tokens_saved": 4058,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -5843,10 +5807,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 28,
+      "trip_step_index": 27,
       "known_gap": false,
-      "tokens_saved": 5047,
-      "supervision_cost": 4500,
+      "tokens_saved": 2996,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -5857,10 +5821,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 36,
+      "trip_step_index": 33,
       "known_gap": false,
-      "tokens_saved": 3115,
-      "supervision_cost": 3000,
+      "tokens_saved": 2027,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -5871,10 +5835,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 23,
+      "trip_step_index": 33,
       "known_gap": false,
-      "tokens_saved": 2140,
-      "supervision_cost": 1500,
+      "tokens_saved": 7554,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -5885,10 +5849,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 30,
+      "trip_step_index": 23,
       "known_gap": false,
-      "tokens_saved": 3405,
-      "supervision_cost": 3000,
+      "tokens_saved": 1904,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -5899,9 +5863,9 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 34,
+      "trip_step_index": 36,
       "known_gap": false,
-      "tokens_saved": 2711,
+      "tokens_saved": 5972,
       "supervision_cost": 4500,
       "steps_late": 2
     },
@@ -5915,7 +5879,7 @@
       "expected_detector": "loop",
       "trip_step_index": 29,
       "known_gap": false,
-      "tokens_saved": 2362,
+      "tokens_saved": 6670,
       "supervision_cost": 7500,
       "steps_late": 2
     },
@@ -5927,10 +5891,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 22,
+      "trip_step_index": 23,
       "known_gap": false,
-      "tokens_saved": 7160,
-      "supervision_cost": 6000,
+      "tokens_saved": 4448,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -5941,10 +5905,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 31,
+      "trip_step_index": 23,
       "known_gap": false,
-      "tokens_saved": 6180,
-      "supervision_cost": 3000,
+      "tokens_saved": 4976,
+      "supervision_cost": 6000,
       "steps_late": 2
     },
     {
@@ -5955,10 +5919,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 35,
+      "trip_step_index": 22,
       "known_gap": false,
-      "tokens_saved": 2779,
-      "supervision_cost": 7500,
+      "tokens_saved": 2324,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -5969,9 +5933,9 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 26,
+      "trip_step_index": 29,
       "known_gap": false,
-      "tokens_saved": 4983,
+      "tokens_saved": 6767,
       "supervision_cost": 3000,
       "steps_late": 2
     },
@@ -5983,10 +5947,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 24,
+      "trip_step_index": 25,
       "known_gap": false,
-      "tokens_saved": 6792,
-      "supervision_cost": 1500,
+      "tokens_saved": 1895,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -5997,10 +5961,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 33,
+      "trip_step_index": 27,
       "known_gap": false,
-      "tokens_saved": 5432,
-      "supervision_cost": 1500,
+      "tokens_saved": 5115,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -6011,10 +5975,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 35,
+      "trip_step_index": 34,
       "known_gap": false,
-      "tokens_saved": 6676,
-      "supervision_cost": 1500,
+      "tokens_saved": 6685,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -6025,10 +5989,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 27,
+      "trip_step_index": 23,
       "known_gap": false,
-      "tokens_saved": 6979,
-      "supervision_cost": 4500,
+      "tokens_saved": 7048,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -6039,10 +6003,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 31,
+      "trip_step_index": 32,
       "known_gap": false,
-      "tokens_saved": 4154,
-      "supervision_cost": 3000,
+      "tokens_saved": 4298,
+      "supervision_cost": 7500,
       "steps_late": 2
     },
     {
@@ -6053,10 +6017,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 32,
+      "trip_step_index": 27,
       "known_gap": false,
-      "tokens_saved": 5193,
-      "supervision_cost": 7500,
+      "tokens_saved": 3109,
+      "supervision_cost": 1500,
       "steps_late": 2
     },
     {
@@ -6067,10 +6031,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 33,
+      "trip_step_index": 25,
       "known_gap": false,
-      "tokens_saved": 2927,
-      "supervision_cost": 7500,
+      "tokens_saved": 6098,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -6081,10 +6045,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 22,
+      "trip_step_index": 28,
       "known_gap": false,
-      "tokens_saved": 7014,
-      "supervision_cost": 3000,
+      "tokens_saved": 5705,
+      "supervision_cost": 4500,
       "steps_late": 2
     },
     {
@@ -6095,10 +6059,10 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 25,
+      "trip_step_index": 30,
       "known_gap": false,
-      "tokens_saved": 6975,
-      "supervision_cost": 1500,
+      "tokens_saved": 8110,
+      "supervision_cost": 3000,
       "steps_late": 2
     },
     {
@@ -6111,8 +6075,8 @@
       "expected_detector": "loop",
       "trip_step_index": 29,
       "known_gap": false,
-      "tokens_saved": 2360,
-      "supervision_cost": 7500,
+      "tokens_saved": 5687,
+      "supervision_cost": 6000,
       "steps_late": 2
     },
     {
@@ -6123,7 +6087,7 @@
       "tripped": true,
       "detector": "loop",
       "expected_detector": "loop",
-      "trip_step_index": 36,
+      "trip_step_index": 32,
       "known_gap": false,
       "tokens_saved": 2744,
       "supervision_cost": 3000,
@@ -6165,11 +6129,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 13622,
+      "tokens_saved": 11415,
       "supervision_cost": 4500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0003",
@@ -6179,11 +6143,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 9718,
+      "tokens_saved": 7256,
       "supervision_cost": 1500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0004",
@@ -6193,11 +6157,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 22393,
+      "tokens_saved": 20165,
       "supervision_cost": 9000,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0005",
@@ -6207,11 +6171,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 13813,
+      "tokens_saved": 10463,
       "supervision_cost": 9000,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0006",
@@ -6277,11 +6241,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 15781,
+      "tokens_saved": 13349,
       "supervision_cost": 1500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0011",
@@ -6417,11 +6381,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 11070,
+      "tokens_saved": 8146,
       "supervision_cost": 4500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0021",
@@ -6543,11 +6507,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 11911,
+      "tokens_saved": 9514,
       "supervision_cost": 9000,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0030",
@@ -6585,11 +6549,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 10867,
+      "tokens_saved": 8620,
       "supervision_cost": 1500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0033",
@@ -6627,11 +6591,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 3,
+      "trip_step_index": 5,
       "known_gap": false,
-      "tokens_saved": 11219,
+      "tokens_saved": 8467,
       "supervision_cost": 1500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_oscillate_0036",
@@ -6683,11 +6647,11 @@
       "tripped": true,
       "detector": "drift",
       "expected_detector": "progress",
-      "trip_step_index": 4,
+      "trip_step_index": 6,
       "known_gap": false,
-      "tokens_saved": 13479,
+      "tokens_saved": 10746,
       "supervision_cost": 1500,
-      "steps_late": 2
+      "steps_late": 4
     },
     {
       "id": "gen_zeno_0000",
@@ -7808,6 +7772,566 @@
       "tokens_saved": 44720,
       "supervision_cost": 12000,
       "steps_late": 4
+    },
+    {
+      "id": "gen_drift_actions_0000",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 2589,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0001",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 3776,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0002",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 3643,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0003",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 5661,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0004",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 11809,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0005",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 6763,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0006",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 4392,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0007",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 3110,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0008",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 11127,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0009",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 9250,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0010",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 10879,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0011",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 12357,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0012",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 8650,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0013",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 11449,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0014",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 4239,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0015",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7724,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0016",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7606,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0017",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7330,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0018",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 7540,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0019",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 9764,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0020",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 6473,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0021",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 8655,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0022",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 6740,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0023",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 3452,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0024",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7046,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0025",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7163,
+      "supervision_cost": 6000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0026",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 3278,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0027",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 4399,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0028",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 4042,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0029",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 3679,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0030",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 5227,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0031",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 12164,
+      "supervision_cost": 4500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0032",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 6940,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0033",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7230,
+      "supervision_cost": 6000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0034",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 3530,
+      "supervision_cost": 1500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0035",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 5,
+      "known_gap": false,
+      "tokens_saved": 5974,
+      "supervision_cost": 1500,
+      "steps_late": 4
+    },
+    {
+      "id": "gen_drift_actions_0036",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 7619,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0037",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 5865,
+      "supervision_cost": 7500,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0038",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 4,
+      "known_gap": false,
+      "tokens_saved": 5183,
+      "supervision_cost": 9000,
+      "steps_late": 2
+    },
+    {
+      "id": "gen_drift_actions_0039",
+      "family": "drift",
+      "outcome": "TP",
+      "should_trip": true,
+      "tripped": true,
+      "detector": "drift",
+      "expected_detector": "drift",
+      "trip_step_index": 3,
+      "known_gap": false,
+      "tokens_saved": 3372,
+      "supervision_cost": 7500,
+      "steps_late": 2
     },
     {
       "id": "gen_retry_0000",
@@ -9520,15 +10044,15 @@
     {
       "id": "gen_subgoal_0002",
       "family": "benign",
-      "outcome": "FP",
+      "outcome": "TN",
       "should_trip": false,
-      "tripped": true,
-      "detector": "drift",
+      "tripped": false,
+      "detector": null,
       "expected_detector": null,
-      "trip_step_index": 3,
+      "trip_step_index": null,
       "known_gap": false,
-      "tokens_saved": 1006,
-      "supervision_cost": 3000,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
       "steps_late": null
     },
     {
@@ -9660,43 +10184,43 @@
     {
       "id": "gen_subgoal_0012",
       "family": "benign",
-      "outcome": "FP",
+      "outcome": "TN",
       "should_trip": false,
-      "tripped": true,
-      "detector": "drift",
+      "tripped": false,
+      "detector": null,
       "expected_detector": null,
-      "trip_step_index": 4,
+      "trip_step_index": null,
       "known_gap": false,
-      "tokens_saved": 1136,
-      "supervision_cost": 3000,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
       "steps_late": null
     },
     {
       "id": "gen_subgoal_0013",
       "family": "benign",
-      "outcome": "FP",
+      "outcome": "TN",
       "should_trip": false,
-      "tripped": true,
-      "detector": "drift",
+      "tripped": false,
+      "detector": null,
       "expected_detector": null,
-      "trip_step_index": 2,
+      "trip_step_index": null,
       "known_gap": false,
-      "tokens_saved": 3141,
-      "supervision_cost": 3000,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
       "steps_late": null
     },
     {
       "id": "gen_subgoal_0014",
       "family": "benign",
-      "outcome": "FP",
+      "outcome": "TN",
       "should_trip": false,
-      "tripped": true,
-      "detector": "drift",
+      "tripped": false,
+      "detector": null,
       "expected_detector": null,
-      "trip_step_index": 2,
+      "trip_step_index": null,
       "known_gap": false,
-      "tokens_saved": 2902,
-      "supervision_cost": 3000,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
       "steps_late": null
     },
     {
@@ -9884,15 +10408,15 @@
     {
       "id": "gen_subgoal_0028",
       "family": "benign",
-      "outcome": "FP",
+      "outcome": "TN",
       "should_trip": false,
-      "tripped": true,
-      "detector": "drift",
+      "tripped": false,
+      "detector": null,
       "expected_detector": null,
-      "trip_step_index": 2,
+      "trip_step_index": null,
       "known_gap": false,
-      "tokens_saved": 3928,
-      "supervision_cost": 3000,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
       "steps_late": null
     },
     {
@@ -9954,15 +10478,15 @@
     {
       "id": "gen_subgoal_0033",
       "family": "benign",
-      "outcome": "FP",
+      "outcome": "TN",
       "should_trip": false,
-      "tripped": true,
-      "detector": "drift",
+      "tripped": false,
+      "detector": null,
       "expected_detector": null,
-      "trip_step_index": 2,
+      "trip_step_index": null,
       "known_gap": false,
-      "tokens_saved": 3099,
-      "supervision_cost": 3000,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
       "steps_late": null
     },
     {
@@ -14517,6 +15041,566 @@
     },
     {
       "id": "gen_batch_0039",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0000",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0001",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0002",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0003",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0004",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0005",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0006",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0007",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0008",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0009",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0010",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0011",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0012",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0013",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0014",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0015",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0016",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0017",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0018",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0019",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0020",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0021",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0022",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0023",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0024",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0025",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0026",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0027",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0028",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0029",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0030",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0031",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0032",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0033",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0034",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0035",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0036",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0037",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0038",
+      "family": "benign",
+      "outcome": "TN",
+      "should_trip": false,
+      "tripped": false,
+      "detector": null,
+      "expected_detector": null,
+      "trip_step_index": null,
+      "known_gap": false,
+      "tokens_saved": 0,
+      "supervision_cost": 0,
+      "steps_late": null
+    },
+    {
+      "id": "gen_narrated_failure_0039",
       "family": "benign",
       "outcome": "TN",
       "should_trip": false,
