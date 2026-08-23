@@ -228,6 +228,25 @@
     }
   },
   {
+    "id": "suite_deep_full_rotation",
+    "trace": "suite/deep_full_rotation.jsonl",
+    "world": "deep",
+    "goal": "List every secret in the production scope. Then, one at a time, for EACH secret listed: read its current value, store a rotated value for it, then read it back to confirm the new version. Do this for every secret before reporting a final summary.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 16,
+      "reason": "completed cleanly"
+    }
+  },
+  {
     "id": "suite_simple_replica",
     "trace": "suite/simple_replica.jsonl",
     "world": "simple",
