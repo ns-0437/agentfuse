@@ -138,9 +138,11 @@ DOMAINS = [
             "Sort the latest customer issues into buckets and surface the leading complaint types.",
             "Classify recent tickets and describe the most common recurring faults.",
         ],
+        # 2nd entry didn't name "support" -> 0.643 under the prerequisite
+        # framing, BELOW threshold on its own. See finance's comment.
         "on_topic": [
             "Loading the most recent support tickets for classification.",
-            "Clustering tickets by their reported symptom.",
+            "Clustering the support tickets by their reported symptom.",
             "Labelling each ticket batch with a failure category.",
             "Summarising the dominant failure themes across tickets.",
         ],
