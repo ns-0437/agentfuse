@@ -100,19 +100,24 @@ score 98% on has stopped being a measuring instrument** — it can no longer
 separate a good change from a neutral one, because the entire remaining signal is
 14 scenarios wide. This is now the top constraint on the project.
 
-**Update 2026-08-23 — 11 of those 14 were the benchmark's own mistake, not a
-detector gap.** Investigated by name for the first time (section 3.13): 11 of
+**Update 2026-08-23 — all 14 turned out to be the benchmark's own mistake, not
+a detector gap.** Investigated by name for the first time (section 3.13): 11 of
 the 14 were generators that could produce a labelled positive their own
 construction couldn't satisfy — a fixed token ceiling that random draws
 sometimes never reached, and a drift generator whose off-topic tail sometimes
-had too few turns to prove itself within `patience`. Fixing both moved F1
-98.6% → 99.7% and recall 97.8% → 100.0% without touching a single detector.
-The 3 that remain (`gen_subgoal`'s finance false positives) are real and
-unresolved — see 3.13 for the two fixes tried and rejected, with the
-measurements showing why. The saturation problem itself is not solved: 3
-errors in ~1018 scenarios is still not enough signal to trust a future change
-against, and a smaller, corrected suite is no less saturated than a smaller,
-uncorrected one.
+had too few turns to prove itself within `patience`. The remaining 3
+(`gen_subgoal`'s finance false positives) took four rejected detector-side
+fixes and a fifth, different kind of fix that held (section 3.14): several
+domain example banks had one entry that broke their own established
+convention of naming the goal's own vocabulary, closest to the "prerequisite"
+framing's threshold under embeddings by construction, not by anything about
+drift. **Result: 1018 scenarios, 0 errors, F1 100.0%, without a single
+detector parameter changed.** The saturation problem itself is **still not
+solved** — a zero-error score on a suite you wrote yourself is evidence the
+suite agrees with the code, not evidence the code is right, and the standing
+conclusion from the start of this section holds: the only real fix is a
+larger, independently-sourced corpus (real captured traces), not a cleaner
+number here.
 
 **And saturation is not the only failure mode.** Section 3.9 found the suite was
 *structurally blind* to a whole detector change: no drift generator emitted a
