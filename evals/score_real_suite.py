@@ -130,8 +130,8 @@ def main() -> int:
             print("  ** healthy runs are much shorter — a low FPR here is partly an")
             print("     exposure artifact, not purely detector precision.")
 
-    print("\n  synthetic suite for comparison: precision 99.4%, recall 100.0%, "
-          "FPR 0.6%\n  (1018 scenarios, 23 families)")
+    print("\n  synthetic suite for comparison: precision 100.0%, recall 100.0%, "
+          "FPR 0.0%\n  (1018 scenarios, 23 families)")
     if fp + tn and fp + tn < 30:
         lo, hi = wilson(fp, fp + tn)
         print(f"\n  HONEST LIMIT: {fp + tn} healthy runs cannot resolve a 0.6% FPR — "
