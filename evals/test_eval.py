@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from evals.ablation import run_ablation, control_significance  # noqa: E402
+from evals.conftest import requires_embeddings  # noqa: E402
 from evals.generators import generate_suite  # noqa: E402
 from evals.metrics import score  # noqa: E402
 from evals.runner import run_suite, run_scenario  # noqa: E402
@@ -138,6 +139,7 @@ def test_supervision_pays_for_itself(generated):
 
 
 # --------------------------------------------- regression gates (hand-written)
+@requires_embeddings
 def test_handwritten_no_new_misses(handwritten):
     results, _ = handwritten
     known = set(HAND["known_misses"])
@@ -299,6 +301,7 @@ def test_allowlists_do_not_rot(handwritten):
         f"baseline.json lists scenarios that now pass — remove them: {sorted(stale)}")
 
 
+@requires_embeddings
 def test_handwritten_suite_is_fully_clean(handwritten):
     """Named regression cases: every one should pass outright."""
     _, m = handwritten
