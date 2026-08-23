@@ -342,10 +342,12 @@ between-cluster variance has nowhere to live and the design effect collapses
 toward 1 by construction. The suite went from 20 generator families to **21** —
 that is the honest measure of how much independent evidence was added, and it is
 one. Expect the interval to widen again the moment any family regresses.
-**2026-08-23**: with recall now 100%, the design effect has finished collapsing
-to 1.0× (ICC 0.00) — every recall cluster is now an all-success. That is the
-same artifact taken to its limit, not a stronger result; it says nothing new
-about the suite's power, only that clustered and naive intervals now coincide
+**2026-08-23, measured directly** (`evals/validity.py`, 12 recall-bearing
+clusters, n=480): ICC **0.000**, design effect **1.00×**, effective n =
+nominal n = 480 — the design effect has finished collapsing, exactly as
+predicted. Every recall cluster is now an all-success. That is the same
+artifact taken to its limit, not a stronger result; it says nothing new about
+the suite's power, only that clustered and naive intervals now coincide
 because there is no between-cluster variance left to correct for.
 
 The older lesson still holds: *adding scenarios per generator buys no statistical
