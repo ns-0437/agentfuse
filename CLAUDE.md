@@ -22,6 +22,28 @@ still far too small to trust on its own. See the improvement list kept in memory
 the biggest is the pure-reasoning drift-grounding gap (REPORT.md 3.13), which
 this session tried and rejected 4 different fixes for.
 
+## Design principles (non-negotiable)
+
+- **Steering recovery is a real intervention, not a visualization.** The loop
+  wrapper (adapter) is the only thing allowed to touch the outgoing message
+  array: before each LLM call it runs the detectors against current state,
+  and if tripped, mutates `messages` in place — injects a steering turn —
+  before the call is made. A dashboard "recovery" event must correspond to
+  an actual message that was actually sent, never a cosmetic log entry with
+  no matching intervention. Verified live in `agentfuse/adapters/openai_sdk.py`'s
+  `guarded_tool_loop` (appends the steering turn straight into `messages`
+  before continuing the loop) and in the real AgentKit/LangGraph adapters.
+- **Detector logic stays separate from the loop wrapper.** `detectors/*.py`
+  are pure functions of state — no side effects, independently unit-testable
+  — and never touch the message array themselves. Only the adapter layer
+  performs the mutation.
+- **Every trip + intervention emits the same JSONL trace event shape** the
+  dashboard already reads (`dashboard/build_dashboard.py` reads every
+  `runs/*.jsonl`), so UI changes and detector/adapter changes stay decoupled.
+- **No new heavy dependencies unless there's no reasonable way around it.**
+  The core library (`agentfuse/`) stays stdlib-only; embeddings are an
+  opt-in extra (`[embeddings]`), never a hard dependency of the base package.
+
 ## Code structure
 
 ```
