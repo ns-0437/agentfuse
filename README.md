@@ -305,28 +305,29 @@ make the false-positive rate measurable, and that rate decides whether anyone
 leaves a guardrail switched on. Everything replays deterministically in ~30s —
 no API key, no cost.
 
-### Current baseline (2026-08-18, replay mode, local embeddings)
+### Current baseline (2026-08-23, replay mode, local embeddings)
 
 | Metric | Value | Prev | Read as |
 |---|---:|---:|---|
-| Recall | **97.8%** | 97.6% | real failures caught |
-| Precision | **99.4%** | 98.6% | can you trust a trip |
-| F1 | **98.6%** | 98.1% | |
-| False-positive rate | **0.6%** | 1.2% | healthy runs halted |
-| Attribution | **83.8%** | 84.0% | right detector named |
-| Recovery rate | **67.6%** | 71.7% | caught failures put back on track |
-| **Recall, cluster-adjusted** | **97.8% [94.9–99.0]** | 97.7% [94.8–99.0] | ← see the warnings below |
+| Recall | **100.0%** | 97.8% | real failures caught |
+| Precision | **99.4%** | 99.4% | can you trust a trip |
+| F1 | **99.7%** | 98.6% | |
+| False-positive rate | **0.6%** | 0.6% | healthy runs halted |
+| Attribution | **85.5%** | 83.8% | right detector named |
+| Recovery rate | **67.6%** | 67.6% | caught failures put back on track (not re-measured this session) |
 
-> **⚠ Do not read 98.6% F1 as "nearly production ready."** A benchmark you score
-> 98% on has stopped being a measuring instrument. Three false positives and eleven
-> false negatives is the entire remaining signal — it can no longer distinguish a
-> good change from a neutral one. Part of this run's gain came from **fixing a
-> generator that was wrong**: a legitimate correction with evidence (below), but
-> making the test easier is exactly how benchmarks stop meaning anything, so it
-> stays visible. These generators encode *one person's* model of agent failure,
-> so what is measured here is self-consistency, not real-world coverage. The
-> honest next move is harder and more realistic scenarios — ideally captured from
-> real runs — not more tuning against this suite.
+> **⚠ Do not read 99.7% F1 as "nearly production ready."** 11 of the 14 errors
+> behind the previous 98.6% turned out to be generator bugs — a fixed token
+> ceiling random draws sometimes never reached, and a drift generator whose
+> off-topic tail sometimes had too few turns to prove itself within `patience`
+> — fixed by making the labels achievable by construction, not by tuning any
+> detector (REPORT.md section 3.13). Recall moving to 100% is what that looks
+> like, and it is real, but it does not mean the remaining suite is hard: 3 FPs
+> out of ~1018 is still not enough signal to trust a future change against.
+> These generators encode *one person's* model of agent failure, so what is
+> measured here is self-consistency, not real-world coverage. The honest next
+> move is harder and more realistic scenarios — ideally captured from real
+> runs — not more tuning against this suite.
 
 **⚠ The interval narrowed for the wrong reason.** Design effect fell 16.9× → 2.0×
 and ICC 0.407 → 0.048, moving effective n from 13 to 222. That is a **ceiling
@@ -335,6 +336,11 @@ between-cluster variance has nowhere to live and the design effect collapses
 toward 1 by construction. The suite went from 20 generator families to **21** —
 that is the honest measure of how much independent evidence was added, and it is
 one. Expect the interval to widen again the moment any family regresses.
+**2026-08-23**: with recall now 100%, the design effect has finished collapsing
+to 1.0× (ICC 0.00) — every recall cluster is now an all-success. That is the
+same artifact taken to its limit, not a stronger result; it says nothing new
+about the suite's power, only that clustered and naive intervals now coincide
+because there is no between-cluster variance left to correct for.
 
 The older lesson still holds: *adding scenarios per generator buys no statistical
 power* — sweeping 40/20/10/5 per family moved effective n only 13→14. Only more
@@ -347,12 +353,14 @@ after N steps" or the complexity is unjustified:
 
 | System | Recall | Precision | F1 |
 |---|---:|---:|---:|
-| **AgentFuse** | 97.8% | **99.4%** | **98.6%** |
+| **AgentFuse** | 100.0% | **99.4%** | **99.7%** |
 | step cap = 12 | 96.2% | 54.0% | 69.2% |
 | naive repeat counter | 49.1% | 66.2% | 56.4% |
 
 Note what this actually says: **a dumb step cap gets 96% recall.** What AgentFuse
-buys is *precision* — not noticing failures, but not halting healthy runs.
+buys is *precision* — not noticing failures, but not halting healthy runs. (Step
+cap and repeat-counter rows are from the 2026-08-18 run, not re-measured against
+the corrected 2026-08-23 suite; they are baselines, not expected to move.)
 
 ### The rule that cost the most to learn
 
@@ -372,11 +380,22 @@ destroying work that was fine. It is now asserted for every stateful detector in
 
 **What's still broken, stated plainly:**
 
-- **The benchmark is saturated** — 3 FPs and 11 FNs out of 1018. It cannot measure
-  further improvement, and that is now the top constraint on the project.
-- **Subtle drift is the main real miss** (8 of 11 FNs, `gen_driftsub`), plus 6 FPs
-  where a legitimate sub-goal reads as drift. Both sit on the ±0.043 embedding
-  separation gap — the thinnest signal in the system.
+- **The benchmark is saturated** — 3 FPs out of ~1018, all genuinely hard
+  (`gen_subgoal`'s finance-domain false positives, REPORT.md section 3.13). It
+  still cannot measure further improvement, and that stays the top constraint —
+  11 of the previous 14 errors were generator bugs, not real detector gaps
+  (fixed 2026-08-23), which narrows *what's wrong* but not the underlying
+  problem that the suite is too easy and too small to trust a future change
+  against.
+- **A pure-reasoning trajectory gets zero grounding protection.** Tool
+  continuity (section 3.12) only fires on `TOOL_CALL` events, so a
+  reasoning-only run rests entirely on raw embedding similarity + `patience`.
+  Measured: the "prerequisite" reasoning-framing template costs every domain
+  0.02–0.06 of similarity on genuinely on-topic phrasing, and `finance` starts
+  closest to the 0.65 line. Two fixes were tried and both failed — extending
+  anchor-matching to reasoning text almost guts `gen_driftsub`'s recall,
+  because deliberately-drifting "bridge" sentences contain goal-anchor words
+  by design just as often as genuinely on-topic prose does. Open.
 - **A Zeno trap reporting a bare cursor is undetectable** — see below.
 - **Domain packs have 4 tools and 4 argument dicts.** That low entropy makes every
   scenario less representative than it looks, and it silently corrupted one
@@ -559,6 +578,12 @@ detector rate-matched to our own trip frequency and run across 25 seeds.
 
 Without the control, a system that simply trips often would post a respectable
 F1. It is the control that makes the headline number mean anything.
+
+*Table below is from the 2026-08-18 ablation run, predating the 2026-08-23
+generator fixes above (`full system` here reads 97.8%/98.6%, not the current
+100.0%/99.7%) — not yet re-run against the corrected suite. Relative deltas
+between detectors are unlikely to move much; the absolute `full system` row
+should not be quoted as current.*
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
