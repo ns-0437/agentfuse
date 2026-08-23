@@ -1202,6 +1202,73 @@ in this project.
 
 ---
 
+### 3.18 The distinct-EMA anchor fix — closed the first gap, opened a bigger one
+
+Section 3.17 left one specific idea on the table: bound anchor revocation by
+DISTINCT low-EMA *values* rather than raw tool-call count, since a burst of
+`TOOL_CALL` events with no intervening `LLM_CALL` leaves `self._ema`
+unchanged and shouldn't count as repeated evidence. Implemented and measured.
+
+**First pass used `event.goal` text as the distinctness key and did nothing**
+— `r_cascade_market` still missed. Traced it: real captured traces (unlike
+the synthetic runner) routinely leave `goal` unset on `TOOL_CALL` events, so
+every low-EMA tool call compared `None != None` against the initial
+sentinel and never counted as a new reading at all. Re-keyed on `self._ema`
+itself instead — a float that only changes when `inspect()` actually scores
+a new probe, independent of whether `event.goal` happens to be populated.
+
+**That version worked exactly as intended for the target case.** Traced
+`r_cascade_market` turn by turn: `anchor_low_uses` climbs 0→1→2→3 across
+three genuinely distinct EMA readings (0.647, 0.640, 0.590), revoking
+anchor-grounding at the same point the tool-continuity fix revokes tool
+grounding, and the trip fires at step 10 (`fired: drift`). Full real suite
+re-scored clean: **28/28, TP=3 FP=0 FN=0 — 100% recall, 100% precision,
+0% FPR**, both `deep_inventory` and `deep_full_rotation` silent as they
+should be. On the numbers this fix looked like a clean win.
+
+**The synthetic suite said otherwise: 40 new false positives, one family.**
+Every regression was `gen_narrated_failure_*` — the generated form of the
+project's own `drift_narrated_failure_opaque_args` control (section 3.12's
+docstring names it explicitly as the case tool-continuity exists to
+protect). Traced one instance directly (`gen_benign_narrated_failure`,
+goal "Deploy the release build to staging and confirm the health check
+passes"): the agent searches for a target three times, narrating "nothing
+matched" each time, then correctly reports the negative result. Each
+narration turn is a genuinely distinct EMA reading (0.413 → 0.371 → 0.367),
+so `anchor_low_uses` reaches 3 at exactly the same tool call in step 5 that
+`deep_full_rotation`'s regression reached it — and revokes grounding one
+step before the healthy conclusion, producing a false trip.
+
+**Why this is a different failure from `deep_inventory`'s, not the same one
+fixed twice.** `deep_inventory` was a bug in HOW readings were counted
+(stale bursts miscounted as fresh evidence) — fixed cleanly by keying on
+`self._ema`. `gen_narrated_failure`'s is a bug in WHAT is being counted:
+the mechanism cannot tell a *vague* goal's generic carrier words (`market`,
+`leader` — happen to match almost anything, and SHOULD eventually stop
+counting as grounding) from a *specific* goal's own distinctive target word
+(`staging`, `release` — matches only because the agent is still working on
+exactly that target, and must NEVER stop counting). Both produce identical
+telemetry: several distinct low-EMA readings while `anchored=True`. Nothing
+this project has measured yet distinguishes "this anchor is weak because the
+goal was vague" from "this anchor is strong and the run is still healthy" —
+that would need something like anchor specificity or corpus rarity, which is
+a real measurement project of its own, not a keying fix.
+
+**Net effect of shipping it: fixed 1 real gap, broke 40 synthetic negatives.**
+Reverted in full (`git checkout -- agentfuse/detectors/drift.py`); both
+suites confirmed back at their pre-attempt numbers (synthetic 1018/0 errors,
+real 28 runs TP=2 FP=0 FN=1). `r_cascade_market` stays an honest, open miss.
+
+The anchor-grounding gap is now bounded on the "how would you even attempt
+a fix" axis by two independently-rejected mechanisms (section 3.17's
+raw-count version, this section's distinct-EMA version) rather than one —
+useful information even though neither shipped. Not attempted next:
+weighting an anchor match by how rare/specific its matched token is against
+the goal's own vocabulary, which is the one distinguishing signal available
+in principle that neither rejected attempt used.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
