@@ -430,8 +430,17 @@ destroying work that was fine. It is now asserted for every stateful detector in
 - **`steering_usable = 100%` is circular** — that rubric scores instructions
   built from templates written alongside it. It is not evidence and is flagged as
   such in `baseline.json`.
-- **Everything is synthetic** except one captured trace, which validates event
-  *shape* against production, not the failure *distribution*.
+- **CI's portability matrix had been red for 6 days, unnoticed, silently
+  blocking the dashboard's auto-publish.** Found while checking why the public
+  dashboard was stale — it wasn't just unbuilt, the CI job it depends on had
+  been failing since 2026-08-17, ~30 commits, over a mismatch between the
+  matrix's lexical-fallback mode (no embedder installed, by design — it's a
+  portability check, not a second accuracy suite) and 5 tests that assumed the
+  real embedder. Fixed: those tests now skip honestly under lexical mode
+  instead of failing confusingly (REPORT.md section 3.16). The `benchmark`
+  gate job, which does install the real embedder and validates actual
+  accuracy, was green the entire time — no number in this README or REPORT.md
+  was ever measured under the broken configuration.
 
 ### When the benchmark was the thing that was wrong
 
