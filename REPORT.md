@@ -50,18 +50,26 @@ enforced everywhere else, not by changing any detector. A zero-error score on a
 suite written by one person is evidence of internal consistency, not of
 correctness against the world.
 
-Against trivial baselines — the complexity has to earn itself. **These three rows
-were measured on the previous 936-scenario suite and have not been re-run since
-it grew to 1016**, so they are not directly comparable with the table above:
+Against trivial baselines — the complexity has to earn itself. Re-run 2026-08-23
+against the corrected suite (`evals/validity.py`), with more variants than
+before:
 
-| System | Recall | Precision | F1 |
-|---|---:|---:|---:|
-| **AgentFuse** | 97.6% | **98.6%** | **98.1%** |
-| step cap = 12 | 96.2% | 54.0% | 69.2% |
-| naive repeat counter | 49.1% | 66.2% | 56.4% |
+| System | Recall | Precision | FPR | F1 |
+|---|---:|---:|---:|---:|
+| **AgentFuse (full)** | **100.0%** | **100.0%** | **0.0%** | **100.0%** |
+| step cap = 8 | 99.0% | 50.7% | 88.8% | 67.0% |
+| step cap = 12 | 97.5% | 54.2% | 76.0% | 69.7% |
+| step cap = 20 | 81.2% | 55.4% | 60.4% | 65.9% |
+| naive repeat k=3 | 49.0% | 48.2% | 48.7% | 48.6% |
+| naive repeat k=5 | 41.2% | 68.3% | 17.7% | 51.4% |
 
-**A dumb step cap gets 96% recall.** What this system buys is *precision* — not
-noticing failures, but not halting healthy runs.
+**No step cap gets close.** The best of five (`step cap=8`) reaches 99.0%
+recall by halting almost every run early, healthy or not — 88.8% FPR. A repeat
+counter tuned tighter (k=3) trades recall for a coin-flip FPR; tuned looser
+(k=5) it misses more failures than it catches half the time. What AgentFuse
+buys over any single constant is the shape of the tradeoff curve, not a point
+on it: every variant of both baselines sits at F1 ≤ 69.7%, roughly 30 points
+below.
 
 ### Ablation (leave-one-out + rate-matched random control)
 
