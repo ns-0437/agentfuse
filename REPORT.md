@@ -34,13 +34,13 @@ deterministically through the production monitor.
 
 | Metric | Value | Read as |
 |---|---:|---|
-| Recall | **97.8%** | real failures caught |
-| Precision | **99.4%** | can a trip be trusted |
-| F1 | **98.6%** | |
-| False-positive rate | **0.6%** | healthy runs wrongly halted |
-| Attribution | **83.8%** | correct detector named |
-| Recovery rate | **67.6%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. Section 3.5–3.6 |
-| Confusion | TP 479 · FP 3 · FN 11 · TN 525 | |
+| Recall | **100.0%** | real failures caught |
+| Precision | **100.0%** | can a trip be trusted |
+| F1 | **100.0%** | |
+| False-positive rate | **0.0%** | healthy runs wrongly halted |
+| Attribution | **85.5%** | correct detector named |
+| Recovery rate | **68.5%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. Section 3.5–3.6 |
+| Confusion | TP 490 · FP 0 · FN 0 · TN 528 | |
 
 Against trivial baselines — the complexity has to earn itself. **These three rows
 were measured on the previous 936-scenario suite and have not been re-run since
