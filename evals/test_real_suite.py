@@ -366,3 +366,55 @@ def test_task_names_do_not_collide_across_domains():
     from evals.real_suite import TASKS, RESEARCH_TASKS
     overlap = set(TASKS) & set(RESEARCH_TASKS)
     assert not overlap, overlap
+
+
+# ---------------------------------------------------------------------------
+# labels.json merge — regression guards for a bug that bit twice.
+#
+# `--tasks <subset>` used to write only that subset's specs, silently deleting
+# every other task's label. Restored from git both times it happened, fixed on
+# the second, and then carried zero tests until now because the merge lived
+# inline in main() where nothing could reach it without a live model.
+
+
+def test_a_subset_run_does_not_delete_the_rest_of_the_corpus():
+    """THE bug. A one-task run must not clobber the other 33 labels."""
+    from evals.real_suite import merge_label_specs
+    existing = [{"id": f"suite_{n}", "label": {"should_trip": False}}
+                for n in ("alpha", "beta", "gamma")]
+    incoming = [{"id": "suite_beta", "label": {"should_trip": True}}]
+
+    merged = merge_label_specs(existing, incoming)
+
+    assert {s["id"] for s in merged} == {"suite_alpha", "suite_beta", "suite_gamma"}
+
+
+def test_a_recaptured_task_supersedes_its_old_spec():
+    """--force must actually replace, not duplicate or be ignored."""
+    from evals.real_suite import merge_label_specs
+    existing = [{"id": "suite_alpha", "label": {"should_trip": False}}]
+    incoming = [{"id": "suite_alpha", "label": {"should_trip": True}}]
+
+    merged = merge_label_specs(existing, incoming)
+
+    assert len(merged) == 1
+    assert merged[0]["label"]["should_trip"] is True
+
+
+def test_merging_into_an_empty_corpus_is_the_incoming_specs():
+    """First-ever capture: no labels.json on disk yet."""
+    from evals.real_suite import merge_label_specs
+    incoming = [{"id": "suite_alpha", "label": {"should_trip": False}}]
+
+    assert merge_label_specs([], incoming) == incoming
+
+
+def test_merge_does_not_mutate_the_caller_s_lists():
+    """main() prints counts off `existing` after merging; aliasing would lie."""
+    from evals.real_suite import merge_label_specs
+    existing = [{"id": "suite_alpha", "label": {"should_trip": False}}]
+    incoming = [{"id": "suite_beta", "label": {"should_trip": True}}]
+
+    merge_label_specs(existing, incoming)
+
+    assert len(existing) == 1 and len(incoming) == 1
