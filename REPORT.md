@@ -112,7 +112,10 @@ An earlier version of this report concluded from that a detector carrying 0.0
 ΔF1 "has not earned its place". **That was wrong**, and the evidence simply was
 not being collected: F1 measures *whether* a failure is caught, never *when*, and
 "when" is the entire economic argument for a circuit breaker. Measured across all
-164 loop-labelled positives:
+164 loop-labelled positives (2026-08-13 measurement, not re-run in the
+2026-08-23 ablation above — the loop-family scenario count and their content
+are unchanged by this session's fixes, so this table is not expected to move,
+but it has not been re-verified):
 
 | | caught | mean steps late | median tokens saved | named `loop` |
 |---|---:|---:|---:|---:|
