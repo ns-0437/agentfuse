@@ -144,6 +144,20 @@ class DriftDetector(Detector):
         self._last_action_grounded = False
         self._seen_action = False
         self._on_goal_tools: set[str] = set()
+        self._tool_low_uses: dict[str, int] = {}
+        # Revoking exactly at `patience` low uses fires in lockstep with the
+        # trip condition itself, so a tool never actually protects the run it
+        # exists to protect -- measured against `drift_narrated_failure_opaque_args`
+        # (repeated failed searches, opaque URL args, correctly healthy): it
+        # revoked on the same turn the trip would have fired anyway. Swept
+        # against both corpora: `patience` itself reintroduces that synthetic
+        # false positive; `patience + 1` clears it while still catching 9/11
+        # real cascade traces (vs. 7/11 before this fix existed at all);
+        # `patience * 2` is strictly more conservative and only costs one of
+        # those real catches back for no gain on the synthetic side. One extra
+        # use of grace is enough to let a narrated-failure run finish reaching
+        # its correct negative conclusion before amnesty lapses.
+        self._tool_amnesty_uses = self.patience + 1
         self._turns_since_action = 0
         self.suppressed_trips = 0
 
@@ -227,11 +241,46 @@ class DriftDetector(Detector):
            instruments it used on-goal has not changed kind, whatever its prose
            says while it narrates failures.
 
-        The known limit of (2): an agent that drifts while continuing to use the
-        same generic tool — searching the web for something unrelated — stays
-        grounded and will not trip on prose alone. That case is genuinely
-        ambiguous from the outside, and it is recorded here rather than papered
-        over.
+        The known limit of (2), now measured rather than assumed: real cascade
+        drift traces show a tool earning "on-goal" status once, early, while the
+        EMA is still high, then providing PERMANENT amnesty to every later call
+        to that tool — including calls whose args are about something the
+        chain has since wandered into (on-call rotation logs, checkout-flow
+        logs) that has nothing to do with the original goal. Measured on
+        `real_drift_cascade_release__release__r0`: the EMA genuinely falls from
+        0.77 to 0.49, well under threshold, and 4 real trips were suppressed
+        anyway because `search_files` had been blessed 3 turns earlier while the
+        agent was still discussing the release checklist.
+
+        So continuity must be revocable — but not on the first low reading.
+        Revoking the instant the EMA dips below threshold was tried first and
+        broke a real healthy shape: `flaky_write` retries a transient error, the
+        EMA dips to 0.57 on the retry-narration turn alone, then recovers to
+        0.71 the moment the retry succeeds. Revoking on that single dip stripped
+        `list_secrets` of its earned amnesty at exactly the wrong moment and
+        produced a false trip — the retry shape this project has broken on
+        twice before, in different detectors (`loop`, `progress`; see their
+        module docstrings), and now a third time here, in a new form.
+
+        The fix asks almost the same question the trip condition itself asks:
+        several consecutive low readings, not one. A tool's amnesty survives a
+        single noisy turn (the retry shape) but is revoked once THIS SPECIFIC
+        tool has been used `_tool_amnesty_uses` times in a row while the trend
+        stayed low (the cascade shape — an agent that keeps reaching for the
+        same instrument for what has become a different job). Counted per
+        tool, not globally, so a healthy tool used throughout a run is never
+        penalised for another tool's decline.
+
+        `_tool_amnesty_uses` is `patience + 1`, not `patience` itself — using
+        `patience` exactly reintroduced a different real regression
+        (`drift_narrated_failure_opaque_args`: repeated failed searches with
+        opaque URL args, correctly healthy). Revoking in lockstep with the trip
+        condition means the tool never actually covers the run it exists to
+        cover — the amnesty check and the trip check fire on the same turn, so
+        by the time the trip would be suppressed, the amnesty that would have
+        suppressed it is already gone. One extra use of grace breaks that tie
+        without materially widening the cascade-drift blind spot; see
+        `_tool_amnesty_uses`'s own comment for the swept numbers.
         """
         tool = event.tool_name or ""
         parts = [tool]
@@ -245,8 +294,14 @@ class DriftDetector(Detector):
         # Only learn a tool as "on-goal" on POSITIVE evidence that the trajectory
         # is healthy. Learning it while the trend is already low would let a
         # drifting agent's new tools grant themselves amnesty.
-        if tool and self._ema is not None and self._ema >= self.threshold:
-            self._on_goal_tools.add(tool)
+        if tool and self._ema is not None:
+            if self._ema >= self.threshold:
+                self._on_goal_tools.add(tool)
+                self._tool_low_uses[tool] = 0
+            elif tool in self._on_goal_tools:
+                self._tool_low_uses[tool] = self._tool_low_uses.get(tool, 0) + 1
+                if self._tool_low_uses[tool] >= self._tool_amnesty_uses:
+                    self._on_goal_tools.discard(tool)
 
         self._last_action_grounded = anchored or (tool in self._on_goal_tools)
         self._seen_action = True
