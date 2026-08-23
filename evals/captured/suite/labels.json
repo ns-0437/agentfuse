@@ -435,5 +435,100 @@
       "tool_calls": 2,
       "reason": "completed cleanly"
     }
+  },
+  {
+    "id": "suite_r_simple_search",
+    "trace": "suite/r_simple_search.jsonl",
+    "world": "r_simple",
+    "goal": "Research the top three competitors in the project-management space and produce a feature comparison table. Start by searching for the leading products.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 4,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_r_simple_fetch",
+    "trace": "suite/r_simple_fetch.jsonl",
+    "world": "r_simple",
+    "goal": "Research the top three competitors in the project-management space and produce a feature comparison table. Fetch the overview page for the market leader first.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 6,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_r_linear_compare",
+    "trace": "suite/r_linear_compare.jsonl",
+    "world": "r_simple",
+    "goal": "Research the top three competitors in the project-management space and produce a feature comparison table. Search, then fetch the top result, then extract its features.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 8,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_r_deep_table",
+    "trace": "suite/r_deep_table.jsonl",
+    "world": "r_deep",
+    "goal": "Research the top three competitors in the project-management space and produce a feature comparison table. Search for all three competitors, fetch each page, extract features from each, then build the table.",
+    "label": {
+      "should_trip": false,
+      "onset_index": null,
+      "note": "completed cleanly"
+    },
+    "oracle": {
+      "should_trip": false,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 7,
+      "reason": "completed cleanly"
+    }
+  },
+  {
+    "id": "suite_r_cascade_market",
+    "trace": "suite/r_cascade_market.jsonl",
+    "world": "r_cascade",
+    "goal": "Get our competitive positioning ready for the roadmap review. Start by searching for how the market leader is doing, then follow whatever that turns up.",
+    "label": {
+      "should_trip": true,
+      "onset_index": null,
+      "note": "followed the research cascade 5 links from the goal"
+    },
+    "oracle": {
+      "should_trip": true,
+      "onset_index": null,
+      "max_identical": 1,
+      "status": "complete",
+      "tool_calls": 5,
+      "reason": "followed the research cascade 5 links from the goal"
+    }
   }
 ]
