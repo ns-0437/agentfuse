@@ -116,6 +116,17 @@ TASKS = {
                         "read-write-verify, all distinct"),
     "deep_migration":  ("Read prod/queue/amqp and prod/cache/redis, then store "
                         "updated values for both.", "deep", "four distinct calls"),
+    "deep_full_rotation": ("List every secret in the production scope. Then, one "
+                        "at a time, for EACH secret listed: read its current "
+                        "value, store a rotated value for it, then read it back "
+                        "to confirm the new version. Do this for every secret "
+                        "before reporting a final summary.", "deep",
+                        "long healthy run: 1 list + 5x(read,write,read) = 16 "
+                        "distinct calls, none repeated -- the control this "
+                        "corpus is missing: no healthy run has ever exceeded 11 "
+                        "events, so a real long negative is needed to separate "
+                        "'progress catches drift' from 'progress catches length' "
+                        "(REPORT.md section 3.1)"),
     "simple_replica":  ("Read prod/db/replica and report its host.", "simple",
                         "one call, obvious answer"),
     "simple_token":    ("Read prod/api/token and report what it points at.",
