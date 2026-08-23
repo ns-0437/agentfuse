@@ -811,8 +811,37 @@ promising each time:
    per domain (finance: bridges hit 0, 1, 3 anchors; on-topic prereq phrasing
    hits 1, 1, 3, 3) — there is no count threshold that separates them. Also
    rejected.
+3. *Compare against the run's own confirmed on-topic turns, not just the
+   static goal string* — the prose analogue of tool continuity (section
+   3.12): embed each `LLM_CALL` against both the goal and the first turn
+   already confirmed healthy, take the max. Measured directly on the exact
+   pair that fails: the finance prereq turn `"checking the reported figures
+   against the summary totals"` reaches only 0.602 against the confirmed
+   turn (worse than against the goal, 0.648), while the closest bridge
+   sentence reaches the identical 0.602 against the same reference. Two
+   different sentences — one that should trip, one that should not — landing
+   on the exact same score against every reference tried. Rejected; adding a
+   second reference vector did not add separating power, it just gave the
+   ambiguity a second chance to reproduce itself.
+4. *Raise `patience` instead of touching similarity at all.* Swept 2–5
+   directly against both corpora with `DriftDetector` in isolation:
 
-What the measurement does show: this is not finance-specific bad luck. Every
+   | patience | driftsub caught | subgoal correctly silent |
+   |---|---:|---:|
+   | 2 (current) | 40/40 | 37/40 |
+   | 3 | 31/40 | 39/40 |
+   | 4 | 22/40 | 39/40 |
+   | 5 | 3/40 | 40/40 |
+
+   Patience is not a free parameter here — it trades real drift recall away
+   roughly 4× faster than it buys back precision on this one weak spot (3 to
+   4 points of driftsub recall lost per subgoal FP fixed). Confirms `patience=2`
+   is not an oversight; it is the correct point on a real tradeoff curve, and
+   the earlier threshold sweep (drift.py's own module comment) already found
+   its sibling parameter's knee independently.
+
+Four different, principled ideas, four measured rejections. What the
+measurement does show: this is not finance-specific bad luck. Every
 domain's `on_topic` phrasing loses 0.02–0.06 of similarity when wrapped in the
 "prerequisite" framing (finance 0.707 → 0.636 average; support 0.750 → 0.690;
 research 0.713 → 0.678) — a **general** tax the reasoning-framing template
@@ -823,8 +852,24 @@ embedding similarity for prose-only reasoning trajectories — not a benchmark
 authoring bug, and not something a targeted patch closes without reopening a
 worse one. A real fix needs either a full resweep of `DEFAULT_THRESHOLD_EMBEDDING`
 against both corpora (out of scope for a 3-scenario fix — the 0.65 knee was
-swept and documented once already, drift.py's own module comment) or a genuinely
-new signal, not a threshold nudge. Left open and reported as what it is.
+swept and documented once already, drift.py's own module comment) or a
+genuinely new signal, not a threshold nudge or a second reference vector on the
+same cosine-similarity mechanism.
+
+Correction made before this section shipped: an earlier draft named this
+project's `confidence` detector (`agentfuse/confidence.py`) as an untried
+candidate, calling it "an actual LLM judge." Rereading its own module
+docstring before committing: it is not one — it reads **token logprobs** (the
+model's own uncertainty about what it just said), a Tier-1 behavioural signal,
+not semantic judgment of what the reasoning is *about*. It could not tell
+"resolving a prerequisite of this task" apart from "proposing a different
+task" any more than embedding similarity can; a confidently-stated tangent
+looks identical to a confidently-stated subgoal on that axis. Nothing in this
+codebase currently reads semantic content the way an LLM-judge call would.
+That remains untried, unbuilt, and unevaluated here — not because it was tested
+and rejected like the four above, but because it doesn't exist yet. Left open
+and reported as what it is, not quietly threshold-tuned into looking solved,
+and not credited with an existing answer that isn't there.
 
 ---
 
