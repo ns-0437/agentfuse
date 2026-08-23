@@ -386,13 +386,18 @@ destroying work that was fine. It is now asserted for every stateful detector in
 
 **What's still broken, stated plainly:**
 
-- **The benchmark is saturated** — 3 FPs out of ~1018, all genuinely hard
-  (`gen_subgoal`'s finance-domain false positives, REPORT.md section 3.13). It
-  still cannot measure further improvement, and that stays the top constraint —
-  11 of the previous 14 errors were generator bugs, not real detector gaps
-  (fixed 2026-08-23), which narrows *what's wrong* but not the underlying
-  problem that the suite is too easy and too small to trust a future change
-  against.
+- **The benchmark now scores 0 errors out of 1018 — and that is not the same
+  claim as "solved."** All 14 prior errors turned out to be the benchmark's
+  own construction bugs, not real detector gaps (REPORT.md sections
+  3.13–3.14): 11 were labels the generator's own random draws sometimes
+  couldn't satisfy, and the last 3 (`gen_subgoal`'s finance-domain FPs) were
+  domain example banks with one entry that broke their own convention of
+  naming the goal's own vocabulary. Every fix stayed on the benchmark side —
+  not one detector parameter changed. This still doesn't fix saturation in the
+  sense that matters: a suite you wrote yourself agreeing with the code that
+  passed it is not evidence the code is right against the world, and 1018
+  single-author scenarios remain too small and too easy to trust a future
+  change against.
 - **A pure-reasoning trajectory gets zero grounding protection.** Tool
   continuity (section 3.12) only fires on `TOOL_CALL` events, so a
   reasoning-only run rests entirely on raw embedding similarity + `patience`.
