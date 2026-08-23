@@ -10,3 +10,8 @@ __pycache__/
 # Local GGUF weights — multi-GB, fetched via scripts/serve_local_model.py
 models/
 *.gguf
+
+# llama.cpp server output. `python -m llama_cpp.server ... > llama_server.log`
+# is the documented way to run the model (CLAUDE.md), and it drops the log in
+# the repo root where it lands in `git add`. Caught manually once; ignored now.
+*.log
