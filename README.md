@@ -625,7 +625,8 @@ elsewhere). `loop` still contributes exactly 0.0 to F1.
 **† `loop` at ΔF1 +0.0 is not dead weight, and reading it that way was a mistake
 this project made.** F1 measures *whether* a failure is caught, never *when* —
 and "when" is the entire economic argument for a circuit breaker. Measured across
-all 164 loop-labelled positives:
+all 164 loop-labelled positives (2026-08-13, not re-run in the 2026-08-23
+ablation above — unaffected by this session's fixes, but not re-verified):
 
 | | mean steps late | median tokens saved | named `loop` |
 |---|---:|---:|---:|
