@@ -1061,6 +1061,67 @@ margin measured, not assumed. The pure-reasoning grounding gap moves from
 production report has ever found the plateau's edge, and now there is a
 number for how wide it is."
 
+### 3.16 CI had been red for 6 days, testing a mode nothing else uses
+
+Found by accident, checking whether the public dashboard was stale (it was —
+last rebuilt 2026-08-17). The dashboard's auto-publish job requires
+`[test, benchmark, demos]` to pass first; `test` had been failing on every
+push since **2026-08-17 11:50 UTC**, ~6 days and ~30 commits, including this
+entire session, before anyone looked at the Actions tab.
+
+**Root cause: an old, silent mismatch, not anything from today.** CI's `test`
+job (a 9-cell OS × Python 3.9/3.11/3.13 matrix) runs `pip install -e .` —
+no `[embeddings]` extra. `DriftDetector` therefore has no embedder available
+and falls back to **lexical** mode (threshold 0.20) instead of the
+**embedding** mode (threshold 0.65) that every number in this report is
+actually measured against — a documented, intentional fallback (drift.py's
+own module docstring: "genuinely weaker... trading recall for trust"), just
+never accounted for in the test suite. A separate `benchmark` job already
+installs `[embeddings]` and validates real accuracy once; the `test` matrix's
+job was always meant to be a lightweight portability check across many
+Python/OS combinations, not a second full accuracy suite run 9 times — that
+intent existed in the commit that created this workflow (`f3a8fc8`,
+2026-08-13) but was never written down, and no test was ever marked as
+requiring the real embedder.
+
+Something in the 2026-08-17 drift/action-grounding work broke lexical-mode
+compatibility for 4-5 specific tests. Reproduced locally in 0.27s
+(`AGENTFUSE_EMBED_BACKEND=none pytest ...`) — same 5 failures CI showed,
+confirming this is 100% mode-dependent, zero CI-specific flakiness. Two of
+the five are worth naming because of what they nearly did: `real_false_premise`
+(a real captured trace, correctly silent under embeddings) trips under lexical
+scoring, and `real_drift_cascade` (a documented `known_gap`, correctly still
+missed under embeddings) "passes" under lexical — a coincidence that
+`test_documented_gaps_are_still_gaps` would have reported as "good news, update
+the label," which would have been actively wrong for the mode everything else
+runs in. If this test had ever run to completion in CI and someone had
+"fixed" the label from a red CI run without checking which mode produced the
+green, it would have corrupted the corpus for every embedding-mode user, this
+report included.
+
+**Fix:** `evals/conftest.py` adds `requires_embeddings`, a `pytest.mark.skipif`
+that checks the resolved embedder mode and skips with a clear reason
+("needs a real embedder, not the lexical fallback... `pip install -e
+'.[embeddings]'`") rather than failing confusingly. Applied to the 5 affected
+tests (`test_fidelity.py` x2, `test_eval.py` x2, `test_concurrency.py` x1) —
+each still runs and passes under the real embedder, which is what actually
+validates them; each skips honestly, not silently, where it can't. `ci.yml`
+gets an explicit comment stating the two-tier design (`test` = portability,
+`benchmark` = accuracy) so the next change to break this compatibility gets
+noticed by a skip count changing, not by nobody checking Actions for a week.
+
+**What this means for every other number in this report.** Nothing changes:
+the `benchmark` gate job has been green throughout (it installs
+`[embeddings]` and is what actually re-runs the suite), and every measurement
+in sections 2-3 was taken locally against the real embedder, same as always.
+What changed is confidence in the CI *signal* itself — and the failure mode
+here is a close cousin of, not the same as, section 4.9's "guard that looks
+armed and isn't." CI did fire — every push for 6 days showed a red X — which
+makes it structurally closer to the "escalate to a human, printed to a
+console nobody was reading" entry in that same table: the signal was correct
+and nobody was watching it. A red check nobody checks is exactly as useless
+as a check that can't turn red at all.
+
 ---
 
 ## 4. Findings worth keeping
