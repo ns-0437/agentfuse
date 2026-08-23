@@ -42,6 +42,14 @@ deterministically through the production monitor.
 | Recovery rate | **68.5%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. Section 3.5–3.6 |
 | Confusion | TP 490 · FP 0 · FN 0 · TN 528 | |
 
+**0 errors is not the same claim as "solved" — see section 3.14.** Every error
+this table used to carry (14 of them, as of 2026-08-13) turned out to be the
+benchmark's own construction bug, not a real detector gap; the last 3 closed
+2026-08-23 by fixing example-bank wording to a convention the corpus already
+enforced everywhere else, not by changing any detector. A zero-error score on a
+suite written by one person is evidence of internal consistency, not of
+correctness against the world.
+
 Against trivial baselines — the complexity has to earn itself. **These three rows
 were measured on the previous 936-scenario suite and have not been re-run since
 it grew to 1016**, so they are not directly comparable with the table above:
