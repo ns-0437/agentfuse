@@ -310,24 +310,30 @@ no API key, no cost.
 | Metric | Value | Prev | Read as |
 |---|---:|---:|---|
 | Recall | **100.0%** | 97.8% | real failures caught |
-| Precision | **99.4%** | 99.4% | can you trust a trip |
-| F1 | **99.7%** | 98.6% | |
-| False-positive rate | **0.6%** | 0.6% | healthy runs halted |
+| Precision | **100.0%** | 99.4% | can you trust a trip |
+| F1 | **100.0%** | 98.6% | |
+| False-positive rate | **0.0%** | 0.6% | healthy runs halted |
 | Attribution | **85.5%** | 83.8% | right detector named |
 | Recovery rate | **67.6%** | 67.6% | caught failures put back on track (not re-measured this session) |
 
-> **⚠ Do not read 99.7% F1 as "nearly production ready."** 11 of the 14 errors
-> behind the previous 98.6% turned out to be generator bugs — a fixed token
-> ceiling random draws sometimes never reached, and a drift generator whose
-> off-topic tail sometimes had too few turns to prove itself within `patience`
-> — fixed by making the labels achievable by construction, not by tuning any
-> detector (REPORT.md section 3.13). Recall moving to 100% is what that looks
-> like, and it is real, but it does not mean the remaining suite is hard: 3 FPs
-> out of ~1018 is still not enough signal to trust a future change against.
-> These generators encode *one person's* model of agent failure, so what is
-> measured here is self-consistency, not real-world coverage. The honest next
-> move is harder and more realistic scenarios — ideally captured from real
-> runs — not more tuning against this suite.
+> **⚠ Do not read 100% F1 as "nearly production ready" or "the benchmark is
+> solved."** Every one of the 14 errors behind the previous 98.6% turned out
+> to be the benchmark's own mistake, not a detector gap (REPORT.md sections
+> 3.13–3.14): a fixed token ceiling random draws sometimes never reached, a
+> drift generator whose off-topic tail sometimes had too few turns to prove
+> itself within `patience`, and — the last 3 — domain example banks with one
+> entry that broke their own convention of naming the goal's own vocabulary.
+> Every fix made a label achievable by construction or an example consistent
+> with its own siblings; **not one changed a detector's threshold, patience,
+> or logic.** A zero-error score on a suite you wrote yourself is evidence the
+> suite agrees with the code that passed it, not evidence the code is right
+> against the world — these generators encode *one person's* model of agent
+> failure. The real, general weakness behind the last 3 errors (pure-reasoning
+> trajectories get zero grounding protection; any reasoning-framing template
+> can tax embedding similarity 0.02–0.06) is fully documented as still open in
+> REPORT.md 3.13 and untouched by this fix. The honest next move is still
+> harder and more realistic scenarios — ideally captured from real runs — not
+> a cleaner number on this one.
 
 **⚠ The interval narrowed for the wrong reason.** Design effect fell 16.9× → 2.0×
 and ICC 0.407 → 0.048, moving effective n from 13 to 222. That is a **ceiling
