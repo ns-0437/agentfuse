@@ -96,6 +96,16 @@ trips at our frequency reaches F1 62.9%. Tested for significance across 25
 seeds: control F1 = 0.632 ± 0.010, full system beats it by Δ=+0.368,
 **p=0.0385, significant**.
 
+Checked the direction of each move rather than assume a pattern: versus the
+2026-08-18 run, `drift`'s gap widened the most (−8.1→−9.3) and `spend`'s
+slightly (−8.9→−9.0) — both detectors this session's fixes made stronger
+(`drift`'s tool-continuity fix, section 3.12; `gen_spend`'s corrected ceiling
+now always breachable). `progress` and `rate` moved the other way, narrowing
+slightly (−9.6→−9.4, −4.4→−4.3) — a few points of noise from the suite
+composition changing, not a detector regression (their own recall numbers are
+unchanged elsewhere in this report). `loop` still contributes exactly 0.0 to
+F1, same as before.
+
 **`loop` contributes 0.0 to F1 — and that number is misleading.** Ablating it
 changes no digit, because `progress` catches the same scenarios as a backstop.
 An earlier version of this report concluded from that a detector carrying 0.0
