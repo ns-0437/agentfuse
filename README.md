@@ -357,18 +357,25 @@ independent **families** narrow the interval.
 ### Against trivial baselines
 
 Five detectors, a steering ladder, a memory and a calibrator have to beat "stop
-after N steps" or the complexity is unjustified:
+after N steps" or the complexity is unjustified. Re-run 2026-08-23 against the
+corrected suite (`evals/validity.py`), with more variants than before:
 
-| System | Recall | Precision | F1 |
-|---|---:|---:|---:|
-| **AgentFuse** | 100.0% | **100.0%** | **100.0%** |
-| step cap = 12 | 96.2% | 54.0% | 69.2% |
-| naive repeat counter | 49.1% | 66.2% | 56.4% |
+| System | Recall | Precision | FPR | F1 |
+|---|---:|---:|---:|---:|
+| **AgentFuse (full)** | **100.0%** | **100.0%** | **0.0%** | **100.0%** |
+| step cap = 8 | 99.0% | 50.7% | 88.8% | 67.0% |
+| step cap = 12 | 97.5% | 54.2% | 76.0% | 69.7% |
+| step cap = 20 | 81.2% | 55.4% | 60.4% | 65.9% |
+| naive repeat k=3 | 49.0% | 48.2% | 48.7% | 48.6% |
+| naive repeat k=5 | 41.2% | 68.3% | 17.7% | 51.4% |
 
-Note what this actually says: **a dumb step cap gets 96% recall.** What AgentFuse
-buys is *precision* — not noticing failures, but not halting healthy runs. (Step
-cap and repeat-counter rows are from the 2026-08-18 run, not re-measured against
-the corrected 2026-08-23 suite; they are baselines, not expected to move.)
+Note what this actually says: **the best step cap (8) still reaches 99% recall
+— by halting almost every run early, healthy or not (88.8% FPR).** What
+AgentFuse buys over any single constant is the shape of the tradeoff curve, not
+one point on it — every baseline variant tops out at F1 ≤ 69.7%, roughly 30
+points below. Also re-verified: the full suite regenerated at 3 more seeds
+(777, 31337, 424242) all score identically (100/100/0/100) — the thresholds
+aren't fitted to one lucky draw of the tuning seed.
 
 ### The rule that cost the most to learn
 
