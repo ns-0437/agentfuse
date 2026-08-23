@@ -16,11 +16,13 @@ regeneration check, and richer trivial-baselines table. **This is not "solved"**
 every one of the 14 errors it used to carry turned out to be the benchmark's own
 construction bug (REPORT.md 3.13–3.14), not a detector gap, and a 0-error score
 on a suite one person wrote is evidence of internal consistency, not correctness
-against the world. Real-trace suite: 23 runs (21 healthy), 100%/100%/0% FPR —
-still far too small to trust on its own. See the improvement list kept in memory
-(ask "what needs improving") for the prioritized set of genuinely open gaps —
-the biggest is the pure-reasoning drift-grounding gap (REPORT.md 3.13), which
-this session tried and rejected 4 different fixes for.
+against the world. Real-trace suite: 34 runs (28 healthy), precision 100%,
+recall 83.3%, FPR 0% — still far too small to trust the FPR on its own, and
+carrying one honest known miss (the anchor-grounding gap, REPORT.md 3.17-3.18).
+See the improvement list kept in memory (ask "what needs improving") for the
+prioritized set of genuinely open gaps — the anchor gap has two independently
+rejected fix attempts on record; the pure-reasoning drift-grounding gap
+(REPORT.md 3.13) has five.
 
 ## Design principles (non-negotiable)
 

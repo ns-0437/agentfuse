@@ -664,7 +664,7 @@ where `you seem stuck` is not — so 28 points of attribution is worth more than
 ### A real-trace suite — with real *healthy* runs in it
 
 Synthetic scenarios encode my model of agent failure. `evals/real_suite.py`
-captures 28 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
+captures 34 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
 with an oracle that reads only the agent's actions — never the breaker's output.
 
 ```bash
@@ -672,25 +672,32 @@ python evals/score_real_suite.py
 ```
 
 ```
-n=28   TP=2  FP=0  FN=1  TN=25
-precision 100.0%   95% CI [34.2%, 100.0%]
-recall     66.7%   95% CI [20.8%, 93.9%]
-FPR         0.0%   95% CI [0.0%, 13.3%]   (on 25 real healthy runs)
+n=34   TP=5  FP=0  FN=1  TN=28
+precision 100.0%   95% CI [56.6%, 100.0%]
+recall     83.3%   95% CI [43.6%, 97.0%]
+FPR         0.0%   95% CI [0.0%, 12.1%]   (on 28 real healthy runs)
 ```
 
-Recall dropped from an earlier 100% (n=2) not because a detector regressed but
-because a 3rd real positive was added — see below — and it's the one this
-suite has genuinely missed. That is what an honest metric does when new,
-independently-sourced evidence actually tests something new instead of
-re-confirming what a two-positive sample already agreed with.
+The single miss is `r_cascade_market` (the anchor-grounding gap below) —
+every other real failure captured, including two the corpus produced on its
+own that were *designed* as hard negatives and turned out not to be: two
+"poll until status changes" tasks came back from a live run repeating the
+exact same call with a genuinely unchanging result, which the behavioural
+oracle correctly scored as a real loop, not the legitimate polling the task
+was written to elicit. Real capture doesn't let you pick the outcome — the
+model does, and this time it disagreed with the task's own design intent.
+One capture (`polling_wait`) still returns zero tool calls even after a
+forced recapture — a clarifying question in prose instead of a poll — and
+stays excluded from scoring as an honest unusable case rather than retried
+indefinitely for a different result.
 
 The 21st negative is a task built specifically to close a gap noted below: list
 every secret, then read-write-verify each in turn — 16 distinct calls, 33
 events, no healthy run had ever gone past 11. It stayed silent, but only after
 fixing a real bug it exposed — see [REPORT.md section 3.10](REPORT.md).
 
-The **25 negatives** are the point — the previous 50 captured traces were 88%
-positives and could not measure precision at all. Three are *hard* negatives: a
+The **28 negatives** are the point — the previous 50 captured traces were 88%
+positives and could not measure precision at all. Several are *hard* negatives: a
 retry against a flaky store, a poll whose status advances, an agent that searches
 an empty world and correctly reports nothing. Those are exactly the shapes a
 naive loop detector fires on.
@@ -768,7 +775,24 @@ positives on exactly the long-healthy-run shape this project built a control
 for. Reverted; the miss stays honest and documented rather than patched at
 the cost of a worse trade. See [REPORT.md section 3.17](REPORT.md).
 
-**It does not fix saturation.** 12/12 is still a ceiling, and 25 healthy runs
+A second attempt fixed the counting bug in that same idea (a burst of tool
+calls with no intervening reasoning turn was inflating the count) and it
+worked exactly as intended on `r_cascade_market` — and then broke 40
+synthetic negatives in the family built to guard the *opposite* failure
+mode: an agent narrating repeated tool failures while its actions never
+leave the goal's own named target. The mechanism cannot tell a vague goal's
+generic carrier words (should eventually stop counting as grounding) from a
+specific goal's own distinctive target word (must never stop counting) —
+both look identical as "several distinct low-confidence readings while
+still anchored." Also reverted. See [REPORT.md section 3.18](REPORT.md).
+
+The originally-captured cascade tasks (credential-rotation domain) were
+finally captured too, and confirm drift elicitation isn't a research-domain
+artifact: `cascade_release` followed its chain 6/6 links and tripped
+cleanly on `drift`, while `cascade_vague` and `cascade_followup` both
+completed as genuine negatives.
+
+**It does not fix saturation.** 12/12 is still a ceiling, and 28 healthy runs
 cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
 regressions, not small ones.
 
