@@ -62,7 +62,18 @@ def sweep(scenarios: list[Scenario], knob: str, values: list,
 
 
 DEFAULT_GRIDS = {
-    "drift_threshold": [0.0, 0.10, 0.20, 0.30, 0.40, 0.45, 0.55, 0.65, 0.75],
+    # This grid only makes sense on the LEXICAL similarity scale (~0.1-0.3);
+    # the embedding backend that actually runs by default (agentfuse/embedding.py)
+    # produces cosine similarities clustered around 0.5-0.9, so five of these
+    # nine points (0.0-0.45) would trivially catch everything a lexical sweep
+    # never would and tell you nothing about the real operating point. Found
+    # while resweeping DEFAULT_THRESHOLD_EMBEDDING for real (REPORT.md section
+    # 3.15) and having to build a custom embedding-scale grid to get a usable
+    # curve. Both scales kept: the low end still exercises the lexical
+    # fallback's own threshold (DEFAULT_THRESHOLD_LEXICAL = 0.20).
+    "drift_threshold": [0.0, 0.10, 0.20, 0.30, 0.45,
+                        0.55, 0.58, 0.60, 0.62, 0.64, 0.65, 0.66, 0.68,
+                        0.70, 0.72, 0.75, 0.78],
     "loop_threshold": [2, 3, 4, 5, 6, 8, 10],
     "stall_patience": [3, 4, 6, 8, 10, 14],
 }
