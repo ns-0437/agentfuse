@@ -359,7 +359,7 @@ after N steps" or the complexity is unjustified:
 
 | System | Recall | Precision | F1 |
 |---|---:|---:|---:|
-| **AgentFuse** | 100.0% | **99.4%** | **99.7%** |
+| **AgentFuse** | 100.0% | **100.0%** | **100.0%** |
 | step cap = 12 | 96.2% | 54.0% | 69.2% |
 | naive repeat counter | 49.1% | 66.2% | 56.4% |
 
