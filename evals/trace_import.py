@@ -31,6 +31,8 @@ try:  # works both as `python evals/trace_import.py` and as a package import
 except ImportError:  # pragma: no cover - direct script execution
     from evals.schema import Scenario, Label, StepSpec  # noqa: E402
 
+from agentfuse.events import SeenStateTracker, stable_hash  # noqa: E402
+
 CAPTURED_DIR = Path(__file__).resolve().parent / "captured"
 
 
@@ -41,6 +43,22 @@ def scenario_from_trace(path: Path, label: Label, goal: Optional[str] = None,
     steps: list[StepSpec] = []
     meta: dict = {}
     pending: dict[int, StepSpec] = {}
+    # Real captures (the plain-SDK adapter) never emit a standalone
+    # `state_update` event -- they set `state=` directly on the TOOL_RESULT
+    # event itself (see `guarded_tool_loop`, openai_sdk.py). A trace_import
+    # that only looked for `state_update` therefore marked every real step
+    # `progress=False`, so `NoProgressDetector`'s reset never fired on replay:
+    # the detector accumulated unboundedly across the whole run and tripped on
+    # length alone.
+    #
+    # SeenStateTracker, not a single last-hash comparison: a run alternating
+    # write_secret/read_secret against an unchanging value produces two
+    # individually-static results that differ from EACH OTHER every step, so a
+    # "changed from last time" rule sees continuous progress forever. See the
+    # tracker's docstring -- the same fix is applied in the live detectors
+    # (progress.py, loop.py); doing it differently at import time would make
+    # the benchmark diverge from what a live run would have registered.
+    seen = SeenStateTracker()
 
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -70,6 +88,10 @@ def scenario_from_trace(path: Path, label: Label, goal: Optional[str] = None,
             s = pending.get(step_no)
             if s is not None:
                 s.result = rec.get("text")
+            state = rec.get("state")
+            if state is not None and seen.advance(stable_hash(state)):
+                if s is not None:
+                    s.progress = True
         elif t == "llm_call":
             steps.append(StepSpec(kind="think", text=rec.get("text"),
                                   goal=rec.get("goal"),
