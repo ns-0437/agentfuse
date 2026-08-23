@@ -71,7 +71,15 @@ buys over any single constant is the shape of the tradeoff curve, not a point
 on it: every variant of both baselines sits at F1 ≤ 69.7%, roughly 30 points
 below.
 
-### Ablation (leave-one-out + rate-matched random control)
+**Robust across regeneration, not just this seed:** the full suite was
+regenerated from scratch at 3 more seeds (777, 31337, 424242) — same
+generators, fresh random draws. All four seeds: 100.0% recall / 100.0%
+precision / 0.0% FPR / 100.0% F1. This does not test generalisation to real
+agents (a different seed re-samples the same templates), only that the
+thresholds were not accidentally fitted to one lucky draw of the tuning seed
+(20260812).
+
+### Ablation (leave-one-out + rate-matched random control) — re-run 2026-08-23 against the corrected suite
 
 | Variant | Recall | Precision | F1 | ΔF1 |
 |---|---:|---:|---:|---:|
