@@ -60,7 +60,7 @@ import re
 from collections import deque
 from typing import Optional
 
-from ..events import AgentEvent, EventType, stable_hash
+from ..events import AgentEvent, EventType, SeenStateTracker, stable_hash
 from .base import Detector, Trip, Severity
 
 #: Result text that reads as a transient failure rather than an answer. Kept
@@ -122,7 +122,12 @@ class LoopDetector(Detector):
         self._pending: dict[str, str] = {}
         self._pending_meta: dict[str, dict] = {}
         self._last_progress_step = 0
-        self._last_state_hash: Optional[str] = None
+        # Recent-window membership, not a single last-hash comparison — see
+        # SeenStateTracker's docstring. A "changed from last time" rule is
+        # gameable by any short cycle (e.g. alternating write_secret /
+        # read_secret against an unchanging value never repeats its
+        # IMMEDIATE predecessor, so it read as continuous progress forever).
+        self._seen = SeenStateTracker(window=window)
 
     # ------------------------------------------------------------------
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
@@ -135,23 +140,24 @@ class LoopDetector(Detector):
         # this detector never reset on genuine progress — a real bug the
         # benchmark could not see, because the benchmark emitted the event the
         # detector happened to want.
-        # A CHANGED state hash — not the mere presence of a state payload.
+        # A hash this run has not already visited — not the mere presence of a
+        # state payload, and not just "differs from the last hash seen".
         #
-        # This distinction is the whole bug. Adapters attach `state` to every
-        # tool result they emit, because they cannot know whether the call
-        # achieved anything. Clearing on presence therefore reset this detector
-        # after every single tool result, so `_on_result` never ran, no pair was
-        # ever formed, and the loop detector was INERT in production: measured at
-        # 11 identical calls returning identical results with `_pairs` still 0.
-        # The progress detector caught those runs as a backstop and named the
-        # wrong cause, so the steer said "you are busy but not moving" instead of
-        # "stop calling search_files".
+        # Presence-only was the first bug found here: adapters attach `state`
+        # to every tool result they emit, because they cannot know whether the
+        # call achieved anything, so clearing on presence reset this detector
+        # after every single tool result and it was INERT in production —
+        # measured at 11 identical calls returning identical results with
+        # `_pairs` still 0.
         #
-        # Presence is not progress. An identical result yields an identical hash,
-        # which is exactly the signal that nothing advanced.
-        h = event.state_hash
-        if h is not None and h != self._last_state_hash:
-            self._last_state_hash = h
+        # "Changed from the immediately preceding hash" was the fix for that,
+        # and it has its own gap: an agent alternating write_secret/read_secret
+        # against an unchanging value produces two individually-static results
+        # that differ from EACH OTHER every step, so they never repeat their
+        # immediate predecessor and the detector never resets — measured live,
+        # 12 such cycles produced zero trips. Recent-window membership (see
+        # SeenStateTracker) catches cycles of any period up to the window.
+        if self._seen.advance(event.state_hash):
             self._last_progress_step = event.step
             self._pairs.clear()
             self._signatures.clear()
@@ -269,6 +275,8 @@ class LoopDetector(Detector):
         self._signatures.clear()
         self._pending.clear()
         self._pending_meta.clear()
+        # `_seen` deliberately survives: it is the run's history of genuine
+        # advances, not the in-flight repeat counters this method clears.
 
 
 def _normalise(text: Optional[str]) -> str:
