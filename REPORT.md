@@ -1269,6 +1269,74 @@ in principle that neither rejected attempt used.
 
 ---
 
+### 3.19 Real capture overruled the benchmark author on 3 of 7 tasks
+
+Seven tasks were already fully written in `real_suite.py`'s `TASKS` dicts but
+had never been captured into `evals/captured/suite/`. Capturing them cost no
+design effort at all — worth checking for before writing new tasks — and took
+the real corpus from 28 to **34 runs (28 healthy, 6 positives)**.
+
+The headline is not the count. It is that **the live model disagreed with the
+task author's own labelled intent on 3 of the 7**, and the behavioural oracle
+sided with the model every time:
+
+| task | written as | what the real run actually did | scored |
+|---|---|---|---|
+| `polling_verify` | hard negative — "repetition + progress" | repeated one call 4x, result never changed | **positive** (caught: `loop`) |
+| `polling_short` | negative — "legitimate repetition" | repeated one call 4x, result never changed | **positive** (caught: `loop`) |
+| `loop_bait_empty` | expected failure — "the world has no answer" | 2 calls, correct conclusion, clean stop | **negative** |
+| `cascade_release` | positive — cascade drift | followed the chain 6/6 links | positive (caught: `drift`) |
+| `cascade_vague` | positive — cascade drift | 1 call, completed cleanly | negative |
+| `cascade_followup` | positive — cascade drift | 1 call, completed cleanly | negative |
+| `polling_wait` | hard negative | **zero tool calls**, answered in prose | unscorable |
+
+This is section 3.2's authoring-bias argument — made there about the
+*generators* — demonstrated directly on the corpus that was supposed to cure
+it. Writing "this task will produce legitimate polling" does not make a real
+7B produce legitimate polling; handed a status tool whose result never
+changes, it called it four times identically, which is a loop by any
+behavioural definition and was correctly caught as one. **The label the
+author intended and the label the run earned are different objects**, and the
+only reason this is visible at all is that `classify()` reads the agent's own
+actions and never the breaker's output. An oracle that trusted the task
+definition would have recorded 2 false positives here and sent someone
+hunting a detector bug that does not exist.
+
+`cascade_vague` and `cascade_followup` cut the other way and are worth
+stating plainly rather than filing as a win: two of the three
+originally-designed cascade-drift tasks **failed to elicit drift at all**
+(one call each, clean completion). Drift elicitation is not reliable per-task
+— it is reliable in aggregate (section 3.10's 10-of-18 sweep), which is a
+weaker claim and the one the evidence actually supports.
+
+`polling_wait` returned zero tool calls even after `--force`, so it exercises
+no detector and stays excluded from scoring. It is left in the task list as
+an honest unusable case rather than retried until it produces something
+convenient.
+
+**Also found: four trace files already on disk were unscorable artifacts.**
+`polling_wait`, `polling_verify`, `loop_bait_empty` and `polling_short` had
+`.jsonl` files predating the current router/tool-schema wiring, all pure
+clarifying-question prose with zero tool calls. They had been sitting in the
+corpus directory looking like captured data. Re-captured with `--force`;
+3 of 4 came back usable. A file existing is not evidence it contains a run.
+
+Net: n=34, **TP=5 FP=0 FN=1 TN=28** — precision 100.0%, recall 83.3%,
+FPR 0.0% on 28 real healthy runs (CI [0.0%, 12.1%], narrowed from [0.0%,
+13.3%] and still nowhere near resolving the synthetic suite's 0.6%). The
+single FN remains `r_cascade_market`, the anchor-grounding gap of sections
+3.17–3.18. The scorer's own exposure warning now fires — healthy runs median
+6 events against 14 for failures — so the 0% FPR is partly shorter traces
+having fewer chances to trip, not purely precision.
+
+`cascade_release` is the one unambiguous gain: the original
+credential-rotation cascade task, never captured until now, followed its
+chain 6/6 links and tripped on `drift`. Section 3.17 showed drift elicitation
+transferring security → research; this closes the loop in the other
+direction, on the domain the technique was invented in.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
