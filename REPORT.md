@@ -544,21 +544,48 @@ Gradual drift requires the **competence** to follow a chain of locally reasonabl
 steps. The weaker model stops early. **Scale increases exposure to this failure
 mode.**
 
-**The result that matters, and it is split:**
+**The result that matters, and it changed twice under scrutiny — both times downward, which is the point.**
+
+The first pass reported 10/11 caught, all by `progress`. That number was not
+real: `trace_import.py` only recognised a standalone `state_update` event as
+progress, and the real adapter never emits one — it attaches `state` directly to
+`TOOL_RESULT` (`openai_sdk.py`). Every real trace replayed through the eval
+harness therefore had **zero** progress signal, so `progress` accumulated
+unboundedly across the whole run and tripped on *length*, not on the absence of
+progress. Fixing the import (deriving progress from the `state` already on the
+trace) demoted the "0/11 by `drift`" line from a finding about the detector to an
+artifact of the importer — and, closing the missing-control gap below, exposed
+that `progress` false-trips on a genuinely long *healthy* run once it can no
+longer accidentally fail to reset (section 3.11).
+
+Fixing that exposed a second, deeper bug in both `progress` and `loop`: a
+correctly-wired reset on "differs from the immediately preceding state hash" is
+still gameable by any short cycle. An agent alternating two tool calls whose
+individual results are each internally static (read → fixed value, write →
+fixed confirmation) never repeats its own immediate predecessor, so it read as
+continuous progress forever — measured live, 12 such read/write cycles over an
+unchanging secret never tripped either detector. Both now use `SeenStateTracker`
+(`events.py`), a bounded recent-window membership test, so a hash has to be
+genuinely new within the window, not merely different from the last one.
+
+With both fixes in place:
 
 | | outcome |
 |---|---|
-| real drift traces caught by the breaker | **10 / 11** |
-| caught by the `drift` detector | **0 / 11** |
-| false positives on 20 real healthy runs | **0** |
+| real drift traces caught by the breaker | **7 / 11** |
+| caught by `loop` | **4** |
+| caught by `progress` | **2** |
+| caught by `drift` | **1** |
+| false positives on 21 real healthy runs (incl. one 33-event run) | **0** |
 
-The breaker **does** halt real drifting agents — the thing an operator actually
-cares about. But every catch came from `progress`. The detector purpose-built for
-this mode has still never fired on real drift, so **attribution on real drift is
-0%**. That is not cosmetic: attribution decides which steering gets written, so a
-drifting agent is told *"you are not making progress"* rather than *"you have
-wandered off your goal"*, and the ladder climbs from the wrong diagnosis (the
-same reason `loop`'s attribution matters, section 2).
+Worse in raw recall than the old 10/11 — but the old number was not measuring
+what it claimed to. `drift` fired on real data for the first time
+(`real_drift_cascade_vague__data__r0`), which the old, corrupted scoring path
+could never have shown either way, since `progress` was swallowing every
+positive before `drift` got a fair look. Attribution on the 4 traces still
+missed is unchanged: none of them fall to `drift`. That gap — the lexical
+similarity signal running backwards on real data — is unaffected by this fix and
+is still open (see the "why `drift` misses" note below).
 
 **Why `drift` misses.** On the traces where truth is known, the similarity signal
 is **ordered backwards**: the drifted run bottoms out at 0.650 while the *healthy*
@@ -570,15 +597,56 @@ catch the drift fires on the healthy run first, so raising sensitivity would
 trade a real false negative for a real false positive.
 
 **The control, because "long runs trip" would explain the catches without any
-detector being right.** 20 real healthy runs produce **zero** false positives,
-including runs of 10 and 11 events. So `progress` is not firing on length alone.
-Not fully settled: the longest healthy run is 11 events while drifted ones reach
-24, so a genuinely long healthy run is the missing cell.
+detector being right — now closed.** The longest healthy run on record was 11
+events against drifted runs reaching 24, so nothing yet distinguished "`progress`
+catches drift" from "`progress` catches length." A task was built specifically to
+stress this: list every secret, then read-write-verify each one in turn — 16
+distinct tool calls, 33 events, every single result genuinely new information.
+Before the import fix above, `progress` false-tripped on it at step 33 — direct
+confirmation that the corrupted scoring path really was rewarding length. After
+both fixes it runs clean: 21 real healthy runs, **zero** false positives,
+including this one. `progress` is not firing on length alone.
 
 **Elicitation is dominated by task phrasing, not by the chain**: `cascade_release`
 drifted 6/6, `cascade_vague` 4/6, `cascade_followup` 0/6 — that last one reads
 once and stops. Worth knowing before anyone concludes a model "does not drift"
 from a single prompt.
+
+### 3.11 A read/write ping-pong evades both stateful detectors
+
+Found while investigating the missing control above, not while looking for it.
+`NoProgressDetector` and `LoopDetector` both reset their counters on a state hash
+that **differs from the immediately preceding one** — a fix already shipped once
+for a cruder bug (resetting on the mere *presence* of state, section 4.2). The
+tightened version has its own gap: it only ever compares against the single most
+recent hash, so any cycle whose period is 2 or more defeats it forever, because
+no element of a genuine cycle repeats *its own immediate predecessor* — only
+something earlier in the cycle.
+
+Concretely: an agent alternating `write_secret` / `read_secret` against a value
+that never actually changes produces two individually-static results. `write`
+always returns the same confirmation text; `read` always returns the same
+(unchanged) value. Each differs from the other every single step, so a
+"changed-from-last-time" rule reads that as continuous progress, indefinitely.
+Measured directly against the live monitor (not the eval harness): **12
+read/write cycles over a fixed value never tripped either detector.**
+
+Fix: both detectors now track a **bounded window of recently-seen hashes**
+(`SeenStateTracker`, `events.py`) instead of a single last value. A hash only
+counts as an advance if it is not already in the window — which catches a cycle
+of any period up to the window size, at the same bounded-memory cost the project
+already pays for `LoopDetector.window`. Verified live: the same 12-cycle now
+trips `loop` at the 4th repetition.
+
+This was found through the real-trace pipeline, not the synthetic one — 936
+generated scenarios never produced a genuine alternating-tool cycle, because the
+generators do not model "the agent tries two different but equally wrong things
+in sequence." The synthetic suite's headline numbers (precision 99.4%, recall
+97.8%, F1 98.6%) are unchanged by either fix in this section — confirmed by
+re-running with the fix stashed out and diffing the failure list, which was
+byte-for-byte identical. That is itself informative: a benchmark built from
+generators the author wrote cannot find a failure mode the author did not think
+to write a generator for.
 
 ---
 
@@ -607,6 +675,8 @@ problem, but destroying work that was fine. Fixing one instance moved FPR 7.4% �
 | `max_recoveries=3` against a 4-rung ladder | upper rungs unreachable dead code | recovery 55.4% → 75.2% |
 | Eval hard-coded the *lexical* drift threshold | silently zeroed drift recall under embeddings | looked like model failure, was config |
 | Identical error treated as a loop | benign retries halted | FP 22 → 6 |
+| `progress`/`loop` reset on "changed from last hash" only | a 2+-cycle of alternating static results evades both forever | 12-cycle live evasion → trips at 4th repeat (section 3.11) |
+| `trace_import.py` only recognised standalone `state_update` events | real traces (state on `TOOL_RESULT`) scored with zero progress signal | inflated a real-drift "catch" from an artifact to a measured 7/11 (section 3.10) |
 
 ### 4.3 Sometimes the benchmark is what's wrong
 
