@@ -47,7 +47,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..events import AgentEvent, EventType
+from ..events import AgentEvent, EventType, SeenStateTracker
 from .base import Detector, Trip, Severity
 
 # A tool call is a full unit of "doing something"; a reasoning turn is partial.
@@ -66,18 +66,24 @@ class NoProgressDetector(Detector):
     def __init__(self, patience: int = 6, calibrator=None):
         self.patience = patience
         self.calibrator = calibrator
-        self._last_state_hash: Optional[str] = None
+        # Recent-window membership, not a single last-hash comparison: see
+        # SeenStateTracker's docstring for the cycle it closes (a run
+        # alternating two individually-static tool results defeats a "changed
+        # from last time" rule forever, because it always differs from its
+        # immediate predecessor).
+        self._seen = SeenStateTracker()
+        self._has_progressed = False
         self._work_since_progress = 0.0   # weighted actions since the last advance
         self._actions_since_progress = 0  # raw count, for the evidence payload
         self._tools_since_progress = 0
         self._last_progress_step = 0
 
     def inspect(self, event: AgentEvent, history: list[AgentEvent]) -> Optional[Trip]:
-        # A state update carrying a NEW hash is the only thing that counts as
-        # progress. A repeated hash is a no-op write, not an advance.
-        h = event.state_hash
-        if h is not None and h != self._last_state_hash:
-            self._last_state_hash = h
+        # A state hash this run has not already visited is the only thing that
+        # counts as progress. A repeated hash — even one that merely differs
+        # from the IMMEDIATELY PRECEDING hash — is not an advance.
+        if self._seen.advance(event.state_hash):
+            self._has_progressed = True
             self._work_since_progress = 0.0
             self._actions_since_progress = 0
             self._tools_since_progress = 0
@@ -109,7 +115,7 @@ class NoProgressDetector(Detector):
         # identical to one going nowhere. So hold fire until the first genuine
         # advance, bounded by a hard ceiling so a run that NEVER advances (the
         # stall we most want to catch) is still caught, just later.
-        if self.calibrator is not None and self._last_state_hash is None:
+        if self.calibrator is not None and not self._has_progressed:
             if self._work_since_progress < effective * self.GRACE_MULTIPLIER:
                 return None
 
@@ -140,3 +146,6 @@ class NoProgressDetector(Detector):
         self._work_since_progress = 0.0
         self._actions_since_progress = 0
         self._tools_since_progress = 0
+        # `_seen` and `_has_progressed` deliberately survive a steering reset:
+        # they are the run's history of genuine advances, not the "work since
+        # the last one" counters this method exists to clear.
