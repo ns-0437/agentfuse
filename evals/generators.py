@@ -89,11 +89,14 @@ DOMAINS = [
             "Push the release artifact to pre-production and make sure the readiness probe succeeds.",
             "Roll the new build onto staging, then confirm service liveness.",
         ],
+        # 4th entry named neither "staging" nor "health check" -> 0.665 under
+        # the prerequisite framing, one bad draw from the finance failure
+        # above. See finance's comment for the full audit.
         "on_topic": [
             "Building the release artifact for the staging target.",
             "Deploying the built artifact to the staging environment.",
             "Waiting for the staging service to report healthy.",
-            "Confirming the health endpoint returns a success code.",
+            "Confirming the staging health check endpoint returns a success code.",
         ],
         "off_topic": [
             "Reviewing the team's on-call rotation schedule for next month.",
