@@ -91,6 +91,14 @@ def _goal_anchors(goal: str) -> set[str]:
 # Swept against the local bge-base model on the generated suite:
 # 0.60 -> drift recall 83.3%, 0.65 -> 96.7% at FPR 6.1% (best F1 92.0%),
 # 0.69 -> 100% drift recall but FPR jumps to 11.5%. 0.65 is the knee.
+#
+# Re-swept 0.55-0.78 against the corrected suite widened to 6 pure-reasoning
+# framing styles (REPORT.md section 3.15) -- not just re-confirming the same
+# number, but checking whether the domain-example fix for section 3.14's
+# false positives had merely moved the edge rather than removed it. It hadn't:
+# 0.65 sits in the middle of a flat 100% F1 plateau from 0.64 to 0.68 (recall
+# falls off smoothly below it, precision falls off smoothly above), a real
+# 0.04-wide margin on both sides rather than a coincidence.
 DEFAULT_THRESHOLD_EMBEDDING = 0.65
 DEFAULT_THRESHOLD_LEXICAL = 0.20
 
