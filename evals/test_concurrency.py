@@ -40,6 +40,7 @@ from agentfuse import (  # noqa: E402
 )
 from agentfuse.detectors.loop import LoopDetector, _lane  # noqa: E402
 from agentfuse.memory import JSONMemory, RecoveryRecord  # noqa: E402
+from evals.conftest import requires_embeddings  # noqa: E402
 
 GOAL = "Reconcile the outstanding invoices against the ledger."
 
@@ -291,6 +292,7 @@ def _agent_events(step, agent, tool, text):
     ]
 
 
+@requires_embeddings
 def test_sharing_one_monitor_across_agents_halts_healthy_runs():
     """Pins the measured cost of the unsupported configuration.
 
