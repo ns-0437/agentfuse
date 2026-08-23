@@ -592,7 +592,7 @@ F1. It is the control that makes the headline number mean anything.
 
 *Table below is from the 2026-08-18 ablation run, predating the 2026-08-23
 generator fixes above (`full system` here reads 97.8%/98.6%, not the current
-100.0%/99.7%) — not yet re-run against the corrected suite. Relative deltas
+100.0%/100.0%) — not yet re-run against the corrected suite. Relative deltas
 between detectors are unlikely to move much; the absolute `full system` row
 should not be quoted as current.*
 
