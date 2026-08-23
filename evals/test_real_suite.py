@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from evals.real_suite import classify, make_router
+from evals.real_suite import classify, make_router, make_router_research
 
 
 def _trace(tmp_path: Path, records: list[dict]) -> Path:
@@ -214,6 +214,16 @@ def test_every_world_answers_every_tool(world):
         assert isinstance(router(tool, {"name": "prod/db/primary"}), str)
 
 
+@pytest.mark.parametrize("world", ["r_simple", "r_deep", "r_cascade"])
+def test_every_research_world_answers_every_tool(world):
+    """Same plumbing guarantee as test_every_world_answers_every_tool, for the
+    second (research) domain -- a router returning None here would fabricate
+    a positive exactly the same way."""
+    router, _ = make_router_research(world)
+    for tool in ("web_search", "fetch_page", "extract_features", "build_table"):
+        assert isinstance(router(tool, {"query": "x", "url": "taskflow.example"}), str)
+
+
 def test_a_run_with_no_tool_calls_is_not_scored(tmp_path):
     """A real behaviour, but not evidence.
 
@@ -330,3 +340,29 @@ def test_each_router_chain_returns_its_own_links():
         router, _ = make_router("cascade", chain=name)
         outs = [router("search_files", {}) for _ in range(6)]
         assert outs == CASCADE_CHAINS[name], name
+
+
+def test_research_cascade_chain_has_a_marker_per_link():
+    """Same invariant as test_every_cascade_chain_has_a_marker_per_link, for
+    the research domain's single chain -- a marker absent from its own link's
+    text would silently cap the measured depth and mislabel a drifted run
+    healthy."""
+    from evals.real_suite import RESEARCH_CASCADE_CHAIN, RESEARCH_CASCADE_MARKERS
+    assert len(RESEARCH_CASCADE_MARKERS) == len(RESEARCH_CASCADE_CHAIN)
+    for link, marker in zip(RESEARCH_CASCADE_CHAIN, RESEARCH_CASCADE_MARKERS):
+        assert marker in link, f"{marker!r} not in {link[:50]!r}"
+
+
+def test_research_cascade_router_returns_its_own_links():
+    from evals.real_suite import RESEARCH_CASCADE_CHAIN
+    router, _ = make_router_research("r_cascade")
+    outs = [router("web_search", {}) for _ in range(len(RESEARCH_CASCADE_CHAIN))]
+    assert outs == RESEARCH_CASCADE_CHAIN
+
+
+def test_task_names_do_not_collide_across_domains():
+    """main() merges TASKS and RESEARCH_TASKS into one lookup keyed by name;
+    a collision would silently make one domain's task unreachable."""
+    from evals.real_suite import TASKS, RESEARCH_TASKS
+    overlap = set(TASKS) & set(RESEARCH_TASKS)
+    assert not overlap, overlap
