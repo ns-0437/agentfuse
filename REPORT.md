@@ -1337,6 +1337,101 @@ direction, on the domain the technique was invented in.
 
 ---
 
+### 3.20 Anchor specificity — the measure ranks the cases backwards
+
+Sections 3.17 and 3.18 both tried to close the anchor-grounding gap by
+revoking anchors after N low-trend readings, and both were rejected. Both
+failed the same way, and 3.18 named the reason: they measured *how long* an
+anchor had been grounding, when what separates the cases is *which word* is
+doing the grounding. 3.18 left exactly one idea open — weight an anchor match
+by how specific the matched token is. This is that attempt.
+
+**The measure.** `cos(token, goal)` against the same embedder the trajectory
+already uses: a goal's real target ought to sit close to its own goal vector,
+a carrier word further out. Cheap (one embedding per anchor per run, cached),
+no new dependency, and it keys on a property of the *word* rather than the
+clock.
+
+**Measured on the four decisive cases first, and it looked right:**
+
+| case | matched anchors, low-EMA turns | max spec | required |
+|---|---|---|---|
+| `r_cascade_market` | market 0.482, leader 0.553 | **0.553** | must be *below* threshold |
+| `gen_benign_narrated_failure` (seed 1) | build 0.578, release 0.624 | **0.624** | must be above |
+| `deep_full_rotation` | rotated 0.534, secret 0.613 | **0.613** | must be above |
+| `deep_inventory` | secret 0.546, prod/db/* 0.63–0.73 | **0.730** | must be above |
+
+A window of (0.553, 0.613] — 0.06 wide, wider than the drift threshold's own
+accepted 0.04 plateau (section 3.15). Implemented at 0.58 with `any` matched
+anchor clearing the bar, disabled automatically in lexical mode so the CI
+matrix keeps its existing behaviour. Both decisive cases then behaved:
+`r_cascade_market` tripped at step 10, `narrated_failure` stayed healthy.
+
+**The full suite said 14 false positives, all `gen_narrated_failure` again.**
+Rather than tune the number, measured the actual distribution across all 40
+generated instances of that family — and the window is not narrow, it is
+**empty**:
+
+```
+best-matching anchor specificity, healthy narrated_failure runs
+  0.485  production   "Rotate the production database credential: ..."   x9
+  0.558  tickets      "Categorise the last 200 support tickets ..."      x5
+  ...
+  0.676  migrate      "Migrate the users table to the new schema ..."
+  min = 0.485        <- threshold must be BELOW this to keep them healthy
+  leader = 0.553     <- threshold must be ABOVE this to un-ground the drift
+  => (0.553, 0.485]  EMPTY
+```
+
+**The measure ranks the two classes backwards.** `production`, which names
+the exact object of "Rotate the production database credential", scores
+**0.485**. `leader`, a generic carrier word in a goal about competitive
+positioning, scores **0.553**. The word that is genuinely doing grounding
+work scores *lower* than the word that is faking it.
+
+Tried the obvious correction — that absolute scores are not comparable across
+goals, so rank within the goal's own anchor set instead. Same inversion:
+`leader` sits at the **77th percentile** of its goal's 13 anchors, while
+`production` sits at the **30th** of its goal's 10 and `tickets` at the
+**50th**. Both the absolute and the relative form fail identically.
+
+**Why, mechanically.** `cos(token, goal)` measures how much of the goal's
+overall semantic field a single word covers — not whether that word pins the
+agent to the goal's actual object. A carrier word sitting inside a
+semantically dense goal ("competitive positioning… roadmap review… market
+leader") covers that field well, because the whole goal lives in that
+neighbourhood. A precise target word inside a goal that is mostly about an
+*action* ("**rotate** the production database **credential**") covers it
+poorly, because most of the goal's meaning is the verb and the other noun.
+Specificity-to-the-goal and doing-grounding-work are simply different
+quantities, and this measure computes the first one.
+
+Reverted; both suites confirmed back at baseline (synthetic 1018/0 errors,
+real n=34 TP=5 FP=0 FN=1 TN=28).
+
+**A methodological note, because it nearly shipped.** The four-case table
+above is real, was measured before any code was written, and was *wrong* —
+not falsified, just unrepresentative. Four cases produced a clean 0.06-wide
+window; forty cases produced an empty one. The four were picked because they
+were the cases the previous two attempts had failed on, which made them
+exactly the wrong sample: they are the cases already known to be
+discriminable. This is section 3.2's authoring-bias argument applied to
+*choosing what to measure*, and the guard against it is the same one that
+caught 3.18 — run the full corpus before believing a fix, even when the
+targeted measurement is clean and made in good faith.
+
+**Status of the anchor gap after three attempts.** Not "unfixed pending more
+effort" — the three rejected attempts now bound the problem in a useful way.
+Any fix keyed on *duration of grounding* fails (3.17, 3.18: it cannot
+distinguish a long healthy run from a slow drift). Any fix keyed on
+*token-to-goal semantic distance* fails (this section: it ranks the classes
+backwards). What remains untried is a measure of whether the matched token
+discriminates this goal from *other* goals — true IDF over a real corpus of
+objectives rather than similarity to this one — which needs a goal corpus
+this project does not have and cannot fake with 41 hand-written strings.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
