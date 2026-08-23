@@ -598,7 +598,7 @@ where `you seem stuck` is not — so 28 points of attribution is worth more than
 ### A real-trace suite — with real *healthy* runs in it
 
 Synthetic scenarios encode my model of agent failure. `evals/real_suite.py`
-captures 12 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
+captures 23 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
 with an oracle that reads only the agent's actions — never the breaker's output.
 
 ```bash
@@ -606,13 +606,18 @@ python evals/score_real_suite.py
 ```
 
 ```
-n=22   TP=2  FP=0  FN=0  TN=20
+n=23   TP=2  FP=0  FN=0  TN=21
 precision 100.0%   95% CI [34.2%, 100.0%]
 recall    100.0%   95% CI [34.2%, 100.0%]
-FPR         0.0%   95% CI [0.0%, 16.1%]   (on 20 real healthy runs)
+FPR         0.0%   95% CI [0.0%, 15.5%]   (on 21 real healthy runs)
 ```
 
-The **9 negatives** are the point — the previous 50 captured traces were 88%
+The 21st negative is a task built specifically to close a gap noted below: list
+every secret, then read-write-verify each in turn — 16 distinct calls, 33
+events, no healthy run had ever gone past 11. It stayed silent, but only after
+fixing a real bug it exposed — see [REPORT.md section 3.10](REPORT.md).
+
+The **21 negatives** are the point — the previous 50 captured traces were 88%
 positives and could not measure precision at all. Three are *hard* negatives: a
 retry against a flaky store, a poll whose status advances, an agent that searches
 an empty world and correctly reports nothing. Those are exactly the shapes a
@@ -642,18 +647,28 @@ deployment manifest → release checklist → smoke tests → payment gateway). 
 
 | | outcome |
 |---|---|
-| real drift traces caught by the breaker | **10 / 11** |
-| caught by the `drift` detector | **0 / 11** |
-| false positives on 20 real healthy runs | **0** |
+| real drift traces caught by the breaker | **7 / 11** |
+| caught by `loop` / `progress` / `drift` | **4 / 2 / 1** |
+| false positives on 21 real healthy runs (incl. one 33-event run) | **0** |
 
-The breaker **does** halt real drifting agents. But every catch came from
-`progress`, so a drifting agent is told *"you are not making progress"* rather
-than *"you have wandered off your goal"* — and the steering ladder climbs from
-the wrong diagnosis. Counter to the usual assumption, the **3B did not drift and
-the 7B did**: gradual drift needs the competence to follow a chain, so scale
-increases exposure. See [REPORT.md section 3.10](REPORT.md).
+That 7/11 replaced an earlier 10/11 that was not real: the eval importer only
+recognised a standalone `state_update` event as progress, but the real adapter
+attaches `state` directly to `TOOL_RESULT` and never emits that event — so real
+traces scored with zero progress signal, and `progress` was tripping on *length*,
+not on the absence of progress. Fixing that exposed a second, deeper bug live in
+both `progress` and `loop`: resetting on "differs from the immediately preceding
+state hash" is gameable by any short cycle — an agent alternating two
+individually-static tool calls (e.g. read/write against an unchanging value)
+never repeats its own predecessor, so it evaded both detectors for 12 measured
+cycles. Both now use a bounded recent-window membership test instead of a single
+last-hash comparison. `drift` fired on real data for the first time as a result.
+See [REPORT.md section 3.10 and 3.11](REPORT.md).
 
-**It does not fix saturation.** 12/12 is still a ceiling, and 9 healthy runs
+Counter to the usual assumption, the **3B did not drift and the 7B did**:
+gradual drift needs the competence to follow a chain, so scale increases
+exposure.
+
+**It does not fix saturation.** 12/12 is still a ceiling, and 21 healthy runs
 cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
 regressions, not small ones.
 
