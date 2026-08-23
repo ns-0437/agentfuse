@@ -8,6 +8,20 @@ judging the run is never the thing performing it.
 
 Repo: https://github.com/ns-0437/agentfuse (public) · Dashboard: https://ns-0437.github.io/agentfuse/
 
+## Current state (2026-08-23)
+
+Synthetic suite: 1018 scenarios, **0 errors**, precision/recall/F1 all 100.0%,
+FPR 0.0% — re-verified with a full ablation, 25-seed significance test, 4-seed
+regeneration check, and richer trivial-baselines table. **This is not "solved"**:
+every one of the 14 errors it used to carry turned out to be the benchmark's own
+construction bug (REPORT.md 3.13–3.14), not a detector gap, and a 0-error score
+on a suite one person wrote is evidence of internal consistency, not correctness
+against the world. Real-trace suite: 23 runs (21 healthy), 100%/100%/0% FPR —
+still far too small to trust on its own. See the improvement list kept in memory
+(ask "what needs improving") for the prioritized set of genuinely open gaps —
+the biggest is the pure-reasoning drift-grounding gap (REPORT.md 3.13), which
+this session tried and rejected 4 different fixes for.
+
 ## Code structure
 
 ```
@@ -107,14 +121,34 @@ agentfuse/
    to treat as a broken test.
 10. **NEVER use the `§` symbol** — write "section 3.10". Applies everywhere,
     including commit messages and code comments.
+11. **Verify a claim about existing code before citing it as an answer**,
+    even in a report. A REPORT.md draft once named `confidence.py` as an
+    untried "LLM judge" candidate for a gap — rereading its own docstring
+    before shipping showed it reads token logprobs, not semantic content, so
+    it wasn't a candidate at all. Caught and corrected before the commit,
+    which is the point: check the file, don't reason from the name.
+12. **To hit a specific commit-count request without padding**, use
+    `git add -p <file>` (pipe `y`/`n`/`s` answers) to stage real paragraph/
+    table boundaries as separate commits, even from one Edit pass. When git's
+    hunk-splitter can't separate genuinely distinct concerns bundled in one
+    contiguous diff, reconstruct manually: save final content to scratch,
+    `git show <base>:<file> > <file>` to revert the working tree, then
+    re-apply in stages with Edit + commit between each, diffing against
+    scratch at the end. Only use `git reset --soft` to redo commit
+    granularity when `git log origin/main..HEAD` confirms nothing is pushed
+    yet — and watch for a stale staged index leaking into an unrelated
+    commit after a reset (happened once; caught via `git show --stat HEAD`
+    immediately after committing, fixed with another soft reset).
 
 ## Useful commands
 
 ```bash
 python evals/run_eval.py --generated 40 --no-ablation     # full synthetic suite (1018 scenarios, ~1 min)
+python evals/run_eval.py --generated 40 --json --significance 25  # + ablation + 25-seed significance (~6 min)
+python evals/validity.py                                  # seed-generalisation + trivial baselines + ICC (~3 min)
 python evals/score_real_suite.py                          # real-trace scoring
 python evals/real_suite.py --relabel                      # re-derive labels only, no model calls
-pytest evals/ -q                                           # 303-test gate (~5 min)
+pytest evals/ -q                                           # 303-test gate (~5-6 min)
 
 python -m llama_cpp.server --model models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf \
   --n_ctx 8192 --port 8080 --n_gpu_layers 0 --n_threads 6
