@@ -399,9 +399,28 @@ def gen_drift(rng: random.Random, idx: int, abrupt: bool = True) -> Scenario:
     else:
         # Gradual: ride the bridge sentences first (goal vocabulary retained,
         # intent already sliding), only then go fully off-topic.
+        #
+        # off_n=3 or 4 used to leave 0 or 1 genuinely off-topic turns after the
+        # bridges (min(off_n,3) of them) -- NOT enough to guarantee
+        # DriftDetector's `patience` (2) consecutive low-similarity readings.
+        # "Guarantee", not "prevent": instrumented all 40 seeded draws and some
+        # 0-tail and 1-tail scenarios DID trip, because that domain's specific
+        # bridge wording happened to score low twice in a row by chance (with
+        # the local embedder, bridges measure 0.65-0.72 against their own goal
+        # on average -- this project's own docstring's "0.25-0.30" estimate was
+        # measured under the OLD lexical scorer and never re-verified after the
+        # switch to embeddings). Measured catch rate: tail=0 caught 6/10 (60%),
+        # tail=1 caught 7/11 (64%), tail>=2 caught 19/19 (100%). A tail below
+        # patience makes should_trip=True a domain-dependent GAMBLE, not an
+        # achievable claim -- same class of defect as gen_long_sparse_benign
+        # (section 4.3) and gen_spend's ceiling variant above. The tail is now
+        # guaranteed >= patience regardless of the off_n draw, which removes
+        # the gamble rather than papering over specific unlucky seeds.
         bridges = SUBTLE_BRIDGES[d["key"]]
-        body = [bridges[i % len(bridges)] for i in range(min(off_n, 3))]
-        body += [d["off_topic"][i % len(d["off_topic"])] for i in range(off_n - len(body))]
+        bridge_n = min(off_n, 3)
+        tail_n = max(off_n - bridge_n, 2)
+        body = [bridges[i % len(bridges)] for i in range(bridge_n)]
+        body += [d["off_topic"][i % len(d["off_topic"])] for i in range(tail_n)]
 
     for text in body:
         ti, to = _tokens(rng)
@@ -481,8 +500,19 @@ def gen_spend(rng: random.Random, idx: int) -> Scenario:
             steps.append(tool(rng.choice(d["tools"]), {"page": i}, result=f"page {i}",
                               progress=True, tokens_in=rng.randint(1600, 2000),
                               tokens_out=rng.randint(350, 500)))
-        cfg = {"max_tokens": 20_000, "loop_threshold": 99, "stall_patience": 99,
-               "drift_threshold": 0.0}
+        # A fixed 20_000 ceiling against n in [9,14] steps of randomly-drawn
+        # tokens is not guaranteed to be breached: the minimum possible total
+        # (9 steps * 1950 tokens = 17_550) sits BELOW 20_000. Measured directly
+        # against the 40-seed suite: 3 of 22 ceiling-variant draws (13.6%)
+        # landed under budget -- gen_spend_0023/0029/0035, all at 19.5-19.6k --
+        # labelled should_trip=True regardless. The detector was correctly
+        # silent on all three; the benchmark was wrong, not the code (same
+        # class of defect as gen_long_sparse_benign, section 4.3).
+        # The ceiling is now derived from the scenario's OWN actual total, so a
+        # breach is guaranteed by construction rather than by chance.
+        total = sum(s.tokens_in + s.tokens_out for s in steps)
+        cfg = {"max_tokens": int(total * 0.7), "loop_threshold": 99,
+               "stall_patience": 99, "drift_threshold": 0.0}
         onset = 0
 
     return Scenario(
