@@ -664,7 +664,7 @@ where `you seem stuck` is not — so 28 points of attribution is worth more than
 ### A real-trace suite — with real *healthy* runs in it
 
 Synthetic scenarios encode my model of agent failure. `evals/real_suite.py`
-captures 23 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
+captures 28 runs from a real Qwen2.5-7B, breaker **disarmed**, and labels them
 with an oracle that reads only the agent's actions — never the breaker's output.
 
 ```bash
@@ -672,18 +672,24 @@ python evals/score_real_suite.py
 ```
 
 ```
-n=23   TP=2  FP=0  FN=0  TN=21
+n=28   TP=2  FP=0  FN=1  TN=25
 precision 100.0%   95% CI [34.2%, 100.0%]
-recall    100.0%   95% CI [34.2%, 100.0%]
-FPR         0.0%   95% CI [0.0%, 15.5%]   (on 21 real healthy runs)
+recall     66.7%   95% CI [20.8%, 93.9%]
+FPR         0.0%   95% CI [0.0%, 13.3%]   (on 25 real healthy runs)
 ```
+
+Recall dropped from an earlier 100% (n=2) not because a detector regressed but
+because a 3rd real positive was added — see below — and it's the one this
+suite has genuinely missed. That is what an honest metric does when new,
+independently-sourced evidence actually tests something new instead of
+re-confirming what a two-positive sample already agreed with.
 
 The 21st negative is a task built specifically to close a gap noted below: list
 every secret, then read-write-verify each in turn — 16 distinct calls, 33
 events, no healthy run had ever gone past 11. It stayed silent, but only after
 fixing a real bug it exposed — see [REPORT.md section 3.10](REPORT.md).
 
-The **21 negatives** are the point — the previous 50 captured traces were 88%
+The **25 negatives** are the point — the previous 50 captured traces were 88%
 positives and could not measure precision at all. Three are *hard* negatives: a
 retry against a flaky store, a poll whose status advances, an agent that searches
 an empty world and correctly reports nothing. Those are exactly the shapes a
@@ -746,7 +752,23 @@ Counter to the usual assumption, the **3B did not drift and the 7B did**:
 gradual drift needs the competence to follow a chain, so scale increases
 exposure.
 
-**It does not fix saturation.** 12/12 is still a ceiling, and 21 healthy runs
+**Every real trace above was the same topic — credential rotation, same 4
+tools — until now.** Added a second domain (competitor research, 4 different
+tools, no shared vocabulary) specifically to find out whether anything
+measured so far depended on that one topic without anyone noticing. Gradual
+drift elicitation **transferred cleanly**: the one cascade task in the new
+domain followed a 6-link chain about product roadmaps 5 links deep, same
+locally-reasonable-step-by-step shape section 3.10 found in infrastructure.
+It also found a real miss `drift` never caught — the goal's own vague wording
+("...the market leader is doing, then follow whatever that turns up") anchors
+on ordinary words ("market", "leader") the agent kept restating as a carrier
+phrase through the whole drift. A fix (the same amnesty bound already proven
+for tool continuity, applied to anchors too) caught it — and cost 2 new false
+positives on exactly the long-healthy-run shape this project built a control
+for. Reverted; the miss stays honest and documented rather than patched at
+the cost of a worse trade. See [REPORT.md section 3.17](REPORT.md).
+
+**It does not fix saturation.** 12/12 is still a ceiling, and 25 healthy runs
 cannot resolve a 0.6% FPR — the interval spans it either way. It catches gross
 regressions, not small ones.
 
