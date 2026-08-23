@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections import deque
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Optional
@@ -45,6 +46,39 @@ def stable_hash(obj: Any) -> str:
     except TypeError:
         blob = str(obj)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
+
+
+class SeenStateTracker:
+    """Is this state hash a genuine advance, or one this run has already visited?
+
+    ``NoProgressDetector`` and ``LoopDetector`` both used to reset on any hash
+    that merely DIFFERED from the immediately preceding one. That is gameable
+    by any short cycle: an agent alternating write_secret/read_secret against
+    an unchanging value produces two individually-static results that differ
+    from each other every single step, so "changed from last time" reads as
+    continuous progress forever. Measured live: 12 read/write cycles over a
+    fixed value never tripped either detector.
+    ``deque(maxlen=window)`` only ever holds genuinely-new hashes (repeats are
+    never appended), so it tracks the last ``window`` *distinct* states rather
+    than the last ``window`` events — bounded memory, and it catches a cycle of
+    any period up to that width. A hash that scrolls out of the window before
+    reappearing is treated as new again; that is a deliberate memory bound, not
+    an oversight — see ``LoopDetector.window`` for the same tradeoff made
+    elsewhere in this codebase.
+    """
+
+    def __init__(self, window: int = 12):
+        self._seen: "deque[str]" = deque(maxlen=window)
+
+    def advance(self, h: Optional[str]) -> bool:
+        """Record ``h`` if new; return True iff this is a genuine advance."""
+        if h is None or h in self._seen:
+            return False
+        self._seen.append(h)
+        return True
+
+    def reset(self) -> None:
+        self._seen.clear()
 
 
 @dataclass
