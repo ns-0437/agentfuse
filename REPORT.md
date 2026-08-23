@@ -196,6 +196,17 @@ Quote the **family count**, never the effective *n*. A separate measured result:
 sweeping scenarios-per-generator across 40/20/10/5 moved effective *n* only 13→14
 — **only more independent families buy statistical power.**
 
+**Update 2026-08-23 — the ceiling artifact reached its limit.** Re-run
+(`evals/validity.py`, 12 recall-bearing generator clusters, n=480): ICC
+**0.000**, design effect **1.00×**, effective n = nominal n = 480, cluster-
+adjusted CI identical to the naive one (both 100.0% [99.2–100.0]). This is the
+same artifact described above taken all the way to its endpoint, not a
+stronger result — with recall at 100.0%, every cluster is now an all-success,
+so there is no between-cluster variance left for the design effect to correct
+for. It says nothing new about the suite's statistical power; it says the
+suite has zero errors, which section 3.14 already covers in full including why
+that is not the same claim as "solved".
+
 ### 3.3 The central premise is disproven at every size we can test
 
 The project's claim is that a *separate reasoning model* writes better
