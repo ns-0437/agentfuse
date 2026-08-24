@@ -121,10 +121,11 @@ breaker code are byte-for-byte identical.
         └────────────────────────┬──────────────────────────────┘
                      trip!        │  freeze ExecutionSnapshot
                                   ▼
-        ┌──────────── RecoveryEngine (SEPARATE model) ──────────┐
-        │  reasoning model → SteeringPath                       │
-        │    { inject correction · escalate to human · abort }  │
-        └────────────────────────┬──────────────────────────────┘
+        ┌──── RecoveryEngine (separate from the agent either way) ────┐
+        │  deterministic ladder (default) → SteeringPath              │
+        │  reasoning model (opt-in, currently loses — REPORT 8.1)     │
+        │    { inject correction · escalate to human · abort }        │
+        └────────────────────────┬────────────────────────────────────┘
                                   ▼
                  Directive → adapter injects steering & resumes
 ```
