@@ -49,6 +49,7 @@ from .detectors import (Detector, LoopDetector, DriftDetector, SpendDetector,
 from .calibration import AdaptiveCalibrator
 from .detectors.base import Severity
 from .recovery import RecoveryEngine, SteeringPath, RecoveryAction
+from .memory import JSONMemory
 from .tracer import Tracer
 
 
@@ -161,6 +162,15 @@ class CircuitBreakerMonitor:
             if hasattr(_d, "calibrator") and getattr(_d, "calibrator", None) is None:
                 _d.calibrator = self.calibrator
 
+        # `checkpoint_path` promises durable run state, but a default-constructed
+        # RecoveryEngine's memory is in-process only -- the ladder's climb
+        # history (which rungs already failed, for which failure signature) was
+        # silently lost on every restart, the same failure shape the spend
+        # ceiling was already fixed for once (this module's own docstring). Only
+        # wired in when the caller took the RecoveryEngine default AND asked for
+        # durability; an explicit `recovery=` is a choice this must not override.
+        if recovery is None and config.checkpoint_path:
+            recovery = RecoveryEngine(memory=JSONMemory(path=config.checkpoint_path + ".memory.jsonl"))
         self.recovery = recovery or RecoveryEngine()
         self.tracer = tracer or Tracer(jsonl_path=config.jsonl_path, echo=config.echo)
         self.tracer.meta({
