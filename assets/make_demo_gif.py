@@ -2,8 +2,8 @@
 
 Produces ``assets/demo.gif`` — a stylized terminal recording that reveals the
 loop-trap run line by line: the agent repeats a doomed tool call, the circuit
-breaker trips, a separate reasoning model injects a steering path, and the agent
-self-heals. Pure Pillow; no screen recorder needed.
+breaker trips, the deterministic escalation ladder injects a steering path, and
+the agent self-heals. Pure Pillow; no screen recorder needed.
 
 Run:  python assets/make_demo_gif.py
 """
@@ -63,7 +63,7 @@ BLOCKS = [
         ("search_files called 3x, identical args, no state progress.", TEXT, FS),
     ]),
     ("panel-heal", [
-        ("STEERING RECOVERY   ·   separate reasoning model", HEAL, FT),
+        ("STEERING RECOVERY   ·   deterministic ladder", HEAL, FT),
         ("Stop repeating search_files - it isn't advancing the task.", TEXT, FS),
         ("Re-read the objective and take a different next action.", TEXT, FS),
     ]),
