@@ -2202,7 +2202,7 @@ Verified against the code, not asserted:
 |---|---|
 | Detection quality | **Strong** — but on a saturated, self-authored suite |
 | Steering quality | **Unproven** — templates beat the only real model tested |
-| Persistence / checkpoints | **Fixed 2026-08-13** (section 4.7), extended **2026-08-24** (3.22, 3.26). A resumed run keeps its spend ceiling, loop counters, calibration baseline, and now the recovery ladder's own climb history — that last one was silently exempt until today. A steer still mid-verification at the exact moment of a crash remains a known, narrower gap (3.26) |
+| Persistence / checkpoints | **Fixed 2026-08-13** (section 4.7), extended **2026-08-24** (3.22, 3.26, 3.27) after a systematic per-attribute audit. A resumed run keeps its spend ceiling, loop counters, calibration baseline, recovery-ladder climb history, and escalation delivery status. A steer still mid-verification at the exact moment of a crash remains a known, narrower gap (3.26, section 7 item 5) |
 | Thread / async safety | **Fixed 2026-08-13** (section 4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
 | Real-model validation | Supervisor half: 3B/7B models LOST to the templates (section 8.1). Agent obedience to rung 1: real, measured, 83.3%/6-of-8 with the right delivery mechanism (section 3.6, corrected into 8.2). Agent obedience to the escalating ladder past rung 1: still untested — the ladder never climbed in any real trace before the 2026-08-24 fix (section 3.24) |
