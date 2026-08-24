@@ -1850,13 +1850,77 @@ test). 2 tests, verified against pre-fix code the same way as every other
 fix this session: reverted, confirmed `assert None is False` with the
 predicted symptom, restored, confirmed all 23 tests in the file pass.
 
-**No further gaps found in this pass.** Every other `__init__` attribute is
-either already covered (`total_tokens`, `total_cost`, `recovery_count`,
-`route_history`, `current_goal`, `steers_that_worked`/`failed`,
-`_verify_seen`, detector state, calibrator) or genuinely transient by design
+**"No further gaps found in this pass" was wrong within the same pass —
+corrected here rather than left, matching the discipline section 3.23 named
+for exactly this kind of overclaim.** `Monitor`'s own attributes were
+exhaustively checked; `self.tracer` was not, because it is not a `Monitor`
+attribute in the state-list sense — it is a whole separate object the
+monitor holds a reference to. Checking it anyway (section 3.28) found the
+third and most severe gap of this pass: not stale counters, but a live
+audit trail that a restart could silently erase.
+
+Every other `__init__` attribute genuinely is either already covered
+(`total_tokens`, `total_cost`, `recovery_count`, `route_history`,
+`current_goal`, `steers_that_worked`/`failed`, `_verify_seen`, detector
+state, calibrator, and now the trace file) or genuinely transient by design
 (`_events_since_checkpoint`, `_agent_id`, `_warned_shared`,
 `_warned_no_channel`, `_pending_steer` — the last one section 3.26 already
 named as a known, separate, mechanical-to-close gap).
+
+---
+
+### 3.28 The trace file itself was being erased on every checkpoint restart
+
+Found immediately after writing 3.27's "no further gaps" line, which is
+exactly why it says what it says above rather than standing uncorrected.
+`Monitor`'s attributes were audited; `self.tracer` — a whole object, not a
+counter — was not, on the reasoning that it "isn't state, it's a logger."
+That reasoning was wrong: the trace file is the one durable, human-readable
+record of everything the monitor and the ladder have done, and it turns out
+to have exactly the failure mode 3.22/3.26/3.27 kept finding, just in a
+different place and worse in consequence.
+
+**`Tracer.__init__` opens `jsonl_path` in `"w"` mode, unconditionally.**
+Correct for the common case — a fresh run, or a demo intentionally starting
+clean each invocation (`runs/loop_trap.jsonl` is meant to be overwritten
+every time `demo_loop_trap.py` runs, not accumulate forever). Wrong for a
+restart: `self.tracer = tracer or Tracer(jsonl_path=config.jsonl_path, ...)`
+runs inside `Monitor.__init__`, which means a resumed process's own trace
+file is truncated to a single fresh `meta` line **before `Monitor.restore()`
+is even called** — the monitor's tokens, ladder memory (3.26), and escalation
+status (3.27) all now correctly carry across the restart, but the one record
+of how they got there does not survive the same restart at all.
+
+**Reproduced directly**: wrote 2 events to a checkpointed monitor (5 lines
+including meta), checkpointed, constructed a fresh monitor pointed at the
+same `checkpoint_path` and `jsonl_path` — the trace was already down to 1
+line before `.restore()` was even called.
+
+**Fixed** by adding `append: bool = False` to `Tracer.__init__` (default
+preserves the exact current truncate-on-construct behaviour) and wiring
+`append=bool(config.checkpoint_path)` into `Monitor`'s own default-Tracer
+construction — the same durability signal 3.26 already established, with
+the same "an explicit `tracer=` is a choice this must not override" rule.
+Verified both directions: a checkpointed restart now appends (pre-restart
+events still present, post-restart events land after them, confirmed by
+content not just line count); a non-checkpointed fresh construction still
+truncates exactly as before (confirmed with a dedicated test using
+`CircuitBreakerMonitor` directly rather than the test file's own `_mon`
+helper, which always passes an explicit `tracer=` and so never exercised
+this code path at all — worth noting for anyone adding the next
+persistence test to this file).
+
+2 tests, verified against pre-fix code the same way as every fix this
+session: reverted both this file and `monitor.py`'s wiring together,
+confirmed the regression test fails with `assert 1 >= 5` — the exact
+predicted symptom — restored, confirmed all 25 tests in the file pass.
+
+This is arguably the most consequential fix of this pass, not the most
+interesting one. A stale ladder rung or a lost escalation flag degrades the
+supervisor's own decisions; a silently truncated trace degrades every
+downstream tool that reads it as ground truth — the dashboard, and (section
+3.19, section 3.22) `compliance_from_trace` itself, the actual evidence
+behind this project's central steering-works claim.
 
 ---
 
