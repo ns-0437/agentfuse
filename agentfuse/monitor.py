@@ -172,7 +172,12 @@ class CircuitBreakerMonitor:
         if recovery is None and config.checkpoint_path:
             recovery = RecoveryEngine(memory=JSONMemory(path=config.checkpoint_path + ".memory.jsonl"))
         self.recovery = recovery or RecoveryEngine()
-        self.tracer = tracer or Tracer(jsonl_path=config.jsonl_path, echo=config.echo)
+        # Same durability signal as the recovery-memory wiring above, applied
+        # to the trace file: without it, a checkpoint-resumed run's own audit
+        # trail gets truncated on restart even though its state correctly
+        # survives (agentfuse/tracer.py's Tracer.__init__ for the full story).
+        self.tracer = tracer or Tracer(jsonl_path=config.jsonl_path, echo=config.echo,
+                                       append=bool(config.checkpoint_path))
         self.tracer.meta({
             "original_goal": config.original_goal,
             "recovery_backend": self.recovery.backend,
