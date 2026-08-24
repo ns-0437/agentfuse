@@ -1722,12 +1722,26 @@ from, by describing it as newly justified. `alternate-action` closes this
 gap with an explicit ban; `re-anchor`, the rung tried on every single real
 failure captured so far (3.24), does not.
 
-None of these three are implemented here. Each is a specific, checkable
-claim about the existing code (context construction, detector-independence
-of rung order, absence of a prohibition) rather than a stylistic preference,
-and each is cheap to verify or fix in isolation — a natural next session's
-work, not a batch to rush through in one pass with the ladder-climbing
-question still open.
+**Update, same session: the first finding was cheap enough to fix on the
+spot.** `args` is now threaded through `RecoveryEngine.recover`'s context and
+`alternate-action` names the specific looping call — "Do NOT repeat
+`search_files` with these arguments (...)" — while explicitly permitting the
+tool again "with materially different arguments," rather than banning it
+outright. Degrades to the old wording when a trip's evidence carries no args
+(not every detector's evidence does). Two tests pin both paths. This is a
+content change with **no real-model evidence behind it yet** — it makes the
+instruction match the detector's actual signal more precisely, which is a
+defensible claim on its own, but whether it changes real compliance is
+exactly the kind of question 3.24 already flagged as needing new live
+captures. Not claimed as a compliance improvement; claimed only as a more
+accurate instruction.
+
+The other two findings (rung order ignoring `trip_detector`; `re-anchor`
+prescribing no prohibition) are NOT implemented. Both are larger changes —
+detector-aware rung selection changes `strategies.py`'s core contract, and a
+prohibition-bearing re-anchor changes what the lightest-touch rung is for —
+and both deserve their own measurement pass rather than being bundled into
+this one on the strength of a code-reading argument alone.
 
 ---
 
