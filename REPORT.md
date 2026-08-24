@@ -1597,6 +1597,89 @@ gave: the rubric was written alongside the templates it scores.
 
 ---
 
+### 3.24 The escalation ladder has never climbed, in any real trace this project has
+
+Set out to do the thing 8.2/section 7 actually asked for — an independent
+read of the steering templates, not by the rubric's own criteria. Reading
+`strategies.py` cold, one property stood out: `next_strategy` never looks at
+`trip_detector` when choosing a rung. Every failure — loop, drift, stall,
+Zeno — climbs the identical fixed sequence (re-anchor → alternate-action →
+challenge-assumption → decompose), and only `alternate-action` (rung 2)
+actually forbids the specific failing action, which is the one thing a LOOP
+failure needs immediately. That looked like a real design gap. Checking
+whether it actually mattered in practice surfaced something bigger.
+
+**`evals/captured/intervention/system/rotate_findable.jsonl`** — already in
+the repo, already cited as evidence for section 3.6 — trips `loop` three
+times on the identical failure and injects the **exact same `re-anchor`
+instruction, verbatim, all three times**. The ladder is documented to climb
+past a rung once it demonstrably fails (`recovery.py`'s own docstring: "Once
+a rung has been recorded as ineffective... later trips climb past it"). It
+never did, here.
+
+**Checked whether this is the section 3.22 bug's real-world footprint, not a
+coincidence.** Replayed this exact trace's event shape (same tool, same
+args, same unconditional `state=` payload, same repeated `result`) through a
+real `CircuitBreakerMonitor`, twice:
+
+```
+pre-fix check (event.state is not None):
+  strategy sequence: ['re-anchor', 're-anchor', 're-anchor']
+  steers_that_worked=3  steers_that_failed=0
+
+post-fix check (genuine SeenStateTracker novelty):
+  strategy sequence: ['re-anchor', 'alternate-action', 'challenge-assumption']
+  steers_that_worked=0  steers_that_failed=2
+```
+
+Exact match to the real trace's observed behaviour. The pre-fix bug marked
+every re-anchor attempt as `worked=True` (any tool result carries a state
+payload, always), so `memory.failed_strategies(signature)` never recorded
+re-anchor as failed, and `next_strategy` kept re-selecting the one rung nothing
+had ruled out yet.
+
+**Checked how far this reaches: the whole real corpus, not one trace.**
+Every `.jsonl` in `evals/captured/intervention/*/*.jsonl` and
+`evals/captured/resistance/*.jsonl` with more than one steer was grepped for
+distinct instruction text. Result:
+
+```
+any trace anywhere shows the ladder climbing past rung 1: False
+```
+
+Every multi-steer trace across all four intervention arms (`system`, `user`,
+`drop_tool`, and even 2 of `rerun`'s 8) repeats rung 1 verbatim. **The
+escalation ladder — rungs 2 through 5, the majority of `strategies.py`'s
+design — has never been exercised by a real model, in any trace this project
+has captured, before this fix.**
+
+**What this does NOT invalidate.** Section 3.6's arm-to-arm comparison
+(system 0%, user 5.6%, drop_tool 38.5%, rerun 83.3%) holds up, and is if
+anything slightly *strengthened*: the bug affected every arm identically —
+content was pinned to `re-anchor`, repeated, in all four — so the comparison
+was, accidentally, an even more tightly controlled test of delivery-vs-content
+than believed. "Delivery matters, holding content fixed" is a true reading of
+the data whether the content was "the templates" broadly or "one specific
+template" narrowly.
+
+**What this DOES leave genuinely untested, correcting 3.23's correction of
+8.2.** 3.23 stated real agent obedience "already existed" via 3.5-3.6. True
+for rung 1. Whether escalating actually helps — whether `alternate-action`'s
+explicit prohibition, or `challenge-assumption`'s false-premise hunt, land
+any better than a fourth repetition of re-anchor — is exactly as untested
+today as section 8.2 originally claimed the whole recovery loop was. The
+ladder's core hypothesis (harder failures need a *different kind* of
+correction, not a rephrased one) has real design logic behind it and zero
+real-model evidence for it.
+
+**Not re-captured here.** Confirming or refuting this needs new real runs
+with the fix active, deliberately provoking a multi-steer failure per
+detector type — live model calls with the breaker armed, the same workload
+that hard-restarted the machine earlier this session. Flagged as the next
+real-recovery question, not attempted in this pass.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
@@ -2073,6 +2156,12 @@ steering instruction's *text* and judged its quality — 3.6 measures task
 outcomes, not instruction quality — and `steering_usable = 100%` remains
 circular for the reason originally given: the rubric was written alongside
 the templates it scores.
+
+**Add one more, found the same day (section 3.24):** that 83.3%/6-of-8
+result tested obedience to rung 1 of the 5-rung ladder almost exclusively —
+a real bug meant the ladder never climbed past `re-anchor` in any real trace
+captured before the fix. Whether escalating actually helps is untested, not
+merely under-sampled.
 
 ### 8.3 Two of the three advertised runtimes were untested — **CLOSED**
 
