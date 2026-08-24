@@ -1514,6 +1514,89 @@ static score on the token.
 
 ---
 
+### 3.22 `steers_that_worked` counted an ignored steer as a success
+
+Found while scoping section 8.2's remaining gap (whether an agent obeys a
+steer), not while looking for it. Before building anything new, checked
+whether the existing "did the last steer work" mechanism was trustworthy
+enough to build on. It was not.
+
+**The check.** `Monitor._verify_pending` decides a steer worked if
+`event.state is not None` on the next event and no new trip has fired. The
+docstring says this means "genuine state progress." It does not: the
+production adapter (`adapters/openai_sdk.py`) sets `state=` on **every**
+`TOOL_RESULT`, unconditionally — `{"last_tool": ..., "result": ...}` every
+time, whatever the result actually was. `NoProgressDetector` and
+`LoopDetector` both solved this exact problem already, with a bounded-window
+novelty check (`SeenStateTracker`, section 3.1's fix for the read/write-cycle
+gaming case) — `_verify_pending` never used it.
+
+**Reproduced directly against the real monitor, no model calls needed.**
+Tripped `loop` on a repeated call, let it steer, then had the "agent" repeat
+the exact same call — same tool, same args, same result — the textbook
+definition of ignoring a correction:
+
+```
+directive after 3rd identical call: INJECT   (recovery_count=1)
+agent repeats the IDENTICAL call post-steer:
+  steers_that_worked: 1      <- registered a full ignore as a SUCCESS
+```
+
+**Fixed** by giving the monitor its own `SeenStateTracker` (`_verify_seen`),
+fed every state unconditionally so history predating the steer still counts
+against "genuine advance," and used only to gate the worked/failed verdict.
+Both directions reverified after the fix: the identical-repeat case now
+registers `worked=0`; a genuinely new state still registers `worked=1`.
+Checkpoint persistence (`state()`/`restore()`) extended to carry the new
+tracker, matching how detector state already round-trips.
+
+**Whether this corrupted anything already published — checked, not
+assumed.** `grep`ed both README.md and REPORT.md for `steers_that_worked` /
+`steers_verified_working`: zero hits as a cited number. The one place a
+"does steering work" claim was actually made — sections 3.5–3.6, the
+83%-obeyed / 6-of-8-completed result — uses a completely independent
+mechanism (`evals/measure_intervention.py`'s `compliance_from_trace`, which
+re-parses the raw JSONL and compares tool-call *signatures* directly, never
+touching the monitor's internal counter). That measurement is unaffected and
+stands. The bug was real and live in the shipped monitor for as long as
+`_verify_pending` has existed, but nothing in this project's own evidence
+base was built on the broken half — a genuinely lucky miss, confirmed rather
+than assumed, not a reason it didn't need fixing.
+
+**Test added** (`evals/test_recovery_memory.py::
+test_ignoring_the_steer_must_not_count_as_working`), verified against the
+pre-fix code the same way section 3.19's labels-merge test was: reverted the
+check, confirmed the test fails (`1 == 0`), restored the fix, confirmed it
+passes.
+
+### 3.23 Section 8.2 was stale — real agent-obedience data already existed
+
+Section 8's own preamble says every entry there "was verified against the
+code while writing this, not recalled." 8.2 was written before sections
+3.5–3.6 and never revisited once they landed, so by the time this was
+checked it was recalled, not verified, and wrong. It claimed: *"whether the
+agent obeys a steer came from the scenario's synthetic `responds_to` field
+[...] the agent half [of the recovery loop] never has been [real]."*
+
+That was true when written and is no longer true. Section 3.6's
+`compliance_from_trace` measured real agent obedience against real captured
+traces of a real Qwen2.5-7B — 83.3% corrections obeyed and 6 of 8 tasks
+completed on the `rerun` delivery arm, with non-overlapping confidence
+intervals against the shipped-then default. That is not a synthetic
+`responds_to` field; it is the literal next tool call a real model chose to
+make, read off the trace. 8.2's headline claim is corrected in place below
+rather than left to mislead the next session into re-measuring something
+already measured.
+
+**What is still actually true and worth keeping from 8.2**: the sample is
+small (8 tasks per arm, one model family, deterministic stub tools) and no
+human has ever read a steering instruction's *text* and judged its quality —
+3.6 measures outcomes (did the task complete), not instruction quality.
+`steering_usable = 100%` remains circular for the reason 8.2 originally
+gave: the rubric was written alongside the templates it scores.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
