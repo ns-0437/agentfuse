@@ -1680,6 +1680,57 @@ real-recovery question, not attempted in this pass.
 
 ---
 
+### 3.25 Independent read of the templates, as asked for in section 7
+
+The rest of the review the ladder-climbing bug interrupted: read
+`strategies.py`'s five templates on their own merit, not against
+`evals/steering.py`'s own rubric (which would just confirm the templates
+satisfy the criteria written to describe them). Three findings survive being
+checked against the actual code rather than left as a read of the prose.
+
+**`alternate-action` forbids the tool, not the call.** `LoopDetector`'s
+primary signal is `(tool, args, result)` repeating — the same call,
+verbatim. But `RecoveryEngine.recover` builds its template context as
+`{"goal": ..., "tool": tool, "detector": ..., "failed": failed}`
+(`recovery.py`) — `trip_evidence["args"]`, which the detector already
+captured (confirmed in the trace at 3.24: `'args': {'dir': './config',
+'pattern': '*.json'}`), is never passed through. So the instruction reads
+"Do NOT call `search_files` again" — a blanket ban on the tool — when the
+actual failure is calling it with *these particular arguments*. An agent
+whose task genuinely needs that tool again, with a different target, is told
+not to use it at all. Cheap to fix (thread `args` into the context, name
+them in the template) and untested either way — filed as a finding, not
+patched blind.
+
+**`decompose` is answering a question only `progress`/`rate` failures ask.**
+Its theory — the task is too large to attack directly — fits a stall. It
+does not fit `loop` (the agent is doing one thing too much, not failing to
+break a big thing down) or `drift` (the agent has wandered to a different
+subject; decomposing the original goal does not address that it stopped
+pursuing it). Because rung selection ignores `trip_detector` (this section's
+opening finding), a drift failure that survives re-anchor and
+alternate-action reaches decompose fourth, regardless of whether
+decomposition has anything to do with why it drifted.
+
+**`re-anchor` prescribes no prohibition, only a report.** It asks the agent
+to state its next action and how it serves the goal — but forbids nothing.
+An agent confidently misinterpreting its own trajectory (the shape behind
+`drift_narrated_failure`-style false positives this project already
+guards against on the *detector* side) could satisfy this instruction's
+literal request while still taking the same action it was steered away
+from, by describing it as newly justified. `alternate-action` closes this
+gap with an explicit ban; `re-anchor`, the rung tried on every single real
+failure captured so far (3.24), does not.
+
+None of these three are implemented here. Each is a specific, checkable
+claim about the existing code (context construction, detector-independence
+of rung order, absence of a prohibition) rather than a stylistic preference,
+and each is cheap to verify or fix in isolation — a natural next session's
+work, not a batch to rush through in one pass with the ladder-climbing
+question still open.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
