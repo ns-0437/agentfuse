@@ -2146,16 +2146,37 @@ signal to predict. The merge was not refuted; it could not be evaluated.
 
 That is the ESR phenomenon showing up directly in our own system rather than in a
 citation. The paper describes models with enough internal consistency to resist
-steering; this agent resisted **97.6%** of corrections, from every rung of the
-ladder, across every task shape we could construct.
+steering; this agent resisted **97.6%** of corrections, across every task shape
+we could construct.
+
+**"From every rung of the ladder" — corrected 2026-08-24, and it was wrong.**
+Every multi-steer trace in `evals/captured/resistance/` (11 of 12 tasks) repeats
+the byte-identical `re-anchor` instruction 3–4 times; none climbs to
+`alternate-action` or beyond. This is the same verify-progress bug documented in
+section 3.22 and traced through the whole real corpus in section 3.24 — a rung
+only gets ruled out once demonstrably failed, and the bug marked every re-anchor
+attempt as having worked. So the 97.6% figure is real, but it measures
+resistance to **re-anchor, repeated**, not to the ladder's escalating strategies.
+Whether the agent would have resisted `alternate-action`'s explicit prohibition
+the same way is exactly the open question section 3.24 leaves for a real capture
+with the fix active.
 
 It also changes what the merge would have to be for. Predicting *whether* a steer
 lands is uninteresting when the answer is almost always "it does not". The open
-question is now **whether any correction lands at all, and what would make one
-land** — a question about the intervention mechanism, not about which signal
-predicts its success. Injecting a system message into a conversation may simply
-be too weak an intervention, and nothing in this project has tested a stronger
-one.
+question at the time was **whether any correction lands at all, and what would
+make one land** — a question about the intervention mechanism, not about which
+signal predicts its success.
+
+**Answered 2026-08-16, ten days after this was written — corrected in place
+rather than left as an open question this report no longer has.** Injecting a
+system message into a conversation *was* too weak, but not because message-based
+steering cannot work: sections 3.5–3.6 found the mechanism, not the wording, was
+the failure — restarting the agent from its objective with the correction
+attached (`rerun`) took real task completion from 0 of 8 to 6 of 8. A stronger
+intervention was tested, and it worked. What is still genuinely untested, as of
+this same correction, is the escalating half of the intervention — whether
+climbing past `re-anchor` to `alternate-action` and beyond adds anything on top
+of `rerun`'s win (section 3.24).
 
 ---
 
