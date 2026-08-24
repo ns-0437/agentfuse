@@ -1813,6 +1813,53 @@ guards, not decorative).
 
 ---
 
+### 3.27 A systematic checkpoint audit found one more: escalation delivery status
+
+3.26 was found by accident (writing a test for something else). This one was
+found on purpose: every `CircuitBreakerMonitor` instance attribute set in
+`__init__` was listed and checked one by one against what `state()`/
+`restore()` actually cover, rather than waiting for the next accident.
+
+**Two attributes checked and cleared.** `self.history` (every `AgentEvent`
+ever observed) is not persisted, but does not need to be: grepped every
+concrete detector for use of the `history` parameter their own `inspect()`
+signature accepts, and none of them read it — `LoopDetector`, `DriftDetector`,
+`NoProgressDetector`, `RateOfProgressDetector`, `SpendDetector` all maintain
+their own private, already-persisted state instead. `self.history` resetting
+after a restart affects only `recent_events` in the `ExecutionSnapshot` handed
+to a `real`-backend recovery model's prompt (briefly thinner context
+immediately post-restart, self-healing as new events accumulate) — and the
+`real` backend is the one section 8.1 already measured losing to the
+templates. A real gap in principle, low-consequence in practice, not fixed.
+
+**One attribute checked and found broken: `escalation_delivered` /
+`escalations`.** `escalation_delivered=False` means "a human was needed and
+this run knows nobody was told" — deliberately sticky (this module's own
+comment: "a later success does not undo that") and deliberately distinct
+from `None` ("never needed"); README.md documents the same distinction as
+load-bearing. Reproduced: exhausted the ladder with no notifier configured
+(`escalation_delivered=False`), checkpointed, restarted with a fresh
+monitor instance — the restored value was `None`, silently converting a real
+notification failure into "nothing has happened yet."
+
+Fixed the same way as 3.26: added `escalations` and `escalation_delivered`
+to the `totals` dict `steers_that_worked`/`failed` already round-trip
+through. An older checkpoint with no escalation keys at all correctly
+defaults to `None`/`0` rather than crashing (verified with a dedicated
+test). 2 tests, verified against pre-fix code the same way as every other
+fix this session: reverted, confirmed `assert None is False` with the
+predicted symptom, restored, confirmed all 23 tests in the file pass.
+
+**No further gaps found in this pass.** Every other `__init__` attribute is
+either already covered (`total_tokens`, `total_cost`, `recovery_count`,
+`route_history`, `current_goal`, `steers_that_worked`/`failed`,
+`_verify_seen`, detector state, calibrator) or genuinely transient by design
+(`_events_since_checkpoint`, `_agent_id`, `_warned_shared`,
+`_warned_no_channel`, `_pending_steer` — the last one section 3.26 already
+named as a known, separate, mechanical-to-close gap).
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
