@@ -1788,6 +1788,32 @@ A detector fix was tried first; after correcting the generator it measured
 **The 4-tool/4-argument entropy is a broader realism weakness. The other
 generators have not been audited for it.**
 
+**Audited 2026-08-24 (`evals/audit_generator_entropy.py`) — clean.** Every
+negative generator (13, including `gen_long_sparse_benign` itself as a check
+that the audit correctly reads it as fixed), 200 seeds each, checked directly
+against the scenario's own step sequence for the longest run of an identical
+`(tool, args, result)` triple with no progress between them — LoopDetector's
+own primary signal, computed independently of whether the current threshold
+happens to catch it, so a future threshold change can't silently hide a
+finding this audit should have caught.
+
+The first run flagged `gen_benign_retry`: 60 of 200 seeds hit a run of 3
+identical triples. **False alarm, caught before being reported as a
+finding** — the repeated result was `"HTTP 503 service unavailable"` three
+times, which is exactly the *healthy retry against a flaky endpoint* shape
+`LoopDetector` deliberately tolerates via `retry_multiplier` (this section's
+own docstring, and the module docstring of `loop.py`). The audit didn't
+distinguish error-shaped repeats from ordinary ones on its first pass; fixed
+to apply the detector's own two thresholds (3 for ordinary repeats, 6 for
+error-shaped ones), matching the real tolerance instead of a cruder
+approximation of it. Pinned with 4 tests on the corrected logic, including
+the exact false-alarm shape.
+
+Re-run clean: **0 of 13 negative generators reproduce the artifact**, across
+200 seeds each, at the detector's own thresholds. This closes the section 7
+action item — not because nothing could be found, but because the specific
+thing that was asked was checked and genuinely isn't there.
+
 ### 4.4 Drift needs a semantic signal, and model size has a floor
 
 | Signal | on-task | paraphrase | **gradual drift** | Separable? |
@@ -2203,14 +2229,11 @@ lesson section 3.23 learned about section 8.2.
    larger contract changes than the args fix that shipped same-day, and both
    should be evaluated together with item 1's capture rather than guessed at
    separately.
-3. **Audit the remaining generators for the 4-tool/4-argument artifact**
-   (section 4.3) — still genuinely open, never done. `gen_long_sparse_benign`
-   was fixed; nothing else has been checked for the same entropy weakness.
-4. **Grow the real corpus further** (section 3.19, 34 runs) — still too small
+3. **Grow the real corpus further** (section 3.19, 34 runs) — still too small
    to resolve the 0.6% FPR the synthetic suite claims (CI [0.0%, 12.1%]).
    Real capture batches are bounded by the machine's thermal limit; keep
    batches small (section on the 2026-08-24 overheating incident, memory).
-5. **Frontier-model validation** — blocked on API credits, not effort.
+4. **Frontier-model validation** — blocked on API credits, not effort.
    Section 8.1's "disproven at every size we can test" is a claim about
    local 3B/7B models only.
 
@@ -2225,8 +2248,14 @@ list above stays honest:**
   own authorship, which is what the item actually asked for.
 - ~~Import captured real traces~~ — **DONE**: `evals/real_suite.py` and
   `evals/trace_import.py` exist and the real corpus has grown from 0 to 34
-  runs across this project's life (item 4 above is the version of this that's
+  runs across this project's life (item 3 above is the version of this that's
   still open — more volume, not the mechanism).
+- ~~Audit the remaining generators for the 4-tool/4-argument artifact~~ —
+  **DONE 2026-08-24, clean** (section 4.3): `evals/audit_generator_entropy.py`
+  checked all 13 negative generators against LoopDetector's own thresholds
+  (including its error-shaped retry tolerance, whose absence produced one
+  false alarm on the audit's own first pass — caught before being reported).
+  0 of 13 reproduce the artifact.
 - ~~Build the ESR merge~~ — **attempted, found unmeasurable, not abandoned by
   choice** (section 6.5): the agent resisted 97.6% of corrections, leaving no
   variance for an internal signal to predict. Superseded by item 1 above —
