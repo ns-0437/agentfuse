@@ -227,6 +227,11 @@ class RecoveryEngine:
         and what Phase 1 measured as its main weakness.
         """
         tool = snapshot.trip_evidence.get("tool")
+        # LoopDetector's primary signal is (tool, args, result) repeating -- the
+        # same CALL, not any use of the tool. Without this, alternate-action bans
+        # the tool wholesale (REPORT.md section 3.25), which can misdirect an
+        # agent that still legitimately needs it with different arguments.
+        args = snapshot.trip_evidence.get("args")
         signature = failure_signature(snapshot.trip_detector, tool, snapshot.trip_evidence)
 
         # Only rungs that demonstrably FAILED are ruled out. A rung whose outcome
@@ -243,7 +248,7 @@ class RecoveryEngine:
         strategy = next_strategy(tried, severity=snapshot.trip_evidence.get(
             "severity", "trip") if isinstance(snapshot.trip_evidence, dict) else "trip")
 
-        context = {"goal": snapshot.original_goal, "tool": tool,
+        context = {"goal": snapshot.original_goal, "tool": tool, "args": args,
                    "detector": snapshot.trip_detector, "failed": failed}
 
         if self.backend == "real":

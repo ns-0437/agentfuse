@@ -63,6 +63,23 @@ def _tool(ctx: dict) -> str:
     return ctx.get("tool") or "the tool you keep calling"
 
 
+def _call_description(ctx: dict) -> str:
+    """The tool, and — when known — the specific arguments that are looping.
+
+    LoopDetector's primary signal is the same (tool, args, result) repeating,
+    not any use of the tool. Naming the arguments when they're known lets the
+    instruction forbid the exact failing call rather than the tool wholesale,
+    which would misdirect an agent that still needs it with a different
+    target. Falls back to the tool alone when no args were captured (not
+    every trip evidence carries them).
+    """
+    tool = _tool(ctx)
+    args = ctx.get("args")
+    if args:
+        return f"`{tool}` with these arguments (`{args}`)"
+    return f"`{tool}`"
+
+
 STRATEGIES: dict[str, Strategy] = {
     RE_ANCHOR: Strategy(
         name=RE_ANCHOR,
@@ -78,11 +95,12 @@ STRATEGIES: dict[str, Strategy] = {
         intent=("Forbid the specific failing action and require a materially "
                 "different next step."),
         build=lambda c: (
-            f"Do NOT call `{_tool(c)}` again — it has been tried and is not "
-            f"advancing the task. You must take a materially different action: a "
-            f"different tool, or a different approach to \"{_goal(c)}\". Name the "
-            f"alternative you are choosing and why it should work where the last "
-            f"one did not."
+            f"Do NOT repeat {_call_description(c)} — that exact call has been "
+            f"tried and is not advancing the task. You may use `{_tool(c)}` "
+            f"again only with materially different arguments; otherwise take a "
+            f"different tool, or a different approach to \"{_goal(c)}\". Name "
+            f"the alternative you are choosing and why it should work where "
+            f"the last one did not."
         ),
     ),
     CHALLENGE_ASSUMPTION: Strategy(
