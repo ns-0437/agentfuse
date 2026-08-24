@@ -1432,6 +1432,88 @@ this project does not have and cannot fake with 41 hand-written strings.
 
 ---
 
+### 3.21 IDF, both forms — the whole specificity family is the wrong category of signal
+
+Section 3.20 left one idea explicitly open: true IDF over a real corpus of
+objectives, distinct from similarity-to-this-goal. Tested both forms it could
+take. Neither needed a full implementation to fail — both died at the
+measurement stage, cheaper than either of the first two attempts.
+
+**Form 1: IDF over this project's own 41 hand-written goals.** Exactly the
+corpus section 3.20 named as too small to trust, tested anyway because the
+check costs three lines. `market` and `release` — one must never ground,
+the other must always — are **tied**: both `df=2`, both `idf=2.639`, in a
+41-goal corpus. `production` and `secret`, which must always ground, sit at
+the corpus-wide *minimum* IDF (1.099, `df=13`) — lower than either. No
+threshold separates a tie, and the ordering is backwards regardless. This
+is not "too small a sample to trust the number," it is a demonstration that
+this specific corpus is dominated by one domain's own vocabulary (13 of 41
+goals mention "secret" because that is the security-domain generator's own
+recurring noun), so document frequency here measures "how much did I write
+about this domain," not "how generic is this word."
+
+**Form 2: IDF over general English (Zipf frequency, the `wordfreq`
+package).** A genuinely different measure — not this project's bias, actual
+language-wide commonness. Installed temporarily to test the hypothesis only,
+per an explicit decision not to add it as a dependency without a separate
+call: the fix lives in `agentfuse/detectors/drift.py`, the core library the
+project's own design brief requires to stay stdlib-only, so a real language
+frequency table is a bigger decision than a code change and was treated as
+one.
+
+```
+token          zipf   class
+market         5.29   must NOT ground   <- highest value in the set
+production     5.14   MUST ground
+review         5.12   must NOT ground
+release        5.09   MUST ground
+leader         4.95   must NOT ground
+secret         4.92   MUST ground
+tickets        4.60   MUST ground
+competitive    4.57   must NOT ground
+scope          4.26   MUST ground
+positioning    3.73   must NOT ground
+staging        3.65   MUST ground
+migrate        3.43   MUST ground
+rotated        3.33   MUST ground
+roadmap        3.16   must NOT ground   <- lowest value in the set
+```
+
+Fully interleaved, not merely overlapping. The single highest value
+(`market`, must-NOT-ground) and the single lowest value (`roadmap`,
+must-NOT-ground) belong to the *same* class, with seven must-ground tokens
+sitting between them. Uninstalled immediately after the measurement;
+`python -c "import wordfreq"` confirmed clean. Nothing shipped.
+
+**What this establishes, beyond "form 2 also failed."** Three different
+measures of "how specific is this word" — similarity to the run's own goal
+(3.20), rarity across this project's task corpus (3.21 form 1), and rarity
+across the English language generally (3.21 form 2) — all fail, and the last
+two do not even come close. That is not three unlucky implementations of one
+idea; it is evidence that *whether a word is doing real grounding work is
+not a static property of the word*. `roadmap` is a genuinely rare English
+word and still fails to ground `deep_full_rotation`-shaped healthy runs
+correctly when it appears; `market` is a genuinely common one and still
+correctly should not ground `r_cascade_market`. What distinguishes them is
+not lookupable from the token in isolation — it is whether the word is
+referring to a stable, narrowing, concrete thing *as the run progresses*, or
+staying a static restated carrier phrase. That is a claim about usage across
+the trajectory, not about the word, and nothing this project has built
+measures that.
+
+**The anchor-grounding gap is closed as a line of investigation, not as a
+gap.** Four independently rejected mechanisms are now on record — duration
+by raw count (3.17), duration by distinct reading (3.18), distance to this
+run's own goal (3.20), and rarity in two different reference corpora
+(3.21) — spanning every static per-word property this project could
+construct without new infrastructure. `r_cascade_market` stays the one
+honest miss in the real suite. Anything that revisits this gap next should
+be a genuinely dynamic, trajectory-level signal (does this token's usage
+narrow toward a concrete referent over successive turns?), not another
+static score on the token.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
