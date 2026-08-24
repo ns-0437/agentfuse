@@ -1745,6 +1745,74 @@ this one on the strength of a code-reading argument alone.
 
 ---
 
+### 3.26 The recovery ladder's own memory had the checkpoint bug the spend ceiling was already fixed for
+
+Found while writing a test for section 3.22's fix, not while looking for a new
+bug — checking whether `_verify_seen`'s checkpoint persistence actually
+round-trips led to checking what ELSE the monitor's durable-state guarantee
+does and does not cover.
+
+**`checkpoint.py`'s own module docstring names the exact failure shape this
+project already fixed once**: "An agent under a 500,000-token ceiling that
+dies at 480,000 and is restarted comes back with its budget at zero... the
+guard whose whole job is bounding unattended spend has been rearmed instead
+of enforced." `CircuitBreakerMonitor.state()`/`restore()` persist tokens,
+cost, detector state, the calibrator, and (since 3.22) `_verify_seen` — but
+never touch `self.recovery.memory`, the `JSONMemory` that records which
+steering rungs have already been tried and failed for which failure
+signature.
+
+**Reproduced directly**: tripped `loop`, let `re-anchor` fail and record the
+verdict, checkpointed, restarted with a fresh `CircuitBreakerMonitor`, and
+re-tripped the identical failure.
+
+```
+pre-fix:  ['re-anchor']              <- the SAME failed rung offered again
+post-fix: ['re-anchor', 'alternate-action']   <- correctly climbs past it
+```
+
+A default-constructed `RecoveryEngine()`'s `JSONMemory` is in-process only —
+this is the correct default for the common case (no `checkpoint_path`, no
+durability requested) — but `MonitorConfig.checkpoint_path` is an explicit
+promise of durable run state, and the ladder's climb history was silently
+exempt from it. An agent that ignores corrections across a crash-restart
+cycle (exactly the retry-loop shape a long-running supervised agent is most
+likely to be in when it crashes) would keep receiving the same
+already-disproven correction indefinitely, one rung at a time, one restart
+at a time, never actually escalating.
+
+**Fixed** by wiring a file-backed `JSONMemory(path=checkpoint_path +
+".memory.jsonl")` into the default `RecoveryEngine` whenever `recovery` is
+not explicitly supplied AND `checkpoint_path` is set — an explicit
+`recovery=` argument is a choice this must not override, and the
+zero-config default (no `checkpoint_path`) is unchanged (`recovery.memory.path
+is None`, confirmed by test). `JSONMemory` already had file persistence
+built in for an unrelated reason (sharing memory across runs); this is the
+first time it was connected to the monitor's own checkpoint lifecycle.
+
+**What this does NOT close, stated precisely rather than glossed over.** A
+steer that is still *pending verification* at the exact moment of a crash
+loses that pending state — `_pending_steer` (`SteeringPath` + injection step)
+is not itself persisted, only settled records are. Reproduced: a rung
+verified as failed BEFORE a restart correctly gets skipped after it; a rung
+still awaiting its `verify_window` when the crash happens gets offered again
+post-restart, because nothing recorded whether it had already started being
+tested. This is a real, narrower gap — SteeringPath and RecoveryAction are
+both plainly serialisable, so closing it fully is mechanical, not blocked —
+left for a dedicated pass rather than folded into this fix, matching this
+project's own rule about not bundling a second design change onto a
+measured, scoped one.
+
+3 tests (`evals/test_checkpoint.py`): climb history survives a restart with
+correct verdicts, the ladder actually continues climbing on the next real
+trip after restart (not just the record), and persistence stays opt-in
+(confirmed against a checkpoint path that has never been used, and against
+no checkpoint path at all). Verified both against the fix (pass) and against
+the pre-fix code (both restart-behavior tests fail, confirming they are real
+guards, not decorative).
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
