@@ -39,7 +39,7 @@ deterministically through the production monitor.
 | F1 | **100.0%** | |
 | False-positive rate | **0.0%** | healthy runs wrongly halted |
 | Attribution | **85.5%** | correct detector named |
-| Recovery rate | **68.5%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. Section 3.5–3.6 |
+| Recovery rate | **68.5%** | Synthetic ground truth. On a REAL agent, the measured figures are 83% of corrections obeyed and **6 of 8 tasks completed** — but only with the right delivery mechanism; the previous default completed **0 of 8**. Section 3.5–3.6. That figure tested obedience to the escalation ladder's first rung almost exclusively, not the ladder itself — section 3.24 |
 | Confusion | TP 490 · FP 0 · FN 0 · TN 528 | |
 
 **0 errors is not the same claim as "solved" — see section 3.14.** Every error
@@ -2044,7 +2044,7 @@ All sources are now scanned for control characters by a test.
 | Phase | Scope | Status |
 |---|---|---|
 | **1 — Eval harness** | ground-truth scenarios, hard negatives, Wilson + clustered CIs, ablation, random control | ✅ Done |
-| **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(premise unproven — Section 3.3)* |
+| **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(reasoning-model premise unproven — 3.3; the verification loop itself had a bug until 2026-08-24 — 3.22; the ladder has never actually climbed in a real trace — 3.24)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
 | **4 — Signal ladder** | Tier 0 behavioural ✅ · Tier 1 logprobs ✅ · Tier 2 activation probes ✅ | ✅ Done *(both internal tiers measured, both ship OFF — Section 3.4, section 4.11)* |
 | **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ✅ · PyPI ❌ | 🟡 5 of 6 |
@@ -2064,7 +2064,7 @@ Verified against the code, not asserted:
 | Persistence / checkpoints | **Fixed 2026-08-13** (section 4.7). SQLite checkpoints; a resumed run keeps its spend ceiling, loop counters and calibration baseline |
 | Thread / async safety | **Fixed 2026-08-13** (section 4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
-| Real-model validation | Supervisor half only, with a 3B model that LOST to the templates; agent obedience still synthetic (section 8.1, section 8.2) |
+| Real-model validation | Supervisor half: 3B/7B models LOST to the templates (section 8.1). Agent obedience to rung 1: real, measured, 83.3%/6-of-8 with the right delivery mechanism (section 3.6, corrected into 8.2). Agent obedience to the escalating ladder past rung 1: still untested — the ladder never climbed in any real trace before the 2026-08-24 fix (section 3.24) |
 | Adapter coverage | **3 of 3** — fixing the two untested ones found 4 bugs (section 4.10) |
 | CI / portability | **3 OS × 3 Python versions**, plus demos and benchmark floors (section 8.4) |
 | Secret redaction | **All three egress paths** — with a stated residual gap (section 8.5) |
