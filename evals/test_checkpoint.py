@@ -212,6 +212,48 @@ def test_recovery_memory_persistence_is_opt_in_via_checkpoint_path(tmp_path):
     assert mon.recovery.memory.path is None
 
 
+# ---------------------------------------------------- escalation, behaviourally
+def test_a_failed_escalation_notice_survives_a_restart(tmp_path):
+    """`escalation_delivered=False` means "a human was needed and nobody was
+    told" -- the module's own comment calls this distinct from None ("never
+    needed") on purpose, and README.md documents the same distinction as
+    load-bearing. A restart must not collapse a real notification failure
+    back into "nothing has happened yet".
+    """
+    db = tmp_path / "runs.db"
+    mon = _mon(db, loop_threshold=3, max_recoveries=1)  # exhausts the ladder fast
+    for _ in range(12):
+        _tool_cycle(mon, mon.history[-1].step + 1 if mon.history else 1,
+                    tool="list_secrets", result="a,b")
+    assert mon.escalation_delivered is False, "sanity: this run must have escalated"
+    assert mon.escalations >= 1
+    mon.checkpoint()
+
+    resumed = _mon(db, loop_threshold=3, max_recoveries=1)
+    assert resumed.escalation_delivered is None, (
+        "sanity: a fresh monitor has not escalated yet")
+    assert resumed.restore() is True
+    assert resumed.escalation_delivered is False, (
+        "a restart turned a real notification failure back into "
+        "'never needed' -- exactly the confusion escalation_delivered's "
+        "None/False distinction exists to prevent")
+    assert resumed.escalations == mon.escalations
+
+
+def test_escalation_count_and_delivered_default_correctly_on_an_older_checkpoint(tmp_path):
+    """A checkpoint written before this fix has no escalation keys at all.
+    Loading it must default to "never needed" (None), not crash."""
+    db = tmp_path / "runs.db"
+    mon = _mon(db)
+    mon.observe(AgentEvent(type=EventType.LLM_CALL, step=1, node="agent", text="x"))
+    mon.checkpoint()
+
+    resumed = _mon(db)
+    assert resumed.restore() is True
+    assert resumed.escalation_delivered is None
+    assert resumed.escalations == 0
+
+
 # ------------------------------------------- detector state, behaviourally
 @pytest.mark.parametrize("make,drive", [
     (lambda: LoopDetector(threshold=3),
