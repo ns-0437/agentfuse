@@ -86,9 +86,15 @@ agentfuse/
     capture_real_runs.py         earlier single-trace capture tool (superseded by real_suite.py)
     toolcall_shim.py             recovers tool calls llama.cpp's native template leaves as text
     measure_*.py                 one-off measurement scripts (drift elicitation, intervention, etc.)
+    steering_compliance.py       shared, tested "did the agent obey" measure — the evidence behind
+                                 REPORT.md 3.5-3.6; used by measure_intervention.py and
+                                 measure_resistance.py so there is one implementation, not two
+    measure_drift_trace.py       turn-by-turn drift-detector instrument (ema/anchored/tool-continuity
+                                 per event) — load-bearing for every anchor-gap investigation, kept
+                                 rather than rewritten from scratch each time (REPORT.md 3.17-3.21)
     captured/                    committed real traces + hand/oracle-written labels (*.json + *.jsonl)
       suite/                      real_suite.py's own corpus + labels.json
-    test_*.py                   303 tests total, `pytest evals/ -q`
+    test_*.py                   314 tests total, `pytest evals/ -q`
 
   models/                     local GGUF weights (qwen2.5-3b, qwen2.5-7b) — no API key needed
   dashboard/                  static HTML dashboard, published via GitHub Pages
@@ -168,6 +174,27 @@ agentfuse/
     yet — and watch for a stale staged index leaking into an unrelated
     commit after a reset (happened once; caught via `git show --stat HEAD`
     immediately after committing, fixed with another soft reset).
+13. **`event.state is not None` is NOT the same claim as "genuine progress,"
+    even though the docstring said it was.** The production adapter sets
+    `state=` on every `TOOL_RESULT` unconditionally, so a check that only
+    tests presence degenerates to "did any tool call happen" — which a
+    steer's own ignored repeat still satisfies. Progress/loop already solved
+    this with `SeenStateTracker`'s bounded-window novelty check; anything new
+    that needs to know "did the run genuinely advance" should reuse that
+    class, not re-derive a presence check (REPORT.md section 3.22).
+14. **A "verified against the code, not recalled" audit section can itself go
+    stale** — section 8 of REPORT.md said exactly that in its own preamble,
+    and entry 8.2 was still wrong for over a week because a later section
+    (3.6) answered its question and nobody revisited 8.2 to say so
+    (REPORT.md section 3.23). Treat your own report's claims about "what
+    hasn't been done" as claims to re-verify, not settled fact, whenever
+    later work plausibly touches them.
+15. **Before writing a new eval/measurement script, grep for whether the
+    exact function already exists, possibly duplicated.** `sig()` — the tool-
+    call signature comparison behind the project's central steering-works
+    claim — existed as two byte-identical, untested copies in two different
+    scripts before being extracted to `steering_compliance.py`. The evidence
+    for a headline number is exactly where duplication is most expensive.
 
 ## Useful commands
 
@@ -177,7 +204,7 @@ python evals/run_eval.py --generated 40 --json --significance 25  # + ablation +
 python evals/validity.py                                  # seed-generalisation + trivial baselines + ICC (~3 min)
 python evals/score_real_suite.py                          # real-trace scoring
 python evals/real_suite.py --relabel                      # re-derive labels only, no model calls
-pytest evals/ -q                                           # 303-test gate (~5-6 min)
+pytest evals/ -q                                           # 314-test gate (~5-6 min)
 
 python -m llama_cpp.server --model models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf \
   --n_ctx 8192 --port 8080 --n_gpu_layers 0 --n_threads 6
