@@ -86,13 +86,23 @@ _HEAL_MARK = "🧭" if _UNICODE else ">>"
 
 
 class Tracer:
-    def __init__(self, jsonl_path: Optional[str] = None, echo: bool = True):
+    def __init__(self, jsonl_path: Optional[str] = None, echo: bool = True,
+                 append: bool = False):
         self.echo = echo
         self.jsonl_path = jsonl_path
         self._fh = None
         if jsonl_path:
             os.makedirs(os.path.dirname(os.path.abspath(jsonl_path)) or ".", exist_ok=True)
-            self._fh = open(jsonl_path, "w", encoding="utf-8")
+            # `append=True` is how a checkpoint-resumed monitor keeps its trace
+            # consistent with its own restored state. Without it, every fresh
+            # `Tracer` truncates the file on construction -- correct for the
+            # common case (a new run, or a demo intentionally starting clean),
+            # wrong for a restart: the monitor's tokens/ladder/escalation
+            # status all correctly carry across a restart (checkpoint.py), but
+            # the one human-readable record of how they got there would be
+            # silently erased the instant the resumed process constructs its
+            # own Tracer -- before `Monitor.restore()` even runs.
+            self._fh = open(jsonl_path, "a" if append else "w", encoding="utf-8")
         self.trips = 0
         self.recoveries = 0
 
