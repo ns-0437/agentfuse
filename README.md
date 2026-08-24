@@ -42,7 +42,10 @@ intervenes** — a closed-loop, self-healing safety layer.
 **Measured, on a real agent:** with the default delivery mechanism, **6 of 8**
 tasks that were failing went on to complete, and 83% of corrections were obeyed.
 That number depends entirely on *how* the correction is delivered — the previous
-default completed **0 of 8**. See [REPORT.md section 3.6](REPORT.md).
+default completed **0 of 8**. See [REPORT.md section 3.6](REPORT.md). A bug found
+afterward (fixed, [section 3.22](REPORT.md)) meant this tested obedience to the
+*first* rung of the 5-rung escalation ladder almost exclusively — real, not
+invalidated, but narrower than "the recovery system" ([section 3.24](REPORT.md)).
 
 ---
 
