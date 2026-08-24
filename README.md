@@ -786,6 +786,19 @@ specific goal's own distinctive target word (must never stop counting) —
 both look identical as "several distinct low-confidence readings while
 still anchored." Also reverted. See [REPORT.md section 3.18](REPORT.md).
 
+A third attempt weighted each anchor by how specific it is to the goal —
+`cos(token, goal)` — since the first two had keyed on *how long* a word had
+been grounding rather than *which word* it was. Measured on the four
+decisive cases it showed a clean 0.06-wide operating window; measured
+across all 40 instances of the family that window turned out to be
+**empty**, because the measure ranks the classes backwards. `production`,
+naming the exact object of "rotate the production database credential,"
+scores 0.485; `leader`, a carrier word in a goal about competitive
+positioning, scores 0.553. Reverted. Three attempts now *bound* this gap
+rather than merely failing at it: duration-keyed fixes cannot separate a
+long healthy run from a slow drift, and distance-to-goal-keyed fixes
+invert. See [REPORT.md section 3.20](REPORT.md).
+
 The originally-captured cascade tasks (credential-rotation domain) were
 finally captured too, and confirm drift elicitation isn't a research-domain
 artifact: `cascade_release` followed its chain 6/6 links and tripped

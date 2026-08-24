@@ -20,9 +20,10 @@ against the world. Real-trace suite: 34 runs (28 healthy), precision 100%,
 recall 83.3%, FPR 0% — still far too small to trust the FPR on its own, and
 carrying one honest known miss (the anchor-grounding gap, REPORT.md 3.17-3.18).
 See the improvement list kept in memory (ask "what needs improving") for the
-prioritized set of genuinely open gaps — the anchor gap has two independently
-rejected fix attempts on record; the pure-reasoning drift-grounding gap
-(REPORT.md 3.13) has five.
+prioritized set of genuinely open gaps — the anchor gap has three independently
+rejected fix attempts on record (REPORT.md 3.17, 3.18, 3.20), the third of
+which disproved rather than failed to tune its own hypothesis; the
+pure-reasoning drift-grounding gap (REPORT.md 3.13) has five.
 
 ## Design principles (non-negotiable)
 
