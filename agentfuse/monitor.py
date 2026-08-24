@@ -233,6 +233,13 @@ class CircuitBreakerMonitor:
                 "recovery_count": self.recovery_count,
                 "steers_that_worked": self.steers_that_worked,
                 "steers_that_failed": self.steers_that_failed,
+                "escalations": self.escalations,
+                # `False` here means "a human was needed and nobody was told" --
+                # a fact this project's own docs call load-bearing (README: "None
+                # means never needed, False means needed and nobody was told...
+                # those must not look alike"). Losing it on a restart collapses
+                # a real notification failure back to "nothing has happened yet".
+                "escalation_delivered": self.escalation_delivered,
                 "route_history": list(self.route_history),
                 "current_goal": self.current_goal,
                 "last_step": self.history[-1].step if self.history else 0,
@@ -278,6 +285,8 @@ class CircuitBreakerMonitor:
             self.recovery_count = totals.get("recovery_count", 0)
             self.steers_that_worked = totals.get("steers_that_worked", 0)
             self.steers_that_failed = totals.get("steers_that_failed", 0)
+            self.escalations = totals.get("escalations", 0)
+            self.escalation_delivered = totals.get("escalation_delivered")
             self.route_history = list(totals.get("route_history", []))
             self.current_goal = totals.get("current_goal")
             load_state_dict(self.calibrator, saved.get("calibrator", {}))
