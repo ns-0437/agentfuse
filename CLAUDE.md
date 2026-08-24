@@ -105,7 +105,7 @@ agentfuse/
                                  rather than rewritten from scratch each time (REPORT.md 3.17-3.21)
     captured/                    committed real traces + hand/oracle-written labels (*.json + *.jsonl)
       suite/                      real_suite.py's own corpus + labels.json
-    test_*.py                   332 tests total, `pytest evals/ -q`
+    test_*.py                   334 tests total, `pytest evals/ -q`
 
   models/                     local GGUF weights (qwen2.5-3b, qwen2.5-7b) — no API key needed
   dashboard/                  static HTML dashboard, published via GitHub Pages
@@ -215,7 +215,7 @@ python evals/run_eval.py --generated 40 --json --significance 25  # + ablation +
 python evals/validity.py                                  # seed-generalisation + trivial baselines + ICC (~3 min)
 python evals/score_real_suite.py                          # real-trace scoring
 python evals/real_suite.py --relabel                      # re-derive labels only, no model calls
-pytest evals/ -q                                           # 332-test gate (~5-6 min)
+pytest evals/ -q                                           # 334-test gate (~5-6 min)
 
 python -m llama_cpp.server --model models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf \
   --n_ctx 8192 --port 8080 --n_gpu_layers 0 --n_threads 6
