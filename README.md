@@ -19,10 +19,14 @@ judge** of whether it drifted.
 **AgentFuse is a supervisor that sits *above* the agent's execution graph.** It
 watches the telemetry every framework already emits — tool calls, graph routes,
 state changes, token spend — and **trips a circuit breaker** the moment a
-long-horizon failure mode crosses a threshold. On a trip it freezes state and asks
-a **separate reasoning model** for a *steering recovery path*, injects that
-correction, and resumes. When recovery isn't safe, it **escalates to a human**
-instead of blindly retrying.
+long-horizon failure mode crosses a threshold. On a trip it climbs a fixed
+escalation ladder of corrections — restate the goal, forbid the failing action,
+challenge the plan's assumptions, decompose the task — injects the correction,
+and resumes. When recovery isn't safe, it **escalates to a human** instead of
+blindly retrying. A *separate reasoning model* can write the correction text
+instead of the deterministic ladder, but this is opt-in: measured against the
+only real models tested, it currently **loses** to the fixed templates (both a
+3B and a 7B — [REPORT.md section 8.1](REPORT.md)), so the default ships without it.
 
 One engine. Three runtimes: **OpenAI AgentKit** (first-class), plain **OpenAI SDK**,
 and **LangGraph**.
