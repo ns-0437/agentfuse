@@ -113,6 +113,37 @@ def test_engine_climbs_the_ladder_when_steers_fail():
     assert len(set(seen)) == len(seen), f"a rung was retried after failing: {seen}"
 
 
+def test_alternate_action_names_the_repeated_arguments_not_just_the_tool():
+    """The tool must not be banned wholesale for a call it never made.
+
+    LoopDetector's primary signal is (tool, args, result) repeating -- the
+    same CALL, not any use of the tool. REPORT.md section 3.25: without this,
+    an agent that genuinely needs the same tool again with a different
+    target was told not to use it at all. Reach alternate-action by failing
+    re-anchor first, matching how the engine actually gets there.
+    """
+    engine = RecoveryEngine(backend="mock")
+    snap = _snapshot(args={"dir": "./config", "pattern": "*.json"})
+    engine.verify(engine.recover(snap), worked=False)   # re-anchor fails
+    path = engine.recover(snap)                          # -> alternate-action
+
+    assert path.strategy == "alternate-action"
+    assert "./config" in path.instruction, (
+        "the specific looping arguments must appear in the instruction")
+    assert "materially different arguments" in path.instruction, (
+        "the tool must remain usable with a genuinely different call")
+
+
+def test_alternate_action_degrades_gracefully_with_no_known_args():
+    """Not every trip carries args (progress/drift/rate trips may not)."""
+    engine = RecoveryEngine(backend="mock")
+    snap = _snapshot()  # no args= passed
+    engine.verify(engine.recover(snap), worked=False)
+    path = engine.recover(snap)
+    assert path.strategy == "alternate-action"
+    assert "Do NOT repeat `search_files`" in path.instruction
+
+
 def test_engine_does_not_climb_when_the_steer_worked():
     """A rung that worked stays available; only failure rules one out."""
     engine = RecoveryEngine(backend="mock")
