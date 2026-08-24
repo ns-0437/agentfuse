@@ -254,6 +254,57 @@ def test_escalation_count_and_delivered_default_correctly_on_an_older_checkpoint
     assert resumed.escalations == 0
 
 
+# ------------------------------------------------------ trace continuity
+def test_a_checkpointed_restart_appends_to_the_trace_instead_of_truncating_it(tmp_path):
+    """Tracer.__init__ opens its file in "w" mode by default -- correct for a
+    fresh run, wrong for a restart: the monitor's own state (tokens, ladder
+    memory, escalation status) all now correctly survive a checkpoint restart,
+    but the one human-readable record of how it got there would be silently
+    erased the instant a resumed process constructs its own default Tracer,
+    before Monitor.restore() even runs. Deliberately does NOT use the `_mon`
+    helper, which always passes an explicit tracer= override and so never
+    exercises the monitor's own default Tracer construction this fix lives in.
+    """
+    db = tmp_path / "runs.db"
+    trace = tmp_path / "run.jsonl"
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal=GOAL, echo=False, checkpoint_path=str(db),
+                      jsonl_path=str(trace), checkpoint_every=1))
+    mon.observe(AgentEvent(type=EventType.LLM_CALL, step=1, node="agent", text="a"))
+    mon.observe(AgentEvent(type=EventType.LLM_CALL, step=2, node="agent", text="b"))
+    mon.checkpoint()
+    lines_before = trace.read_text(encoding="utf-8").splitlines()
+    assert len(lines_before) >= 3, "sanity: meta + 2 events were written"
+
+    resumed = CircuitBreakerMonitor(
+        MonitorConfig(original_goal=GOAL, echo=False, checkpoint_path=str(db),
+                      jsonl_path=str(trace), checkpoint_every=1))
+    lines_after_construction = trace.read_text(encoding="utf-8").splitlines()
+    assert len(lines_after_construction) >= len(lines_before), (
+        "constructing a resumed monitor truncated the trace file -- the audit "
+        "trail was erased even though the monitor's own state survives")
+    resumed.restore()
+    resumed.observe(AgentEvent(type=EventType.LLM_CALL, step=3, node="agent", text="c"))
+    final = trace.read_text(encoding="utf-8").splitlines()
+    assert any('"text": "a"' in l for l in final), "pre-restart event a is gone"
+    assert any('"text": "c"' in l for l in final), "post-restart event c is missing"
+
+
+def test_a_fresh_run_with_no_checkpoint_path_still_truncates_as_before(tmp_path):
+    """The zero-config default must not change: a demo re-run against the
+    same jsonl_path with no checkpoint_path is expected to start clean, not
+    accumulate every past invocation forever."""
+    trace = tmp_path / "run.jsonl"
+    CircuitBreakerMonitor(MonitorConfig(original_goal=GOAL, echo=False,
+                                        jsonl_path=str(trace))).observe(
+        AgentEvent(type=EventType.LLM_CALL, step=1, node="agent", text="x"))
+    first_len = len(trace.read_text(encoding="utf-8").splitlines())
+    CircuitBreakerMonitor(MonitorConfig(original_goal=GOAL, echo=False,
+                                        jsonl_path=str(trace)))
+    second_len = len(trace.read_text(encoding="utf-8").splitlines())
+    assert second_len < first_len, "a fresh (non-checkpointed) construction should truncate"
+
+
 # ------------------------------------------- detector state, behaviourally
 @pytest.mark.parametrize("make,drive", [
     (lambda: LoopDetector(threshold=3),
