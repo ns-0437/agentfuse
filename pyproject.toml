@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agentfuse"
 version = "0.1.0"
-description = "A logical circuit breaker for long-range autonomous agents: detects loops, drift, logic traps and runaway spend, then steers the agent back on track with a separate reasoning model."
+description = "A logical circuit breaker for long-range autonomous agents: detects loops, drift, logic traps and runaway spend, then steers the agent back on track with a deterministic recovery ladder (an optional separate reasoning model can write corrections instead, but currently underperforms the ladder)."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "AgentFuse" }]
