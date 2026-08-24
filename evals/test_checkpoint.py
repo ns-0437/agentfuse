@@ -133,6 +133,85 @@ def test_the_learned_calibration_baseline_survives(tmp_path):
     assert resumed.calibrator.baseline.ready is mon.calibrator.baseline.ready
 
 
+# --------------------------------------------------- recovery ladder memory
+def _trip_loop(mon, step_start):
+    """Repeat one identical (tool, args, result) triple enough times to trip
+    LoopDetector's default threshold. Returns the step counter after."""
+    step = step_start
+    for _ in range(4):
+        step += 1
+        mon.observe(AgentEvent(type=EventType.TOOL_CALL, step=step, node="agent",
+                               tool_name="list_secrets", tool_args={}))
+        mon.observe(AgentEvent(type=EventType.TOOL_RESULT, step=step, node="agent",
+                               tool_name="list_secrets", text="a,b",
+                               state={"last_tool": "list_secrets", "result": "a,b"}))
+    return step
+
+
+def test_a_restart_does_not_reset_the_ladder_to_rung_one(tmp_path):
+    """The same failure shape checkpointing was built to fix (this module's own
+    docstring: a restart rearming a guard instead of enforcing it), found in
+    the recovery ladder's own memory instead of the spend ceiling.
+
+    A default-constructed RecoveryEngine's memory is in-process only, so a
+    monitor with checkpoint_path set durably persisted tokens/detectors/
+    calibration but silently forgot every already-tried steering rung on
+    restart -- an agent that ignores corrections across a crash-restart cycle
+    would get the SAME already-failed rung again, not the next one.
+    """
+    db = tmp_path / "runs.db"
+    mon = _mon(db, loop_threshold=3)
+    step = _trip_loop(mon, 0)                          # trips, steers: re-anchor
+    mon.recovery.verify(mon.recovery.memory._records[-1], worked=False)
+    step = _trip_loop(mon, step)                       # climbs to: alternate-action
+    assert [r.strategy for r in mon.recovery.memory._records] == [
+        "re-anchor", "alternate-action"]
+    mon.checkpoint()
+
+    # A monitor pointed at a checkpoint_path that has never been used before
+    # starts with genuinely empty recovery memory -- confirms the persistence
+    # is scoped to the path, not always-on regardless of history.
+    fresh = _mon(tmp_path / "unrelated.db", loop_threshold=3)
+    assert fresh.recovery.memory._records == []
+
+    resumed = _mon(db, loop_threshold=3)                # a brand-new process
+    # JSONMemory loads from its file at construction time, independent of
+    # Monitor.restore() -- it is a plain file, not part of the SQLite
+    # checkpoint blob, so the ladder history is already there.
+    assert [r.strategy for r in resumed.recovery.memory._records] == [
+        "re-anchor", "alternate-action"], (
+        "the ladder's climb history did not survive the restart -- a rung "
+        "already demonstrated to fail would be offered again")
+    assert resumed.restore() is True
+
+
+def test_the_ladder_keeps_climbing_across_a_restart_instead_of_restarting_at_rung_one(tmp_path):
+    """Not just the record: the NEXT trip after a restart must pick the next
+    rung, not repeat one already marked failed before the crash."""
+    db = tmp_path / "runs.db"
+    mon = _mon(db, loop_threshold=3)
+    step = _trip_loop(mon, 0)
+    mon.recovery.verify(mon.recovery.memory._records[-1], worked=False)  # re-anchor failed
+    mon.checkpoint()
+
+    resumed = _mon(db, loop_threshold=3)
+    resumed.restore()
+    _trip_loop(resumed, step)  # same failure re-trips post-restart
+
+    strategies = [r.strategy for r in resumed.recovery.memory._records]
+    assert strategies == ["re-anchor", "alternate-action"], (
+        f"expected the ladder to climb past the pre-restart failure, got {strategies}")
+
+
+def test_recovery_memory_persistence_is_opt_in_via_checkpoint_path(tmp_path):
+    """No checkpoint_path, no durability requested -- must not change the
+    zero-config default (in-process memory, no file written)."""
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal=GOAL, echo=False, loop_threshold=3),
+        tracer=Tracer(None, False))
+    assert mon.recovery.memory.path is None
+
+
 # ------------------------------------------- detector state, behaviourally
 @pytest.mark.parametrize("make,drive", [
     (lambda: LoopDetector(threshold=3),
