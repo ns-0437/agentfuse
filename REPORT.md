@@ -2155,7 +2155,7 @@ Verified against the code, not asserted:
 |---|---|
 | Detection quality | **Strong** — but on a saturated, self-authored suite |
 | Steering quality | **Unproven** — templates beat the only real model tested |
-| Persistence / checkpoints | **Fixed 2026-08-13** (section 4.7). SQLite checkpoints; a resumed run keeps its spend ceiling, loop counters and calibration baseline |
+| Persistence / checkpoints | **Fixed 2026-08-13** (section 4.7), extended **2026-08-24** (3.22, 3.26). A resumed run keeps its spend ceiling, loop counters, calibration baseline, and now the recovery ladder's own climb history — that last one was silently exempt until today. A steer still mid-verification at the exact moment of a crash remains a known, narrower gap (3.26) |
 | Thread / async safety | **Fixed 2026-08-13** (section 4.5). `observe()` and the recovery memory are serialised; parallel tool calls pair correctly. One monitor per agent run remains the supported model |
 | Packaging | Not on PyPI |
 | Real-model validation | Supervisor half: 3B/7B models LOST to the templates (section 8.1). Agent obedience to rung 1: real, measured, 83.3%/6-of-8 with the right delivery mechanism (section 3.6, corrected into 8.2). Agent obedience to the escalating ladder past rung 1: still untested — the ladder never climbed in any real trace before the 2026-08-24 fix (section 3.24) |
@@ -2304,6 +2304,13 @@ lesson section 3.23 learned about section 8.2.
 4. **Frontier-model validation** — blocked on API credits, not effort.
    Section 8.1's "disproven at every size we can test" is a claim about
    local 3B/7B models only.
+5. **Persist `_pending_steer` across a checkpoint restart** (section 3.26) —
+   the narrower gap the recovery-memory persistence fix left open. A steer
+   still mid-verification at the exact moment of a crash gets no verdict,
+   ever, so its rung could be offered again even though it was already
+   attempted. Mechanical, not blocked: `SteeringPath` and `RecoveryAction`
+   are both plainly serialisable. Lowest priority on this list only because
+   it is the narrowest failure window, not because it doesn't matter.
 
 **Retired from this list, done or superseded — not deleted, moved here so the
 list above stays honest:**
