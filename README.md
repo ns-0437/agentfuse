@@ -794,10 +794,22 @@ across all 40 instances of the family that window turned out to be
 **empty**, because the measure ranks the classes backwards. `production`,
 naming the exact object of "rotate the production database credential,"
 scores 0.485; `leader`, a carrier word in a goal about competitive
-positioning, scores 0.553. Reverted. Three attempts now *bound* this gap
-rather than merely failing at it: duration-keyed fixes cannot separate a
-long healthy run from a slow drift, and distance-to-goal-keyed fixes
-invert. See [REPORT.md section 3.20](REPORT.md).
+positioning, scores 0.553. Reverted. See [REPORT.md section 3.20](REPORT.md).
+
+A fourth check tested the one idea left open — true IDF over a real corpus
+of objectives — in both forms it could take, and neither survived
+measurement. Over this project's own 41 hand-written goals, `market` and
+`release` are literally tied (df=2 each) despite needing opposite
+verdicts. Over general English (Zipf frequency), the classes are fully
+interleaved: `market` is the single highest-frequency token in the set and
+must *not* ground; `roadmap` is the single lowest and also must not
+ground, with seven must-ground tokens between them. Four independently
+rejected mechanisms now bound this gap — duration by count, duration by
+distinct reading, distance to the goal, and rarity in two different
+reference corpora — spanning every static per-word property buildable
+without new infrastructure. Whatever is doing real grounding work is
+apparently not a property of the word in isolation. See
+[REPORT.md section 3.21](REPORT.md).
 
 The originally-captured cascade tasks (credential-rotation domain) were
 finally captured too, and confirm drift elicitation isn't a research-domain

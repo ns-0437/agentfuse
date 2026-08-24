@@ -20,10 +20,14 @@ against the world. Real-trace suite: 34 runs (28 healthy), precision 100%,
 recall 83.3%, FPR 0% — still far too small to trust the FPR on its own, and
 carrying one honest known miss (the anchor-grounding gap, REPORT.md 3.17-3.18).
 See the improvement list kept in memory (ask "what needs improving") for the
-prioritized set of genuinely open gaps — the anchor gap has three independently
-rejected fix attempts on record (REPORT.md 3.17, 3.18, 3.20), the third of
-which disproved rather than failed to tune its own hypothesis; the
-pure-reasoning drift-grounding gap (REPORT.md 3.13) has five.
+prioritized set of genuinely open gaps — the anchor gap now has FOUR
+independently rejected fix attempts on record (REPORT.md 3.17, 3.18, 3.20,
+3.21), spanning every static per-word property this project could construct
+(duration-of-grounding twice, similarity-to-goal, rarity in two different
+reference corpora). Whatever separates a real target word from a carrier
+word is apparently not a lookup on the word itself — the next attempt, if
+any, needs a trajectory-level signal, not another token score. The
+pure-reasoning drift-grounding gap (REPORT.md 3.13) has five, separately.
 
 ## Design principles (non-negotiable)
 
