@@ -8,7 +8,7 @@ judging the run is never the thing performing it.
 
 Repo: https://github.com/ns-0437/agentfuse (public) · Dashboard: https://ns-0437.github.io/agentfuse/
 
-## Current state (2026-08-23)
+## Current state (2026-08-24)
 
 Synthetic suite: 1018 scenarios, **0 errors**, precision/recall/F1 all 100.0%,
 FPR 0.0% — re-verified with a full ablation, 25-seed significance test, 4-seed
@@ -19,15 +19,26 @@ on a suite one person wrote is evidence of internal consistency, not correctness
 against the world. Real-trace suite: 34 runs (28 healthy), precision 100%,
 recall 83.3%, FPR 0% — still far too small to trust the FPR on its own, and
 carrying one honest known miss (the anchor-grounding gap, REPORT.md 3.17-3.18).
-See the improvement list kept in memory (ask "what needs improving") for the
-prioritized set of genuinely open gaps — the anchor gap now has FOUR
-independently rejected fix attempts on record (REPORT.md 3.17, 3.18, 3.20,
-3.21), spanning every static per-word property this project could construct
-(duration-of-grounding twice, similarity-to-goal, rarity in two different
-reference corpora). Whatever separates a real target word from a carrier
-word is apparently not a lookup on the word itself — the next attempt, if
-any, needs a trajectory-level signal, not another token score. The
-pure-reasoning drift-grounding gap (REPORT.md 3.13) has five, separately.
+
+**The single highest-value open item is no longer detection — it's whether the
+escalation ladder helps at all (REPORT.md 3.24).** A real bug (3.22, fixed)
+meant the recovery ladder never climbed past its first rung (`re-anchor`) in
+ANY real trace this project has ever captured, across every arm. Section 3.6's
+83%/6-of-8 delivery-mechanism result still holds, but it tested obedience to
+rung 1 almost exclusively, not the escalating strategies `strategies.py`
+mostly consists of. Needs a live-model capture with the fix active — see
+section 7 for the full current priority list, kept live and re-audited rather
+than trusted at face value (3.23 caught it going stale once already).
+
+The anchor-grounding gap (detection-side) has FOUR independently rejected fix
+attempts on record (REPORT.md 3.17, 3.18, 3.20, 3.21), spanning every static
+per-word property this project could construct (duration-of-grounding twice,
+similarity-to-goal, rarity in two different reference corpora). Whatever
+separates a real target word from a carrier word is apparently not a lookup
+on the word itself — the next attempt, if any, needs a trajectory-level
+signal, not another token score. The pure-reasoning drift-grounding gap
+(REPORT.md 3.13) has five, separately. See the improvement list kept in
+memory (ask "what needs improving") for the full prioritized set.
 
 ## Design principles (non-negotiable)
 
@@ -94,7 +105,7 @@ agentfuse/
                                  rather than rewritten from scratch each time (REPORT.md 3.17-3.21)
     captured/                    committed real traces + hand/oracle-written labels (*.json + *.jsonl)
       suite/                      real_suite.py's own corpus + labels.json
-    test_*.py                   314 tests total, `pytest evals/ -q`
+    test_*.py                   327 tests total, `pytest evals/ -q`
 
   models/                     local GGUF weights (qwen2.5-3b, qwen2.5-7b) — no API key needed
   dashboard/                  static HTML dashboard, published via GitHub Pages
@@ -204,7 +215,7 @@ python evals/run_eval.py --generated 40 --json --significance 25  # + ablation +
 python evals/validity.py                                  # seed-generalisation + trivial baselines + ICC (~3 min)
 python evals/score_real_suite.py                          # real-trace scoring
 python evals/real_suite.py --relabel                      # re-derive labels only, no model calls
-pytest evals/ -q                                           # 314-test gate (~5-6 min)
+pytest evals/ -q                                           # 327-test gate (~5-6 min)
 
 python -m llama_cpp.server --model models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf \
   --n_ctx 8192 --port 8080 --n_gpu_layers 0 --n_threads 6
