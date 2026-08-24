@@ -2052,13 +2052,27 @@ The reasoning-model layer does not earn its place at any size testable here.
 Still genuinely open: frontier reasoning models, for want of credits rather than
 want of trying.
 
-### 8.2 Half the recovery loop has never been real
+### 8.2 Half the recovery loop has never been real — **CORRECTED, section 3.23**
 
-Even in the one real-model test, whether the agent **obeys** a steer came from the
-scenario's synthetic `responds_to` field. The supervisor half is now real; the
-agent half never has been. `steering_usable = 100%` also remains circular by
-construction — the rubric was written alongside the templates it scores — and no
-human has ever assessed steering quality.
+Originally written before sections 3.5–3.6 existed and never revisited once
+they did, so this entry itself became exactly the kind of stale claim
+section 8 exists to prevent — caught in section 3.23, dated 2026-08-24.
+
+What was claimed: whether the agent **obeys** a steer came only from the
+scenario's synthetic `responds_to` field, and the agent half of the recovery
+loop had never been real. What is actually true now: sections 3.5–3.6
+measured real agent obedience against real captured traces of a real
+Qwen2.5-7B (`compliance_from_trace`, reading the literal next tool call a
+real model chose to make) — 83.3% obeyed and 6 of 8 tasks completed on the
+delivery mechanism that works. That is real, not synthetic, and it predates
+this correction by over a week.
+
+What remains genuinely true from the original entry: the sample is small (8
+tasks, one model family, deterministic stub tools), no human has ever read a
+steering instruction's *text* and judged its quality — 3.6 measures task
+outcomes, not instruction quality — and `steering_usable = 100%` remains
+circular for the reason originally given: the rubric was written alongside
+the templates it scores.
 
 ### 8.3 Two of the three advertised runtimes were untested — **CLOSED**
 
