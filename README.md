@@ -300,7 +300,7 @@ numbers are published, including the unflattering ones.
 python evals/run_eval.py --generated 40 --json    # 1018 scenarios + ablation
 python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
-pytest evals/ -q                                  # 323-test CI gate
+pytest evals/ -q                                  # 327-test CI gate
 ```
 
 **1018 scenarios** from **23 parameterised generator families** across 6 domains,
