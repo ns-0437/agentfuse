@@ -187,6 +187,47 @@ def test_monitor_marks_a_steer_worked_when_progress_follows():
     assert any(r.worked is True for r in mon.recovery.memory._records)
 
 
+def test_ignoring_the_steer_must_not_count_as_working():
+    """THE bug. A steer the agent ignores must not register as successful.
+
+    The production adapter (adapters/openai_sdk.py) sets `state=` on EVERY
+    tool result, unconditionally -- it is not gated on genuine progress. The
+    old check was `event.state is not None`, which that adapter satisfies on
+    every single call, so an agent that repeats the exact call it was steered
+    away from -- byte-for-byte, same tool, same args, same result -- still
+    counted as a *worked* steer, because SOME state payload existed. It
+    always does. Reproduced directly against the real monitor before this
+    fix landed: `steers_that_worked` went from 0 to 1 on the repeat.
+
+    The fix reuses SeenStateTracker (the same bounded-window novelty check
+    NoProgressDetector and LoopDetector already use) so "state present" is
+    replaced with "state genuinely new," which a byte-for-byte repeat is not.
+    """
+    mon = CircuitBreakerMonitor(
+        MonitorConfig(original_goal=GOAL, echo=False, loop_threshold=3),
+        tracer=Tracer(None, False))
+    result_state = {"last_tool": "list_secrets",
+                     "result": "prod/db/primary, prod/db/replica"}
+    for i in range(1, 5):  # trip it
+        mon.observe(AgentEvent(type=EventType.TOOL_CALL, step=i,
+                               tool_name="list_secrets", tool_args={}))
+        mon.observe(AgentEvent(type=EventType.TOOL_RESULT, step=i,
+                               tool_name="list_secrets", text="prod/db/primary, prod/db/replica",
+                               state=dict(result_state)))
+    assert mon.recovery_count >= 1, "setup failed to trip the breaker"
+
+    # The agent IGNORES the steer: same tool, same args, same result -- a
+    # state payload exists (the adapter always sets one), but nothing is new.
+    mon.observe(AgentEvent(type=EventType.TOOL_CALL, step=5,
+                           tool_name="list_secrets", tool_args={}))
+    mon.observe(AgentEvent(type=EventType.TOOL_RESULT, step=5,
+                           tool_name="list_secrets", text="prod/db/primary, prod/db/replica",
+                           state=dict(result_state)))
+
+    assert mon.steers_that_worked == 0, (
+        "a byte-for-byte repeat of the pre-steer call must not verify as worked")
+
+
 def test_max_recoveries_can_reach_every_steerable_rung():
     """A cap below the ladder depth makes the upper rungs dead code.
 
