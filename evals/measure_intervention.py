@@ -60,38 +60,10 @@ from agentfuse import CircuitBreakerMonitor, MonitorConfig, Tracer  # noqa: E402
 from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 from evals.capture_real_runs import TOOL_SCHEMA, make_router  # noqa: E402
 from evals.measure_resistance import TASKS  # noqa: E402
+from evals.steering_compliance import compliance_from_trace  # noqa: E402
 
 OUT = ROOT / "evals" / "captured" / "intervention"
 ARMS = ("system", "user", "rerun", "drop_tool")
-
-
-def compliance_from_trace(trace: Path) -> tuple[int, int]:
-    """(complied, total) steers, judged by what the agent did next."""
-    recs = []
-    for line in trace.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                recs.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-
-    def sig(r):
-        return f"{r.get('tool_name')}:{json.dumps(r.get('tool_args') or {}, sort_keys=True)}"
-
-    complied = total = 0
-    pending_sig = None
-    tripped_sig = None
-    for r in recs:
-        if r.get("kind") == "event" and r.get("type") == "tool_call":
-            if pending_sig is not None:
-                total += 1
-                complied += int(sig(r) != pending_sig)
-                pending_sig = None
-            tripped_sig = sig(r)
-        elif r.get("kind") == "trip":
-            pending_sig = tripped_sig
-    return complied, total
 
 
 def run_arm(arm: str, base_url: str, model: str, names: list[str],
