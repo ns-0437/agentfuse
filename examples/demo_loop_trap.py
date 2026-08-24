@@ -3,8 +3,9 @@
 Runs a *simulated* long-horizon agent (no API key required) that falls into the
 classic infinite-tool-loop failure: it keeps searching the same directory for a
 config file that isn't there, reasoning consistently from a false premise. The
-circuit breaker detects the loop, freezes state, asks a separate reasoning model
-for a steering path, injects the correction, and the agent recovers and finishes.
+circuit breaker detects the loop, freezes state, climbs the deterministic
+escalation ladder for a steering path, injects the correction, and the agent
+recovers and finishes.
 
 Run:
     python examples/demo_loop_trap.py

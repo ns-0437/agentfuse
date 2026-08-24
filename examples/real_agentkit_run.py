@@ -5,8 +5,8 @@ Unlike the simulated demos, this drives the genuine `openai-agents` SDK: a real
 `FuseRunHooks` observing the live lifecycle. The agent falls into an infinite
 tool loop (keeps calling `search_files` for a config that doesn't exist); the
 circuit breaker — watching the actual SDK hooks — trips, aborts the runaway run,
-asks a separate reasoning model for a steering path, injects it into the
-conversation, and re-runs. The agent then takes the correct action
+climbs the deterministic escalation ladder for a steering path, injects it into
+the conversation, and re-runs. The agent then takes the correct action
 (`secret_manager_get`) and completes.
 
 Only the *model's token generation* is stubbed (a `ScriptedModel`) so the run is
