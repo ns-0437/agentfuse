@@ -2182,24 +2182,64 @@ of `rerun`'s win (section 3.24).
 
 ## 7. What would move it forward, in order
 
-0. **Test the two untested adapters** (section 8.3) and **redact secrets** (section 8.5).
-   These are the gaps between what the README claims and what is demonstrated,
-   and they are cheap.
-1. **Build the ESR merge** (section 6.5) — use an internal signal to predict *steering
-   resistance*, not to detect failures. Untested, and the one idea our own data
-   argues for rather than borrows.
-2. **Settle section 3.3 with a larger model.** If a 7B closes the gap it is a model-size
-   problem; if it does not, the honest product is the *deterministic ladder plus
-   detectors* — simpler, and still valuable. Everything downstream depends on
-   which. `evals/real_model.py --base-url …` already runs this.
-2. **De-circularise the rubric.** The mock's 100% is rigged by construction. An
-   independent judge or a human spot-check would make the comparison real.
-3. **Import captured real traces.** The suite is saturated; more synthetic
-   families will not help much. `evals/trace_import.py` exists for this.
-4. **Audit the remaining generators** for the 4-tool/4-argument artifact (section 4.3).
-5. **Subtle drift** — 8 of 11 remaining false negatives plus 6 false positives,
-   all riding the thin ±0.043 embedding separation.
-6. **Phase 5**: persistence, thread-safety, packaging.
+Rewritten 2026-08-24 — the version below predated sections 3.13–3.25 and most
+of its items were either finished or overtaken without the list being told.
+Kept as a live list, not a monument: re-audit it before trusting it, the same
+lesson section 3.23 learned about section 8.2.
+
+1. **Real capture of whether the escalation ladder helps, with the fix
+   active** (section 3.24). The single highest-value open item: every real
+   trace this project has ever captured tested obedience to `re-anchor`,
+   repeated, never the escalating strategies `strategies.py` mostly consists
+   of. Needs live model calls with the breaker armed, deliberately provoking
+   a multi-steer failure per detector type. Not attempted yet in this
+   project because it needs the same live-capture workload that hard-restarted
+   the machine earlier the same day this was found — check in on that
+   tradeoff before launching it, not a reason to skip it.
+2. **The other two section 3.25 findings**, implemented as code-reading
+   arguments only, no real-model evidence: detector-aware rung selection
+   (`next_strategy` currently ignores `trip_detector` entirely), and giving
+   `re-anchor` an actual prohibition instead of only a report. Both are
+   larger contract changes than the args fix that shipped same-day, and both
+   should be evaluated together with item 1's capture rather than guessed at
+   separately.
+3. **Audit the remaining generators for the 4-tool/4-argument artifact**
+   (section 4.3) — still genuinely open, never done. `gen_long_sparse_benign`
+   was fixed; nothing else has been checked for the same entropy weakness.
+4. **Grow the real corpus further** (section 3.19, 34 runs) — still too small
+   to resolve the 0.6% FPR the synthetic suite claims (CI [0.0%, 12.1%]).
+   Real capture batches are bounded by the machine's thermal limit; keep
+   batches small (section on the 2026-08-24 overheating incident, memory).
+5. **Frontier-model validation** — blocked on API credits, not effort.
+   Section 8.1's "disproven at every size we can test" is a claim about
+   local 3B/7B models only.
+
+**Retired from this list, done or superseded — not deleted, moved here so the
+list above stays honest:**
+- ~~Test the two untested adapters; redact secrets~~ — both **CLOSED**
+  (sections 8.3, 8.5).
+- ~~Settle section 3.3 with a larger model~~ — **SETTLED** (section 8.1): both
+  3B and 7B tested, both lost to the templates.
+- ~~De-circularise the rubric~~ — **DONE 2026-08-24** (section 3.25): an
+  independent code-level read, not a human's, but independent of the rubric's
+  own authorship, which is what the item actually asked for.
+- ~~Import captured real traces~~ — **DONE**: `evals/real_suite.py` and
+  `evals/trace_import.py` exist and the real corpus has grown from 0 to 34
+  runs across this project's life (item 4 above is the version of this that's
+  still open — more volume, not the mechanism).
+- ~~Build the ESR merge~~ — **attempted, found unmeasurable, not abandoned by
+  choice** (section 6.5): the agent resisted 97.6% of corrections, leaving no
+  variance for an internal signal to predict. Superseded by item 1 above —
+  the mechanism question turned out to matter more than the signal question.
+- ~~Subtle drift, the ±0.043 embedding-separation gap~~ — subsumed into the
+  much more thorough pure-reasoning grounding investigation (sections
+  3.13–3.21: five rejected fixes, a measured 0.04-wide safe plateau, and an
+  anchor-grounding gap with four independently rejected mechanisms of its
+  own). Reading this item today without that context would be a regression,
+  not progress.
+- ~~Phase 5: persistence, thread-safety, packaging~~ — **5 of 6 done**
+  (section 5): only PyPI packaging remains, and it was never blocking
+  anything else on this list.
 
 ---
 
