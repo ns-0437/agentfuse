@@ -42,7 +42,7 @@ from enum import Enum
 from typing import Optional
 
 from .checkpoint import SQLiteCheckpointStore, load_state_dict, state_dict
-from .events import AgentEvent, EventType, ExecutionSnapshot
+from .events import AgentEvent, EventType, ExecutionSnapshot, SeenStateTracker
 from .notify import Notification, Notifier, build_notifier
 from .detectors import (Detector, LoopDetector, DriftDetector, SpendDetector,
                         NoProgressDetector, RateOfProgressDetector)
@@ -208,6 +208,9 @@ class CircuitBreakerMonitor:
         self._pending_steer = None
         self.steers_that_worked = 0
         self.steers_that_failed = 0
+        # Whether a post-steer state is a GENUINE advance, not merely present.
+        # See _verify_pending for why this cannot be "event.state is not None".
+        self._verify_seen = SeenStateTracker()
 
     # ------------------------------------------------- durable run state
     def state(self) -> dict:
@@ -226,6 +229,7 @@ class CircuitBreakerMonitor:
             },
             "calibrator": state_dict(self.calibrator),
             "baseline": state_dict(self.calibrator.baseline),
+            "verify_seen": state_dict(self._verify_seen),
             # Keyed by detector name, so reordering or adding a detector cannot
             # silently load one detector's counters into another.
             "detectors": {d.name: state_dict(d) for d in self.detectors},
@@ -268,6 +272,7 @@ class CircuitBreakerMonitor:
             self.current_goal = totals.get("current_goal")
             load_state_dict(self.calibrator, saved.get("calibrator", {}))
             load_state_dict(self.calibrator.baseline, saved.get("baseline", {}))
+            load_state_dict(self._verify_seen, saved.get("verify_seen", {}))
             by_name = saved.get("detectors", {})
             for d in self.detectors:
                 if d.name in by_name:
@@ -279,18 +284,41 @@ class CircuitBreakerMonitor:
     def _verify_pending(self, event: AgentEvent, new_trip: bool = False) -> None:
         """Decide whether the last steer worked, once there is evidence either way.
 
-        A steer counts as having worked if the agent makes genuine state progress
+        A steer counts as having worked if the agent makes GENUINE state progress
         within ``verify_window`` steps of receiving it. It counts as failed if the
         breaker trips again first, or if the window closes with nothing advanced.
 
         Until this existed the memory only knew what had been *tried*, which is
         not enough to stop the engine repeating a correction that already failed.
+
+        "Genuine" used to mean nothing more than ``event.state is not None`` --
+        which sounds like it means progress, and does not. The production
+        adapter (``adapters/openai_sdk.py``) sets ``state=`` on every single
+        ``TOOL_RESULT``, unconditionally, so that check registered a steer as
+        successful the instant ANY tool call landed afterward -- including the
+        exact same failing call the agent was steered away from. Reproduced
+        directly: an agent that repeats a call byte-for-byte after being
+        steered off it still counted as a *worked* steer, because a result
+        payload existed, which it always does.
+
+        The fix reuses ``SeenStateTracker``, the same bounded-window novelty
+        check ``NoProgressDetector`` and ``LoopDetector`` already use to tell a
+        genuine advance from a repeat -- ``self._verify_seen`` is a dedicated
+        instance so this cannot be silently disabled by ablating either
+        detector. Every state is fed to it unconditionally (not only while a
+        steer is pending), matching those detectors' own semantics: a state
+        the run reached BEFORE the steer must not count as new progress after
+        it just because the tracker started empty.
         """
+        advanced = False
+        if event.state is not None:
+            advanced = self._verify_seen.advance(event.state_hash)
+
         if self._pending_steer is None:
             return
         path, injected_at = self._pending_steer
 
-        if event.state is not None and not new_trip:
+        if advanced and not new_trip:
             self.recovery.verify(path, worked=True)
             self._pending_steer = None
             self.steers_that_worked += 1
