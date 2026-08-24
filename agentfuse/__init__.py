@@ -4,8 +4,12 @@ Drop a ``CircuitBreakerMonitor`` above any agent's execution graph. It watches
 the telemetry every framework already emits — tool calls, graph routes, state
 changes, token spend — and trips when the agent falls into the long-horizon
 failure modes: infinite tool loops, goal drift, logical traps, runaway spend.
-On a trip it freezes state and asks a *separate* reasoning model for a steering
-recovery path, then injects that correction and resumes.
+On a trip it freezes state and climbs a fixed escalation ladder of corrections
+— always separate from the agent being supervised — then injects that
+correction and resumes. A *separate reasoning model* can write the correction
+text instead of the deterministic ladder; this is opt-in, and measured against
+every real model tested so far, it currently loses to the fixed templates
+(see REPORT.md section 8.1).
 
 Quick start::
 
