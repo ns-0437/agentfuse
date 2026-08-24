@@ -71,6 +71,7 @@ from agentfuse import CircuitBreakerMonitor, MonitorConfig, Tracer  # noqa: E402
 from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 from agentfuse.confidence import _token_logprobs, summarize  # noqa: E402
 from evals.capture_real_runs import TOOL_SCHEMA, make_router  # noqa: E402
+from evals.steering_compliance import tool_signature  # noqa: E402
 
 OUT = ROOT / "evals" / "captured" / "resistance"
 
@@ -178,9 +179,6 @@ def label_steers(trace: Path, client, model: str) -> list[dict]:
             except json.JSONDecodeError:
                 continue
 
-    def sig(r):
-        return f"{r.get('tool_name')}:{json.dumps(r.get('tool_args') or {}, sort_keys=True)}"
-
     out: list[dict] = []
     history: list[str] = []
     pending = None
@@ -192,11 +190,11 @@ def label_steers(trace: Path, client, model: str) -> list[dict]:
             t = r.get("type")
             if t == "tool_call":
                 if pending is not None:
-                    pending["complied"] = sig(r) != pending["tripped_sig"]
+                    pending["complied"] = tool_signature(r) != pending["tripped_sig"]
                     pending["next_call"] = r.get("tool_name")
                     out.append(pending)
                     pending = None
-                tripped_sig = sig(r)
+                tripped_sig = tool_signature(r)
                 history.append(f"  called {r.get('tool_name')}"
                                f"({json.dumps(r.get('tool_args') or {})})")
             elif t == "tool_result":
