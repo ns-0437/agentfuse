@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-24** · 279 commits · 327 tests green · 1018 synthetic scenarios across 23 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-08-24** · 285 commits · 330 tests green · 1018 synthetic scenarios across 23 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -2527,7 +2527,7 @@ python evals/run_eval.py --generated 40 --sweep   # threshold sweeps
 python evals/validity.py                          # checks on the benchmark itself
 python evals/real_model.py --base-url …           # templates vs a real model
 python evals/audit_generator_entropy.py           # negative generators vs the 4.3 artifact
-pytest evals/ -q                                  # 327-test CI gate
+pytest evals/ -q                                  # 330-test CI gate
 ```
 
 No API key required, nothing billed. `evals/baseline.json` records every floor,
