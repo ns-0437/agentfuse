@@ -212,6 +212,115 @@ def test_recovery_memory_persistence_is_opt_in_via_checkpoint_path(tmp_path):
     assert mon.recovery.memory.path is None
 
 
+# ------------------------------------------------ pending steer verification
+# The narrower gap the recovery-memory fix above left open on purpose (see its
+# own commit message): a steer awaiting a verdict at the exact moment of a
+# crash. Losing `_pending_steer` on restart does not just drop a tuple -- it
+# means `_verify_pending` silently no-ops on every event afterwards, so the
+# steer's outcome is NEVER recorded. The memory record sits at worked=None
+# forever, and a rung already offered could be offered again believing it
+# untried, which is the specific failure the recovery-memory fix exists to
+# prevent -- reopened one step earlier in the same lifecycle.
+def test_a_pending_steer_survives_a_restart_and_gets_verified(tmp_path):
+    """Behavioural, not structural: the steer's OUTCOME must still get
+    recorded after the restart, not merely the tuple that was saved."""
+    db = tmp_path / "runs.db"
+    mon = _mon(db, loop_threshold=3)
+    step = _trip_loop(mon, 0)
+    record_id = mon._pending_steer[0].record_id
+    mon.checkpoint()
+
+    resumed = _mon(db, loop_threshold=3)
+    assert resumed.restore() is True
+    assert resumed._pending_steer is not None, (
+        "the steer awaiting a verdict was lost across the restart")
+    assert resumed._pending_steer[0].record_id == record_id
+
+    # A genuine advance after the restart -- this must verify the PRE-restart
+    # steer, not silently no-op because _pending_steer came back empty.
+    step += 1
+    resumed.observe(AgentEvent(type=EventType.TOOL_CALL, step=step, node="agent",
+                               tool_name="read_secret", tool_args={"name": "prod/db/primary"}))
+    resumed.observe(AgentEvent(type=EventType.TOOL_RESULT, step=step, node="agent",
+                               tool_name="read_secret", text="prod/db/primary -> ok",
+                               state={"last_tool": "read_secret", "result": "ok"}))
+
+    rec = next((r for r in resumed.recovery.memory._records if r.record_id == record_id), None)
+    assert rec is not None
+    assert rec.worked is True, (
+        f"expected worked=True, got {rec.worked!r} -- the steer's outcome was "
+        f"never recorded, so this rung would look untried on the next trip")
+    assert resumed._pending_steer is None
+
+
+def test_a_pending_steer_that_times_out_after_restart_is_marked_failed(tmp_path):
+    """The other branch of _verify_pending: no advance within verify_window
+    must still resolve to worked=False post-restart, not hang forever."""
+    db = tmp_path / "runs.db"
+    mon = _mon(db, loop_threshold=3, verify_window=2)
+    step = _trip_loop(mon, 0)
+    record_id = mon._pending_steer[0].record_id
+    mon.checkpoint()
+
+    resumed = _mon(db, loop_threshold=3, verify_window=2)
+    resumed.restore()
+
+    # No progress, and enough steps pass to exceed verify_window. Varying the
+    # args each step is deliberate: identical (tool, args, result) 3x would
+    # trip LoopDetector again and manufacture a SECOND pending steer, which
+    # would mask whether the original one actually timed out.
+    for i in range(3):
+        step += 1
+        resumed.observe(AgentEvent(type=EventType.TOOL_CALL, step=step, node="agent",
+                                   tool_name="idle", tool_args={"i": i}))
+        resumed.observe(AgentEvent(type=EventType.TOOL_RESULT, step=step, node="agent",
+                                   tool_name="idle", text=f"nothing happened ({i})"))
+
+    rec = next((r for r in resumed.recovery.memory._records if r.record_id == record_id), None)
+    assert rec is not None
+    assert rec.worked is False, (
+        f"expected worked=False after the verify window elapsed, got {rec.worked!r}")
+    assert resumed._pending_steer is None
+
+
+def test_a_restart_with_nothing_pending_still_restores_cleanly(tmp_path):
+    """The common case: no trip happened before the checkpoint, so there is
+    nothing to persist. Must not crash and must not fabricate a pending steer."""
+    db = tmp_path / "runs.db"
+    mon = _mon(db)
+    mon.observe(AgentEvent(type=EventType.TOOL_CALL, step=1, node="agent",
+                           tool_name="list_secrets", tool_args={}))
+    mon.observe(AgentEvent(type=EventType.TOOL_RESULT, step=1, node="agent",
+                           tool_name="list_secrets", text="a,b"))
+    assert mon._pending_steer is None
+    mon.checkpoint()
+
+    resumed = _mon(db)
+    assert resumed.restore() is True
+    assert resumed._pending_steer is None
+
+
+def test_an_older_checkpoint_with_no_pending_steer_key_still_restores(tmp_path):
+    """A checkpoint written before this fix has no `pending_steer` key at all
+    -- `.get()` must default it to None rather than KeyError, the same
+    forward-compatibility promise `load_state_dict` already makes elsewhere."""
+    db = tmp_path / "runs.db"
+    mon = _mon(db)
+    mon.observe(AgentEvent(type=EventType.TOOL_CALL, step=1, node="agent",
+                           tool_name="t", tool_args={}))
+    mon.observe(AgentEvent(type=EventType.TOOL_RESULT, step=1, node="agent",
+                           tool_name="t", text="ok"))
+    mon.checkpoint()
+
+    saved = mon._store.load("r1")
+    del saved["totals"]["pending_steer"]           # simulate a pre-fix checkpoint
+    mon._store.save("r1", saved, step=saved["totals"]["last_step"])
+
+    resumed = _mon(db)
+    assert resumed.restore() is True
+    assert resumed._pending_steer is None
+
+
 # ---------------------------------------------------- escalation, behaviourally
 def test_a_failed_escalation_notice_survives_a_restart(tmp_path):
     """`escalation_delivered=False` means "a human was needed and nobody was
