@@ -2482,13 +2482,11 @@ lesson section 3.23 learned about section 8.2.
 4. **Frontier-model validation** — blocked on API credits, not effort.
    Section 8.1's "disproven at every size we can test" is a claim about
    local 3B/7B models only.
-5. **Persist `_pending_steer` across a checkpoint restart** (section 3.26) —
-   the narrower gap the recovery-memory persistence fix left open. A steer
-   still mid-verification at the exact moment of a crash gets no verdict,
-   ever, so its rung could be offered again even though it was already
-   attempted. Mechanical, not blocked: `SteeringPath` and `RecoveryAction`
-   are both plainly serialisable. Lowest priority on this list only because
-   it is the narrowest failure window, not because it doesn't matter.
+5. ~~**Persist `_pending_steer` across a checkpoint restart**~~ — **DONE,
+   section 3.29.** A steer still mid-verification at the crash moment now
+   survives the restart and still gets a real verdict recorded afterwards,
+   not merely a tuple that round-trips. This was the last named gap on the
+   checkpoint-persistence list (3.22, 3.26, 3.27, 3.28); none remain open.
 
 **Retired from this list, done or superseded — not deleted, moved here so the
 list above stays honest:**
