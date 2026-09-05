@@ -37,7 +37,7 @@ import os
 import threading
 import uuid
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -248,6 +248,20 @@ class CircuitBreakerMonitor:
                 "route_history": list(self.route_history),
                 "current_goal": self.current_goal,
                 "last_step": self.history[-1].step if self.history else 0,
+                # A steer still mid-verification at the exact moment of a crash.
+                # SteeringPath is a plain dataclass of JSON-safe fields (str,
+                # float, dict — `action` is a str-subclass Enum, which the stdlib
+                # encoder already serialises by its underlying string value), so
+                # this is a direct asdict() rather than another bespoke
+                # serialiser. Losing this on restart means a rung already
+                # awaiting its verdict is silently forgotten: the ladder could
+                # then offer that SAME rung again on the next trip, believing it
+                # untried, instead of climbing past it.
+                "pending_steer": (
+                    {"path": asdict(self._pending_steer[0]),
+                     "injected_at": self._pending_steer[1]}
+                    if self._pending_steer is not None else None
+                ),
             },
             "calibrator": state_dict(self.calibrator),
             "baseline": state_dict(self.calibrator.baseline),
@@ -294,6 +308,19 @@ class CircuitBreakerMonitor:
             self.escalation_delivered = totals.get("escalation_delivered")
             self.route_history = list(totals.get("route_history", []))
             self.current_goal = totals.get("current_goal")
+            pending = totals.get("pending_steer")
+            if pending:
+                fields = dict(pending["path"])
+                # RecoveryAction round-trips through JSON as a plain str (its
+                # own underlying value), so it is re-wrapped explicitly rather
+                # than left as a bare string. Comparisons against the enum
+                # would still work either way — str.__eq__ — but restoring the
+                # real type keeps `isinstance(path.action, RecoveryAction)`
+                # true for any caller that checks it, now or later.
+                fields["action"] = RecoveryAction(fields["action"])
+                self._pending_steer = (SteeringPath(**fields), pending["injected_at"])
+            else:
+                self._pending_steer = None
             load_state_dict(self.calibrator, saved.get("calibrator", {}))
             load_state_dict(self.calibrator.baseline, saved.get("baseline", {}))
             load_state_dict(self._verify_seen, saved.get("verify_seen", {}))
