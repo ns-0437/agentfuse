@@ -1922,6 +1922,73 @@ downstream tool that reads it as ground truth — the dashboard, and (section
 3.19, section 3.22) `compliance_from_trace` itself, the actual evidence
 behind this project's central steering-works claim.
 
+### 3.29 The last named gap on the checkpoint list, closed
+
+Section 7 item 5 named this explicitly the day the recovery-memory fix
+shipped (3.26's own commit message): a steer still awaiting its verdict at
+the exact moment of a crash was not persisted, so `_pending_steer` came back
+`None` on every restart regardless of what was mid-flight when the process
+died. Called "mechanical, not blocked" at the time — `SteeringPath` and
+`RecoveryAction` are both plain, JSON-safe dataclasses — and that held.
+
+**The consequence is not merely a lost tuple.** `_verify_pending` returns
+immediately whenever `self._pending_steer is None`, so losing it silently
+disabled verification for that one steer for the rest of the run: no matter
+what the agent did afterwards — a genuine advance, a fresh trip, anything —
+`recovery.verify()` was never called for it. Its `JSONMemory` record sat at
+`worked=None` forever, indistinguishable from a rung that was never tried at
+all, which is exactly the state `failed_strategies()` reads to keep the
+ladder from repeating a rung already known to fail. The recovery-memory fix
+persists *which rungs were attempted*; this fix is what lets the run learn
+*whether the pending one actually worked*, across the same restart.
+
+**Reproduced directly**, the same way as every fix this session: tripped
+`LoopDetector` to produce a real `INJECT` directive, checkpointed with the
+steer still pending, restored into a fresh monitor — `_pending_steer` came
+back `None` against pre-fix code, confirmed by re-running the identical
+script with `monitor.py`'s changes stashed. Post-fix, a second reproduction
+carried the restored steer through a genuine state advance and confirmed the
+memory record actually flips to `worked=True`, not merely that the tuple
+survived serialisation.
+
+**Fixed** with a direct `dataclasses.asdict(path)` in `state()` — `action` is
+a `str`-subclass `Enum`, which the stdlib JSON encoder already serialises by
+its literal string value, so no bespoke encoding was needed — and an explicit
+`RecoveryAction(...)` re-wrap on the way back in `restore()`. The re-wrap is
+not load-bearing for correctness (a bare `str` still compares equal to the
+enum member; that is what a `str` mixin is for) but keeps `isinstance(path.action,
+RecoveryAction)` true for any future caller that checks it, rather than
+depending on every caller happening to use `==`.
+
+4 tests: the restored steer resolves to `worked=True` on a genuine advance,
+to `worked=False` when the verify window elapses with none, an unrelated
+regression guard for the common case (nothing pending at checkpoint time),
+and a checkpoint written before this fix (no `pending_steer` key at all)
+still restoring cleanly via `.get()`'s existing default. Three of the four
+fail against pre-fix code with the predicted symptom; the fourth — the
+already-fine common case — passes both before and after, as it should.
+
+**Section 7 item 5 is now closed.** Every item that list named as a known,
+scoped checkpoint gap (3.22, 3.26, 3.27, 3.28, and now this one) is fixed.
+
+**One more check before calling the list closed**, in the same spirit as 3.27
+finding "one more" the day after 3.26: re-ran the full attribute-by-attribute
+audit against `Monitor.__init__` directly, rather than trusting the list above
+was exhaustive on its own say-so. Two things worth naming rather than passing
+over silently. First, `_warned_no_channel` — a one-time warning suppressor for
+"escalation configured with no channel" — is not persisted, and deliberately
+so: losing it can only make that warning print again after a restart, never
+suppress one that should have fired, so it carries none of the "guard silently
+rearmed" risk the checkpoint fixes above all share. Second, and checked
+directly rather than assumed: `DriftDetector`'s action-grounding fields
+(`_on_goal_tools`, `_turns_since_action`, `_last_action_grounded` — added
+*after* the generic per-detector `state_dict`/`load_state_dict` reflection
+already existed) were reproduced through an identical checkpoint/restore cycle
+and came back byte-for-byte identical. They round-trip correctly today because
+every one of them is a plain `set`/`int`/`bool`, which `encode()`/`decode()`
+already handle generically — but that was verified against a live restore
+this time, not inferred from the field types.
+
 ---
 
 ## 4. Findings worth keeping
