@@ -65,3 +65,40 @@ def test_the_all_extra_is_a_superset_of_every_other_extra():
             base = pkg.split(">=")[0].split("==")[0]
             assert base in all_pkgs, (
                 f"extra {name!r} requires {base!r}, which is missing from [all]")
+
+
+def test_adapters_package_imports_without_openai_agents_installed():
+    """The promise `adapters/__init__.py` now documents in a comment: two of
+    three adapters must not require the optional `openai-agents` package.
+
+    `agentkit_hooks.py` (FuseRunHooks/BreakerInterrupt) hard-imports `agents`
+    at module level, so it is deliberately excluded from this package's
+    unconditional imports. This simulates `agents` being absent and confirms
+    the promise actually holds rather than trusting the comment.
+    """
+    import builtins
+    import importlib
+
+    real_import = builtins.__import__
+
+    def blocking_import(name, *a, **kw):
+        if name == "agents" or name.startswith("agents."):
+            raise ImportError(f"simulated: {name!r} is not installed")
+        return real_import(name, *a, **kw)
+
+    for mod in list(sys.modules):
+        if mod == "agents" or mod.startswith("agentfuse.adapters"):
+            del sys.modules[mod]
+
+    builtins.__import__ = blocking_import
+    try:
+        mod = importlib.import_module("agentfuse.adapters")
+        assert hasattr(mod, "AgentKitBreaker")
+        assert hasattr(mod, "guarded_tool_loop")
+        assert hasattr(mod, "FuseCallbackHandler")
+    finally:
+        builtins.__import__ = real_import
+        for mod in list(sys.modules):
+            if mod.startswith("agentfuse.adapters"):
+                del sys.modules[mod]
+        importlib.import_module("agentfuse.adapters")
