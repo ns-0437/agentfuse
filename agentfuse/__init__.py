@@ -3,7 +3,8 @@
 Drop a ``CircuitBreakerMonitor`` above any agent's execution graph. It watches
 the telemetry every framework already emits — tool calls, graph routes, state
 changes, token spend — and trips when the agent falls into the long-horizon
-failure modes: infinite tool loops, goal drift, logical traps, runaway spend.
+failure modes: infinite tool loops, goal drift, logical traps, the Zeno trap
+(state that keeps advancing but never arrives), and runaway spend.
 On a trip it freezes state and climbs a fixed escalation ladder of corrections
 — always separate from the agent being supervised — then injects that
 correction and resumes. A *separate reasoning model* can write the correction
@@ -34,6 +35,7 @@ from .detectors import (
     DriftDetector,
     SpendDetector,
     NoProgressDetector,
+    RateOfProgressDetector,
 )
 from .recovery import RecoveryEngine, SteeringPath, RecoveryAction
 from .tracer import Tracer
@@ -58,6 +60,7 @@ __all__ = [
     "DriftDetector",
     "SpendDetector",
     "NoProgressDetector",
+    "RateOfProgressDetector",
     "RecoveryEngine",
     "SteeringPath",
     "RecoveryAction",
