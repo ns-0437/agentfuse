@@ -40,7 +40,7 @@ def main() -> int:
     p.add_argument("--generated", type=int, metavar="N", default=0,
                    help="add N generated scenarios per generator (12 generators)")
     p.add_argument("--only-generated", action="store_true",
-                   help="use ONLY generated scenarios (drops the 16 hand-written ones)")
+                   help="use ONLY generated scenarios (drops the 18 hand-written ones)")
     p.add_argument("--seed", type=int, default=20260812, help="generation seed")
     p.add_argument("--sweep", action="store_true", help="run threshold sweeps")
     p.add_argument("--latency", action="store_true",
