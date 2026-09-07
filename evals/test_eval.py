@@ -2,7 +2,7 @@
 
 Two suites, two jobs:
 
-  * **Generated (536 scenarios)** — the statistically meaningful one. Confidence
+  * **Generated (1018 scenarios)** — the statistically meaningful one. Confidence
     intervals here are narrow enough (±5-6 points) that a real regression is
     distinguishable from noise. All rate assertions run against this.
   * **Hand-written (16 scenarios)** — kept as *named* regression cases, so a
