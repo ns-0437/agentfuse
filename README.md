@@ -846,7 +846,7 @@ regressions, not small ones.
   the effective n (222).
 
 For scale context: AE Studio's ESR baseline ran **7,892 trials**. This suite runs
-1018 across 23 independent families. Twenty-three is the number to reason about, and
+1018 across 25 independent families. Twenty-five is the number to reason about, and
 it is not enough to call anything settled.
 
 ### Prior work
