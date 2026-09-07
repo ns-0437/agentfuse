@@ -131,10 +131,10 @@ def main() -> int:
             print("     exposure artifact, not purely detector precision.")
 
     print("\n  synthetic suite for comparison: precision 100.0%, recall 100.0%, "
-          "FPR 0.0%\n  (1018 scenarios, 23 families)")
+          "FPR 0.0%\n  (1018 scenarios, 25 families)")
     if fp + tn and fp + tn < 30:
         lo, hi = wilson(fp, fp + tn)
-        print(f"\n  HONEST LIMIT: {fp + tn} healthy runs cannot resolve a 0.6% FPR — "
+        print(f"\n  HONEST LIMIT: {fp + tn} healthy runs cannot resolve a 0.0% FPR — "
               f"the\n  interval [{lo:.1%}, {hi:.1%}] spans it either way. This suite "
               "detects gross\n  regressions, not small ones. More real healthy runs "
               "are the only fix.")
