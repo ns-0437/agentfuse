@@ -92,10 +92,15 @@ jobs:
       #
       # run_eval's exit code encodes "zero residual errors" — any false positive
       # or any non-known-gap miss returns 1. That is a stricter contract than
-      # this project actually holds: 3 false positives and 11 false negatives out
-      # of 1016 are measured, documented in baseline.json, and accepted. Gating on
-      # that exit code asserted perfection we have never claimed, and it failed
-      # on its first run for exactly that reason.
+      # this project has ever wanted to hard-gate on: when this step was written,
+      # 3 false positives and 11 false negatives out of 1016 were measured,
+      # documented in baseline.json, and accepted, and gating on the raw exit
+      # code asserted a perfection never claimed. Those specific errors were
+      # since traced to bugs in the benchmark's own construction and fixed
+      # (REPORT.md 3.13-3.14) rather than tolerated away, and the suite has since
+      # grown to 1018 scenarios — but a 0-error measurement today is still not a
+      # promise of 0 forever, so this stays informational and the actual gate
+      # stays the floors in evals/baseline.json, asserted by test_eval.py below.
       #
       # Left running because the per-family breakdown is worth having in the log;
       # the floors above are what decides pass or fail.
