@@ -870,10 +870,11 @@ def generate_suite(n_per_generator: int = 40, seed: int = 20260812,
                    include: Optional[set[str]] = None) -> list[Scenario]:
     """Build a large, balanced, reproducible scenario suite.
 
-    ``n_per_generator`` cases from each of the 5 positive and 7 negative
-    generators. The default of 40 yields 480 scenarios (200 positive,
-    280 negative) — enough to put the confidence intervals on the headline
-    metrics into a range where they actually mean something.
+    ``n_per_generator`` cases from each of the 12 positive and 13 negative
+    generators (25 total, including ``generators_extra``). The default of 40
+    yields 1000 scenarios (480 positive, 520 negative) — enough to put the
+    confidence intervals on the headline metrics into a range where they
+    actually mean something.
     """
     rng = random.Random(seed)
     out: list[Scenario] = []
