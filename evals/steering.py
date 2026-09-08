@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 from agentfuse.recovery import SteeringPath, RecoveryAction
 
@@ -92,7 +92,7 @@ class SteeringScore:
         return self.actionable and self.goal_anchored and self.not_vague
 
     def to_dict(self) -> dict:
-        d = {c: bool(getattr(self, c)) for c in self.CHECKS}
+        d: dict[str, Any] = {c: bool(getattr(self, c)) for c in self.CHECKS}
         d.update({"score": round(self.score, 3), "usable": self.usable,
                   "reasons": self.reasons})
         return d
