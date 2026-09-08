@@ -220,7 +220,7 @@ class CircuitBreakerMonitor:
         self.current_goal: Optional[str] = None
         self.recovery_count = 0
         # The steer awaiting a verdict: (path, step it was injected at).
-        self._pending_steer = None
+        self._pending_steer: Optional[tuple[SteeringPath, int]] = None
         self.steers_that_worked = 0
         self.steers_that_failed = 0
         # Whether a post-steer state is a GENUINE advance, not merely present.
