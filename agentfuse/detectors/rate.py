@@ -95,12 +95,12 @@ _WHITESPACE = re.compile(r"\s+")
 _PERCENT = re.compile(r"\d+(?:\.\d+)?\s*%")
 
 
-def _shape(text: str) -> str:
+def _shape(text: Optional[str]) -> str:
     """The result with every number masked — its form, independent of its values."""
     return _WHITESPACE.sub(" ", _NUMBER.sub("#", (text or "").lower())).strip()
 
 
-def _numbers(text: str) -> tuple[float, ...]:
+def _numbers(text: Optional[str]) -> tuple[float, ...]:
     return tuple(float(m) for m in _NUMBER.findall(text or ""))
 
 
