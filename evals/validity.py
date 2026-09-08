@@ -45,7 +45,7 @@ from agentfuse.events import AgentEvent, EventType  # noqa: E402
 from evals.generators import generate_suite  # noqa: E402
 from evals.metrics import score  # noqa: E402
 from evals.runner import run_suite  # noqa: E402
-from evals.stats import wilson, Interval  # noqa: E402
+from evals.stats import wilson  # noqa: E402
 
 BAR = "=" * 74
 

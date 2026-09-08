@@ -27,7 +27,7 @@ import time
 from dataclasses import dataclass
 
 from agentfuse import (
-    AgentEvent, EventType, CircuitBreakerMonitor, MonitorConfig, Tracer,
+    CircuitBreakerMonitor, MonitorConfig, Tracer,
 )
 from agentfuse.detectors import LoopDetector, DriftDetector, NoProgressDetector, SpendDetector
 
