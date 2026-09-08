@@ -2406,7 +2406,7 @@ Verified against the code, not asserted:
 | Adapter coverage | **3 of 3** — fixing the two untested ones found 4 bugs (section 4.10) |
 | CI / portability | **3 OS × 3 Python versions**, plus demos and benchmark floors (section 8.4) |
 | Secret redaction | **All three egress paths** — with a stated residual gap (section 8.5) |
-| Prompt-injection hardening | Done — sanitise, fence, trust-boundary clause, 15 tests |
+| Prompt-injection hardening | Done — sanitise, fence, trust-boundary clause, 18 tests. A real fence-escape gap (the container's own delimiter was forgeable) found and closed, section 3.30 |
 | Cost safety | Done — `AGENTFUSE_OFFLINE`, $0 ever spent on this project |
 
 **Verdict: a strong research instrument, not a deployable product.** The
