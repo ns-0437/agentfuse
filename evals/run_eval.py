@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from evals.ablation import run_ablation, control_significance  # noqa: E402
+from evals.ablation import run_ablation, control_significance, AblationRow  # noqa: E402
 from evals.generators import generate_suite  # noqa: E402
 from evals.metrics import score  # noqa: E402
 from evals.report import console_report, write_artifacts  # noqa: E402
@@ -85,7 +85,7 @@ def main() -> int:
     if args.no_ablation:
         results = run_suite(scenarios, cost=cost)
         full = score(results, by_id_map)
-        rows = []
+        rows: list[AblationRow] = []
     else:
         full, rows = run_ablation(scenarios, cost=cost)
         results = run_suite(scenarios, cost=cost)
