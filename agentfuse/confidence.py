@@ -37,7 +37,7 @@ detector does not ship.
 from __future__ import annotations
 
 import math
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional
 
 from .events import AgentEvent, EventType
 from .detectors.base import Detector, Severity, Trip

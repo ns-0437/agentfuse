@@ -28,7 +28,7 @@ being *more* trigger-happy.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from .events import AgentEvent, EventType

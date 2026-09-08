@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
 from typing import Optional
 
 from .redact import redact_obj

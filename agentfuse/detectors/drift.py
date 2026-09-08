@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import difflib
 import math
-import os
 import re
 from typing import Callable, Optional
 
