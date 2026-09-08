@@ -142,6 +142,10 @@ def _patch_choice(choice: Any) -> None:
     try:
         from openai.types.chat.chat_completion_message_tool_call import (
             ChatCompletionMessageToolCall, Function)
+        # Verified live: the installed SDK renamed this to
+        # ChatCompletionMessageFunctionToolCall internally but still resolves
+        # the import under the old name here, so this constructs the real SDK
+        # type at runtime.
         built = [ChatCompletionMessageToolCall(
             id=c["id"], type="function",
             function=Function(name=c["name"], arguments=c["arguments"]))
@@ -149,7 +153,11 @@ def _patch_choice(choice: Any) -> None:
     except Exception:                                   # noqa: BLE001
         # Older/newer SDK layouts move these types around. A duck-typed stand-in
         # keeps capture working rather than failing the whole run on an import.
-        built = [_DuckToolCall(c) for c in calls]
+        # mypy infers `built`'s type from the try branch above and flags this
+        # deliberately different fallback type as incompatible -- both branches
+        # only ever need to satisfy the same duck-typed usage below
+        # (msg.tool_calls = built), never each other's static type.
+        built = [_DuckToolCall(c) for c in calls]  # type: ignore[misc]
 
     msg.tool_calls = built
     msg.content = prose
