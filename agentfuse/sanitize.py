@@ -59,7 +59,17 @@ _OVERRIDE = re.compile(
 _ROLE = re.compile(r"\b(system|assistant|user|developer|tool)\s*:", re.I)
 
 #: Fence and template markers the payload could use to escape its container.
-_FENCE = re.compile(r"(```|~~~|<\|[^>]*\|>|</?(?:system|instructions?|prompt)>)", re.I)
+#: `<<<[...]>>>` is included because it is `fence()`'s OWN delimiter syntax
+#: (below). Untrusted text is sanitised before it is fenced, and if it already
+#: contains a literal `<<<END UNTRUSTED ...>>>`, that forges a premature close:
+#: the fenced block ends up with the real body followed by attacker text that
+#: now visually sits AFTER the boundary meant to contain it, followed by the
+#: genuine closing marker — the exact escape this mechanism exists to prevent.
+#: Reproduced directly: a tool result containing that literal string closed the
+#: fence early and the model-facing prompt showed the injected instruction
+#: sitting outside the untrusted block, before this pattern was added.
+_FENCE = re.compile(r"(```|~~~|<\|[^>]*\|>|</?(?:system|instructions?|prompt)>"
+                    r"|<<<[^>]{0,60}>>>)", re.I)
 
 #: The subset of the above that is *evidence of intent* rather than formatting.
 #:
@@ -68,7 +78,8 @@ _FENCE = re.compile(r"(```|~~~|<\|[^>]*\|>|</?(?:system|instructions?|prompt)>)"
 #: flagging them would fire a hostile-content warning on ordinary runs and train
 #: the reader to ignore it. Chat-template and instruction tags have no innocent
 #: reason to appear in a tool result.
-_SUSPICIOUS_TAG = re.compile(r"(<\|[^>]*\|>|</?(?:system|instructions?|prompt)>)", re.I)
+_SUSPICIOUS_TAG = re.compile(r"(<\|[^>]*\|>|</?(?:system|instructions?|prompt)>"
+                             r"|<<<[^>]{0,60}>>>)", re.I)
 
 
 def sanitize(text: Optional[str], limit: int = MAX_UNTRUSTED_CHARS) -> str:
