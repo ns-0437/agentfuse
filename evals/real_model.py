@@ -167,7 +167,7 @@ def main() -> int:
     print(f"\nreal backend: {r['fell_back']} of {r['n']} fell back to mock, "
           f"{r['malformed']} malformed responses")
 
-    print(f"\n--- sample instructions (real) ---")
+    print("\n--- sample instructions (real) ---")
     for detector, strategy, backend, text in r["instructions"][: args.show]:
         print(f"\n[{detector} / {strategy} / {backend}]\n  {text[:300]}")
 
