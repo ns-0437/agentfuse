@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-08-25** · 311 commits · 343 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-08-25** · 321 commits · 343 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
