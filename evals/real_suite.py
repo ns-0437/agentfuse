@@ -58,7 +58,7 @@ import os
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -591,7 +591,7 @@ def classify(trace: Path, world: Optional[str] = None) -> dict:
 #: Every task name is unique across both domains (asserted in main()), so a
 #: single lookup tells capture() which tool schema and router factory to use
 #: without needing every TASKS entry to carry an explicit domain tag.
-def _resolve_task(name: str) -> tuple[str, str, list[dict], callable]:
+def _resolve_task(name: str) -> tuple[str, str, list[dict], Callable]:
     if name in TASKS:
         prompt, world, _ = TASKS[name]
         return prompt, world, TOOL_SCHEMA, make_router
