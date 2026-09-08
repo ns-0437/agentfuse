@@ -29,7 +29,8 @@ from dataclasses import dataclass
 from agentfuse import (
     CircuitBreakerMonitor, MonitorConfig, Tracer,
 )
-from agentfuse.detectors import LoopDetector, DriftDetector, NoProgressDetector, SpendDetector
+from agentfuse.detectors import (
+    Detector, LoopDetector, DriftDetector, NoProgressDetector, SpendDetector)
 
 from agentfuse.recovery import RecoveryEngine
 
@@ -101,7 +102,7 @@ def measure(label: str, scenarios, disabled: set[str] | None = None,
 
     for sc in scenarios:
         cfg = {**DEFAULT_CONFIG, **sc.config}
-        detectors = []
+        detectors: list[Detector] = []
         if "loop" not in disabled:
             detectors.append(LoopDetector(threshold=cfg["loop_threshold"]))
         if "drift" not in disabled:
