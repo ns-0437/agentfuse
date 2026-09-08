@@ -85,13 +85,13 @@ def scenario_from_trace(path: Path, label: Label, goal: Optional[str] = None,
             pending[step_no] = s
             steps.append(s)
         elif t == "tool_result":
-            s = pending.get(step_no)
-            if s is not None:
-                s.result = rec.get("text")
+            pending_step = pending.get(step_no)
+            if pending_step is not None:
+                pending_step.result = rec.get("text")
             state = rec.get("state")
             if state is not None and seen.advance(stable_hash(state)):
-                if s is not None:
-                    s.progress = True
+                if pending_step is not None:
+                    pending_step.progress = True
         elif t == "llm_call":
             steps.append(StepSpec(kind="think", text=rec.get("text"),
                                   goal=rec.get("goal"),
