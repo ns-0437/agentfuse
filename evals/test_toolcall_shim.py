@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from evals.toolcall_shim import ToolCallShim, parse_tool_calls
 
 

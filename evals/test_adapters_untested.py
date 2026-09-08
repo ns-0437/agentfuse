@@ -38,10 +38,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 
-import pytest  # noqa: E402
-
 from agentfuse import (  # noqa: E402
-    AgentEvent, CircuitBreakerMonitor, DirectiveKind, EventType, MonitorConfig, Tracer,
+    AgentEvent, CircuitBreakerMonitor, EventType, MonitorConfig, Tracer,
 )
 from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 from agentfuse.adapters.langgraph import FuseCallbackHandler  # noqa: E402
