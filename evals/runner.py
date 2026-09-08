@@ -346,7 +346,8 @@ def run_scenario(scenario: Scenario,
         tokens_spent += recovery.tokens_to_recovery
 
     # -- token economics ------------------------------------------------
-    tokens_saved = scenario.tokens_after_index(trip_step_index) if tripped else 0
+    tokens_saved = (scenario.tokens_after_index(trip_step_index)
+                    if trip_step_index is not None else 0)
     supervision = tracer.recoveries * cost.recovery_call_tokens
     if cost.drift_probe_tokens:
         supervision += cost.drift_probe_tokens * sum(
@@ -357,7 +358,7 @@ def run_scenario(scenario: Scenario,
         supervision += cost.false_positive_penalty
 
     steps_late = None
-    if tripped and scenario.label.onset_index is not None:
+    if trip_step_index is not None and scenario.label.onset_index is not None:
         steps_late = trip_step_index - scenario.label.onset_index
 
     return ScenarioResult(
