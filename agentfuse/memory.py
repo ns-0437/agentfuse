@@ -377,8 +377,13 @@ class QdrantMemory:
                 collection_name=self._collection, query=vector, limit=limit)
             hits = getattr(response, "points", response)
         else:  # older clients
-            hits = self._client.search(collection_name=self._collection,
-                                       query_vector=vector, limit=limit)
+            # Not visible to the type stubs of whichever qdrant-client version is
+            # actually installed: current stubs no longer declare `search` at
+            # all (it was removed), which is the exact history this method's own
+            # docstring above records. The hasattr() guard is what makes this
+            # correct at runtime regardless of which branch a real install takes.
+            hits = self._client.search(  # type: ignore[attr-defined]
+                collection_name=self._collection, query_vector=vector, limit=limit)
 
         # Deduplicate by record_id, keeping the newest. Two points can describe
         # the same record: a store written before point ids were made stable
