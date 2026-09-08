@@ -32,7 +32,7 @@ def _enable_unicode() -> bool:
     if "utf" in enc:
         return True
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore
         return True
     except Exception:
         return False
@@ -45,11 +45,9 @@ try:  # optional pretty output
     from rich.table import Table
     from rich.panel import Panel
 
-    _RICH = True
     # force_terminal keeps colors; safe_box avoids glyphs the console can't draw
-    _console = Console(safe_box=True)
+    _console: Optional[Console] = Console(safe_box=True)
 except Exception:  # pragma: no cover
-    _RICH = False
     _console = None
 
 
@@ -130,7 +128,7 @@ class Tracer:
         elif event.text:
             detail = str(event.text)[:90]
         line = f"  {icon} step {event.step:>3} [{event.node}] {event.type.value:<12} {detail}"
-        if _RICH:
+        if _console is not None:
             _console.print(line, style="dim")
         else:
             print(line)
@@ -145,7 +143,7 @@ class Tracer:
             return
         title = f"{_TRIP_MARK} CIRCUIT BREAKER TRIPPED - {trip.detector.upper()} ({trip.severity.value})"
         body = f"{trip.reason}"
-        if _RICH:
+        if _console is not None:
             _console.print(Panel(body, title=title, border_style="yellow", expand=False))
         else:
             print(f"\n{'='*70}\n{title}\n{trip.reason}\n{'='*70}")
@@ -160,7 +158,7 @@ class Tracer:
             return
         title = f"{_HEAL_MARK} STEERING RECOVERY - action={path.action.value} (conf {path.confidence:.2f}, via {path.backend})"
         body = f"[rationale] {path.rationale}\n\n[injected instruction]\n{path.instruction}"
-        if _RICH:
+        if _console is not None:
             _console.print(Panel(body, title=title, border_style="cyan", expand=False))
         else:
             print(f"\n{'-'*70}\n{title}\n{body}\n{'-'*70}")
@@ -169,7 +167,7 @@ class Tracer:
         self._write({"kind": "summary", **totals})
         if not self.echo:
             return
-        if _RICH:
+        if _console is not None:
             t = Table(title="AgentFuse run summary", show_header=False, border_style="green")
             for k, v in totals.items():
                 t.add_row(str(k), str(v))
