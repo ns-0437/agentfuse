@@ -61,7 +61,7 @@ def guarded_tool_loop(
         # all unless it is set, which makes a tool-using agent look like one
         # that simply chose to answer in prose. Found by pointing this adapter
         # at a real local model and watching it never call a tool.
-        kwargs = {"model": model, "messages": messages}
+        kwargs: dict[str, Any] = {"model": model, "messages": messages}
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = tool_choice
