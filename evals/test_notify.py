@@ -22,6 +22,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -54,10 +55,11 @@ class _Resp:
 
 
 def _note(**kw):
-    base = dict(run_id="run-1", reason="budget exhausted", detector="spend",
-                step=42, goal=GOAL, action="escalate",
-                instruction="Halt and hand to a human.", evidence={"tool": "t"},
-                totals={"tokens": 10})
+    base: dict[str, Any] = dict(
+        run_id="run-1", reason="budget exhausted", detector="spend",
+        step=42, goal=GOAL, action="escalate",
+        instruction="Halt and hand to a human.", evidence={"tool": "t"},
+        totals={"tokens": 10})
     base.update(kw)
     return Notification(**base)
 
