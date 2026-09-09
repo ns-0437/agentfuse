@@ -492,7 +492,9 @@ def test_store_lists_and_deletes_runs(tmp_path):
     store.save("run-a", {"totals": {"total_tokens": 1}}, step=3)
     store.save("run-b", {"totals": {"total_tokens": 2}}, step=9)
     assert {r["run_id"] for r in store.runs()} == {"run-a", "run-b"}
-    assert store.load("run-a")["totals"]["total_tokens"] == 1
+    loaded = store.load("run-a")
+    assert loaded is not None
+    assert loaded["totals"]["total_tokens"] == 1
     store.delete("run-a")
     assert store.load("run-a") is None
     store.close()
