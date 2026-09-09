@@ -92,10 +92,10 @@ def test_adapters_package_imports_without_openai_agents_installed():
 
     builtins.__import__ = blocking_import
     try:
-        mod = importlib.import_module("agentfuse.adapters")
-        assert hasattr(mod, "AgentKitBreaker")
-        assert hasattr(mod, "guarded_tool_loop")
-        assert hasattr(mod, "FuseCallbackHandler")
+        adapters_module = importlib.import_module("agentfuse.adapters")
+        assert hasattr(adapters_module, "AgentKitBreaker")
+        assert hasattr(adapters_module, "guarded_tool_loop")
+        assert hasattr(adapters_module, "FuseCallbackHandler")
     finally:
         builtins.__import__ = real_import
         for mod in list(sys.modules):
