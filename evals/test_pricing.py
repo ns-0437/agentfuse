@@ -128,8 +128,9 @@ def test_per_event_model_overrides_the_run_default():
     det = SpendDetector(model="gpt-4.1")
     det.inspect(AgentEvent(type=EventType.LLM_CALL, step=1, tokens_in=1_000_000,
                            tokens_out=0, meta={"model": "gpt-4.1-nano"}), [])
-    assert det.totals["cost_usd"] == pytest.approx(
-        price_for("gpt-4.1-nano").cost(1_000_000, 0))
+    price = price_for("gpt-4.1-nano")
+    assert price is not None, "gpt-4.1-nano dropped out of the price table"
+    assert det.totals["cost_usd"] == pytest.approx(price.cost(1_000_000, 0))
 
 
 # ------------------------------------------------------------- staying current

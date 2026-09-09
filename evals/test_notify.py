@@ -312,6 +312,7 @@ def test_secret_reaches_the_webhook_through_monitorconfig():
         original_goal=GOAL, echo=False,
         escalation_webhook="https://example.invalid/hook",
         escalation_secret="s3cret"))
+    assert isinstance(mon.notifier, WebhookNotifier)
     assert mon.notifier.secret == "s3cret"
 
 
@@ -322,6 +323,7 @@ def test_secret_can_come_from_the_environment(monkeypatch):
     mon = CircuitBreakerMonitor(MonitorConfig(
         original_goal=GOAL, echo=False,
         escalation_webhook="https://example.invalid/hook"))
+    assert isinstance(mon.notifier, WebhookNotifier)
     assert mon.notifier.secret == "from-env"
 
 
