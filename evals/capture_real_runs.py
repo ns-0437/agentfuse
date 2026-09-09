@@ -44,6 +44,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -53,7 +54,7 @@ from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 
 CAPTURED = ROOT / "evals" / "captured"
 
-TOOL_SCHEMA = [
+TOOL_SCHEMA: list[dict[str, Any]] = [
     {"type": "function", "function": {
         "name": "search_files",
         "description": "Search a directory for files matching a glob pattern.",
