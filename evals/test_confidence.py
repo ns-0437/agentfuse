@@ -73,6 +73,7 @@ def test_an_unrecognised_shape_yields_no_signal_rather_than_a_wrong_one():
 # ------------------------------------------------------------ summarising
 def test_summary_reports_mean_perplexity_and_uncertain_share():
     s = summarize([-0.1, -0.1, -3.0, -0.1])
+    assert s is not None
     assert s["tokens"] == 4
     assert s["mean_logprob"] == pytest.approx(-0.825)
     assert s["perplexity"] == pytest.approx(2.282, abs=1e-2)
@@ -90,7 +91,9 @@ def test_a_precomputed_summary_is_used_as_is():
     ev = AgentEvent(type=EventType.LLM_CALL, step=1,
                     meta={"confidence": {"mean_logprob": -0.4, "perplexity": 1.5,
                                          "low_fraction": 0.1, "tokens": 10}})
-    assert summarize_event(ev)["mean_logprob"] == -0.4
+    s = summarize_event(ev)
+    assert s is not None
+    assert s["mean_logprob"] == -0.4
 
 
 # --------------------------------------------------------------- detector
