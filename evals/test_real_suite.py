@@ -316,7 +316,7 @@ def test_chains_do_not_share_markers():
     """Overlapping markers would let one chain's depth be credited to another,
     and the reported chain name would be wrong."""
     from evals.real_suite import CASCADE_MARKERS
-    seen = {}
+    seen: dict[str, str] = {}
     for name, markers in CASCADE_MARKERS.items():
         for m in markers:
             assert m not in seen, f"{m!r} shared by {name} and {seen[m]}"

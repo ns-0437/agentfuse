@@ -76,7 +76,8 @@ class FakeOpenAI:
     """Replays a scripted sequence of assistant turns."""
 
     def __init__(self, turns):
-        self.turns, self.seen = list(turns), []
+        self.turns = list(turns)
+        self.seen: list[list] = []
         outer = self
 
         class _Completions:

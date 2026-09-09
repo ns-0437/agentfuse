@@ -232,7 +232,7 @@ def test_build_notifier_returns_none_when_nothing_is_configured():
 
 
 def test_console_notifier_writes_something_useful():
-    lines = []
+    lines: list[str] = []
     ConsoleNotifier(write=lines.append).send(_note())
     assert lines and "ESCALATION" in lines[0] and "run-1" in lines[0]
 
