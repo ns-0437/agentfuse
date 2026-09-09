@@ -58,7 +58,7 @@ import os
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -233,7 +233,7 @@ CASCADE_CHAINS = {
 def make_router(world: str, chain: str = "release"):
     """Tool backends rich enough to produce HEALTHY runs, not just failures."""
     calls: list[tuple[str, dict]] = []
-    state = {"polls": 0, "errors": 0, "chain": chain}
+    state: dict[str, Any] = {"polls": 0, "errors": 0, "chain": chain}
 
     def router(name: str, args: dict):
         calls.append((name, args))
