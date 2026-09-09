@@ -83,7 +83,7 @@ honest: same shape as the trap, genuinely converging, and it must never trip.
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Optional, Sequence
 
 from ..events import AgentEvent
 from .base import Detector, Severity, Trip
@@ -104,7 +104,7 @@ def _numbers(text: Optional[str]) -> tuple[float, ...]:
     return tuple(float(m) for m in _NUMBER.findall(text or ""))
 
 
-def _has_countdown(series: list[tuple[float, ...]]) -> bool:
+def _has_countdown(series: Sequence[tuple[float, ...]]) -> bool:
     """Some column strictly decreases end-to-end: a backlog being consumed."""
     for col in range(len(series[0])):
         values = [row[col] for row in series]
@@ -113,7 +113,7 @@ def _has_countdown(series: list[tuple[float, ...]]) -> bool:
     return False
 
 
-def _columns(series: list[tuple[float, ...]]) -> list[list[float]]:
+def _columns(series: Sequence[tuple[float, ...]]) -> list[list[float]]:
     return [[row[col] for row in series] for col in range(len(series[0]))]
 
 
@@ -121,7 +121,7 @@ def _is_rising(values: list[float]) -> bool:
     return values[-1] > values[0] and all(a <= b for a, b in zip(values, values[1:]))
 
 
-def _has_bounded_approach(series: list[tuple[float, ...]]) -> bool:
+def _has_bounded_approach(series: Sequence[tuple[float, ...]]) -> bool:
     """A constant ceiling with a climbing counter below it: ``7 of 240``."""
     columns = _columns(series)
     ceilings = [c[0] for c in columns if len(set(c)) == 1]
@@ -130,7 +130,7 @@ def _has_bounded_approach(series: list[tuple[float, ...]]) -> bool:
     return any(_is_rising(v) and any(c > max(v) for c in ceilings) for v in columns)
 
 
-def _has_pinned_and_climbing(series: list[tuple[float, ...]]) -> bool:
+def _has_pinned_and_climbing(series: Sequence[tuple[float, ...]]) -> bool:
     """The two-quantity signature of inching.
 
     One value never moves across the whole stretch while another climbs past it:
