@@ -234,8 +234,9 @@ def test_a_run_with_no_tool_calls_is_not_scored(tmp_path):
     anything that could have widened it, which is how an FPR claim becomes
     decorative.
     """
-    recs = [{"kind": "event", "type": "llm_call", "step": 1, "text": "The job is done."},
-            {"kind": "summary", "status": "complete"}]
+    recs: list[dict] = [
+        {"kind": "event", "type": "llm_call", "step": 1, "text": "The job is done."},
+        {"kind": "summary", "status": "complete"}]
     out = classify(_trace(tmp_path, recs))
     assert out["should_trip"] is None
     assert "NO TOOL CALLS" in out["reason"]
