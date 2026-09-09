@@ -16,6 +16,7 @@ wrong side of it.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from .metrics import Metrics, score
 from .runner import DEFAULT_CONFIG, run_suite
@@ -61,7 +62,7 @@ def sweep(scenarios: list[Scenario], knob: str, values: list,
             for v in values]
 
 
-DEFAULT_GRIDS = {
+DEFAULT_GRIDS: dict[str, list[Any]] = {
     # This grid only makes sense on the LEXICAL similarity scale (~0.1-0.3);
     # the embedding backend that actually runs by default (agentfuse/embedding.py)
     # produces cosine similarities clustered around 0.5-0.9, so five of these
