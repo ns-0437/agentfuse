@@ -364,7 +364,7 @@ render();
 
 
 def load_runs() -> list[dict]:
-    runs = []
+    runs: list[dict] = []
     if not RUNS_DIR.exists():
         return runs
     for path in sorted(RUNS_DIR.glob("*.jsonl")):
