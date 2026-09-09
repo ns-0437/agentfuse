@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Optional
 
 # Non-greedy, and tolerant of a missing closing tag: a truncated generation still
 # carries a usable call, and dropping it would silently turn a tool-using turn
@@ -64,7 +64,7 @@ def _loads_lenient(blob: str) -> Any:
     return None
 
 
-def parse_tool_calls(content: str) -> tuple[list[dict], str]:
+def parse_tool_calls(content: Optional[str]) -> tuple[list[dict], str]:
     """Return (calls, remaining_prose) extracted from a content string.
 
     `remaining_prose` matters: a turn can legitimately carry both reasoning and a
