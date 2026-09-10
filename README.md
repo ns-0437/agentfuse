@@ -371,16 +371,16 @@ corrected suite (`evals/validity.py`), with more variants than before:
 | System | Recall | Precision | FPR | F1 |
 |---|---:|---:|---:|---:|
 | **AgentFuse (full)** | **100.0%** | **100.0%** | **0.0%** | **100.0%** |
-| step cap = 8 | 99.0% | 50.7% | 88.8% | 67.0% |
-| step cap = 12 | 97.5% | 54.2% | 76.0% | 69.7% |
-| step cap = 20 | 81.2% | 55.4% | 60.4% | 65.9% |
-| naive repeat k=3 | 49.0% | 48.2% | 48.7% | 48.6% |
-| naive repeat k=5 | 41.2% | 68.3% | 17.7% | 51.4% |
+| step cap = 8 | 99.0% | 50.7% | 88.7% | 67.1% |
+| step cap = 12 | 97.5% | 54.2% | 76.2% | 69.6% |
+| step cap = 20 | 81.2% | 55.5% | 60.2% | 65.9% |
+| naive repeat k=3 | 49.0% | 48.1% | 48.8% | 48.5% |
+| naive repeat k=5 | 41.2% | 69.2% | 16.9% | 51.7% |
 
 Note what this actually says: **the best step cap (8) still reaches 99% recall
-— by halting almost every run early, healthy or not (88.8% FPR).** What
+— by halting almost every run early, healthy or not (88.7% FPR).** What
 AgentFuse buys over any single constant is the shape of the tradeoff curve, not
-one point on it — every baseline variant tops out at F1 ≤ 69.7%, roughly 30
+one point on it — every baseline variant tops out at F1 ≤ 69.6%, roughly 30
 points below. Also re-verified: the full suite regenerated at 3 more seeds
 (777, 31337, 424242) all score identically (100/100/0/100) — the thresholds
 aren't fitted to one lucky draw of the tuning seed.
