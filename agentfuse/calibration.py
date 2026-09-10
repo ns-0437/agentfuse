@@ -31,7 +31,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .events import AgentEvent, EventType
+from .events import AgentEvent, EventType, SeenStateTracker
 
 
 @dataclass
@@ -73,6 +73,9 @@ class AdaptiveCalibrator:
         self._actions_since_advance = 0
         self._advance_gaps: list[int] = []
         self._repeat_peaks: list[int] = []
+        # Is this state hash genuinely NEW, or one this run has already visited?
+        # `event.state is not None` is not that question -- see observe() below.
+        self._seen = SeenStateTracker()
 
     # ------------------------------------------------------------------
     def observe(self, event: AgentEvent) -> None:
@@ -92,8 +95,24 @@ class AdaptiveCalibrator:
             self._actions_since_advance += 1
 
         # A state advance is the evidence that everything preceding it was
-        # healthy work rather than a stall. Only then is a sample recorded.
-        if event.state is not None:
+        # healthy work rather than a stall. Only then is a sample recorded --
+        # `event.state is not None` is NOT that evidence, even though this line
+        # used to say exactly that. The production adapter sets `state=` on
+        # EVERY TOOL_RESULT unconditionally (agentfuse/adapters/openai_sdk.py),
+        # so a presence check fires on every single step, healthy or not.
+        # Reproduced directly: ten identical (tool, args, result) triples -- a
+        # textbook stuck loop -- recorded ten baseline samples, one per step,
+        # each time resetting the run's repeat/gap counters as if the run had
+        # just proven itself healthy. The numeric widening this produced
+        # happened to cancel out for typical single-call-per-turn cadences
+        # (every gap computes to 1, so nothing is suggested above the
+        # configured floor) -- which means the practical effect measured was
+        # "the safety mechanism is inert," not "the breaker gets less safe."
+        # Still the wrong invariant to ship a supervisor's calibration on.
+        # `NoProgressDetector`/`LoopDetector`/`Monitor._verify_seen` all solved
+        # this exact question already with `SeenStateTracker`'s bounded-window
+        # novelty check; reused here rather than re-deriving a presence check.
+        if self._seen.advance(event.state_hash):
             self._advance_gaps.append(self._actions_since_advance)
             self._repeat_peaks.append(self._repeat_run)
             self.baseline.samples += 1
