@@ -27,7 +27,7 @@ from typing import Any, Optional
 
 from .env import load_env, offline_mode
 from .events import ExecutionSnapshot
-from .memory import JSONMemory, RecoveryRecord, failure_signature
+from .memory import JSONMemory, RecoveryMemory, RecoveryRecord, failure_signature
 from .strategies import (
     ESCALATE, build_instruction, describe_for_prompt, next_strategy,
 )
@@ -121,7 +121,7 @@ class RecoveryEngine:
     """
 
     def __init__(self, backend: Optional[str] = None, model: Optional[str] = None,
-                 memory=None, base_url: Optional[str] = None):
+                 memory: Optional[RecoveryMemory] = None, base_url: Optional[str] = None):
         # Memory of what has already been tried against each failure shape. The
         # default is in-process and dependency-free, so this is always on: a
         # recovery engine with no memory repeats itself, which is what Phase 1
@@ -323,7 +323,7 @@ class RecoveryEngine:
         )
 
     @staticmethod
-    def _extract_text(resp) -> str:
+    def _extract_text(resp: Any) -> str:
         try:
             parts = []
             for item in resp.output:
