@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-09-10** · 357 commits · 346 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-09-10** · 361 commits · 349 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -2054,6 +2054,69 @@ containing a fake `[REDACTED:openai-key]` string does not suppress or hide a
 real key elsewhere in the same text — the real secret is still independently
 found and redacted alongside the forged marker. Structurally different from
 the fence bug, and not exploitable the same way.
+
+---
+
+### 3.31 AdaptiveCalibrator's own health-evidence gate had the section 3.22 bug
+
+Found by mypy-driven auditing spilling over into a manual read of
+`calibration.py` — the file typechecked cleanly, but its docstring's claim
+("a sample is only recorded when the working state actually advances")
+didn't match the one line that enforced it: `if event.state is not None:`.
+That is exactly the presence-vs-progress confusion section 3.22 already
+named and fixed twice elsewhere (`NoProgressDetector`, `Monitor._verify_seen`)
+— this was a third, independent occurrence, not a regression of either fix.
+
+The production adapter (`agentfuse/adapters/openai_sdk.py`) sets `state=` on
+every `TOOL_RESULT` unconditionally, so the presence check degenerates to
+"did any tool call happen" — a stuck loop's own ignored repeat satisfies that
+on every single step.
+
+**Reproduced directly.** Ten identical `(tool, args, result)` triples — a
+textbook stuck loop, no state ever changing — recorded
+`baseline.samples == 10` before the fix: ten separate "proofs of health" for
+a run that never advanced at all.
+
+**Measured the actual consequence before calling it dangerous.** The stuck
+loop's ten fabricated samples all compute `actions_since_advance == 1`
+(reset every step), so `stall_patience()`'s suggested widening
+(`1 * SAFETY_FACTOR + 1 = 3`) never clears the configured floor for the
+common single-call-per-turn cadence — the fabricated baseline had no
+measurable effect on `loop_threshold`/`stall_patience` in that shape of
+workload. The honest finding is "the safety mechanism was inert on this
+class of run," not "the breaker got less safe" — but it is still the wrong
+invariant to calibrate a supervisor's thresholds on, and a workload with a
+different cadence (larger `actions_since_advance` per repeat) would not get
+the same free pass.
+
+**Fixed** by giving `AdaptiveCalibrator` its own `SeenStateTracker`
+(`self._seen`) and gating on `self._seen.advance(event.state_hash)` instead
+— the same bounded-window novelty check `NoProgressDetector`, `LoopDetector`,
+and `Monitor._verify_seen` already use to answer "did this run genuinely
+advance." Verified live: the stuck-loop case drops from 10 samples to 1 (the
+first time that exact state hash is seen); a genuinely advancing control
+(different state every step) is unaffected at 5/5.
+
+**Persistence needed the matching fix.** `Monitor.state()`/`restore()`
+already serialize `_verify_seen` this way, but `state_dict()`'s generic
+reflection does not pick up a nested custom object automatically — the new
+`self.calibrator._seen` needed the same explicit `"calibrator_seen"` entry
+`_verify_seen` gets. Verified directly: without the wiring, repeating an
+already-seen state after a restart pushed `baseline.samples` from 1 to 2 (a
+resumed run's tracker starts with an empty window and re-admits a state the
+pre-restart run had already visited); with it, `samples` correctly stays 1.
+
+**3 new tests** in `evals/test_calibration.py` — the first dedicated test
+file for `calibration.py`'s own logic (only `test_checkpoint.py` touched the
+calibrator before, and only for round-tripping). 2 of the 3 fail against the
+pre-fix code, verified by stashing the change and re-running; the third (the
+genuinely-advancing control) passes both before and after, as it should.
+Full 349-test suite and the 1018-scenario synthetic suite (100%
+precision/recall/F1, 0.0% FPR, 0 errors) both pass unchanged — the
+`long_sparse` calibration benefit this file exists for (42.5% FPR with
+calibration on, vs. 100% off, per `baseline.json`) is not touched by this
+fix, since a genuinely sparse-but-advancing workload still passes the
+narrowed gate on every real advance.
 
 ---
 
