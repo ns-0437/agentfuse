@@ -107,7 +107,7 @@ def render_sweeps(sweeps: dict[str, list[SweepPoint]]) -> str:
         for p in points:
             m = p.metrics
             mark = " <-" if p.value == cur else ""
-            out.append(f"    {str(p.value):>8}{m.recall*100:>8.1f}%{m.precision*100:>7.1f}%"
+            out.append(f"    {p.value!s:>8}{m.recall*100:>8.1f}%{m.precision*100:>7.1f}%"
                        f"{m.f1*100:>7.1f}%{m.false_positive_rate*100:>7.1f}%"
                        f"{m.net_tokens:>11,}{mark}")
         b_f1 = best_point(points, "f1")
