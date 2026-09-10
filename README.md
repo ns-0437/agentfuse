@@ -303,8 +303,8 @@ python evals/validity.py                          # checks on the benchmark itse
 pytest evals/ -q                                  # 349-test CI gate
 ```
 
-**1018 scenarios** from **23 parameterised generator families** across 6 domains,
-with ground truth true *by construction*. 449 are genuine failures; **487 are
+**1018 scenarios** from **25 parameterised generator families** across 6 domains,
+with ground truth true *by construction*. 490 are genuine failures; **528 are
 hard negatives** — healthy runs that look like failures: a legitimate retry,
 polling that really is progressing, a sub-goal that reads as drift, a
 **paraphrased objective**, an error followed by a competent pivot, a batch job
