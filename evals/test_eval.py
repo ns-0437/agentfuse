@@ -228,6 +228,20 @@ def test_wilson_interval_sanity():
     assert wilson(0, 0).n == 0
 
 
+def test_a_zero_sample_interval_is_maximally_uncertain_not_a_point_at_zero():
+    """n=0 means no evidence, not "the rate is exactly zero".
+
+    Both render()/pct()/ci_pct() print "n/a" for n=0 regardless of the stored
+    bounds, so this only matters to a caller that reads .low/.high directly
+    (e.g. Interval.to_dict(), which has no n=0 guard) -- but a module whose own
+    docstring says it exists so a report can "state how uncertain each number
+    is" should not have an n=0 interval collapsed to (0.0, 0.0), which claims
+    perfect certainty about a rate with no data behind it at all.
+    """
+    i = wilson(0, 0)
+    assert (i.low, i.high) == (0.0, 1.0)
+
+
 # ------------------------------------------------------------ recovery
 # Until these existed, AgentFuse's central claim - that it steers agents back on
 # track - had never been measured. Detection was the only thing under test.

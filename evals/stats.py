@@ -62,7 +62,14 @@ def wilson(successes: int, n: int, z: float = Z95) -> Interval:
     regime a young benchmark lives in.
     """
     if n == 0:
-        return Interval(0.0, 0.0, 0.0, 0)
+        # No evidence at all, not "the rate is exactly zero" -- collapsing the
+        # bounds to (0.0, 0.0) here would tell to_dict()'s downstream readers
+        # a zero-sample metric is known precisely, which is the opposite of
+        # what an n=0 interval means. render()/pct()/ci_pct() all print "n/a"
+        # for n=0 regardless, so this only matters to a caller that reads the
+        # bounds directly -- but a source of truth for uncertainty should not
+        # have a wrong answer sitting behind its own display guard.
+        return Interval(0.0, 0.0, 1.0, 0)
     p = successes / n
     denom = 1 + z * z / n
     centre = (p + z * z / (2 * n)) / denom
@@ -175,7 +182,7 @@ def clustered_wilson(clusters: dict[str, list[int]], z: float = Z95) -> Interval
     """
     n = sum(len(v) for v in clusters.values())
     if n == 0:
-        return Interval(0.0, 0.0, 0.0, 0)
+        return Interval(0.0, 0.0, 1.0, 0)  # see wilson()'s n=0 case above
     hits = sum(sum(v) for v in clusters.values())
     p = hits / n
     deff, _ = design_effect(clusters)
