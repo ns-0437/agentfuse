@@ -42,7 +42,7 @@ for a sensitive deployment.
 from __future__ import annotations
 
 import re
-from typing import Pattern
+from typing import Any, Pattern
 
 _MARK = "[REDACTED:{}]"
 
@@ -98,7 +98,7 @@ def redact(text: str) -> str:
     return out
 
 
-def redact_obj(value):
+def redact_obj(value: Any) -> Any:
     """Redact recursively through the containers events and traces actually use."""
     if isinstance(value, str):
         return redact(value)
