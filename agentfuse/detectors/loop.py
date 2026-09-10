@@ -58,7 +58,7 @@ from __future__ import annotations
 
 import re
 from collections import deque
-from typing import Optional
+from typing import Any, Optional
 
 from ..events import AgentEvent, EventType, SeenStateTracker, stable_hash
 from .base import Detector, Trip, Severity
@@ -287,7 +287,7 @@ def _normalise(text: Optional[str]) -> str:
 _PUNCT = str.maketrans("", "", "\"'`,.;:!?()[]{}<>")
 
 
-def _normalise_args(value):
+def _normalise_args(value: Any) -> Any:
     """Canonicalise argument values so cosmetic differences collapse.
 
     ``{"q": "ACME unpaid"}``, ``{"q": "acme  unpaid"}`` and ``{"q": "acme unpaid?"}``
