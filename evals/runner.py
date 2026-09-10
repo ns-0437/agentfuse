@@ -77,7 +77,7 @@ class RecordingTracer(Tracer):
         self.recovery_log: list[dict] = []
         self.paths: list = []          # the SteeringPath objects themselves
 
-    def trip(self, event: AgentEvent, trip) -> None:  # type: ignore[override]
+    def trip(self, event: AgentEvent, trip) -> None:
         self.trips += 1
         self.trip_log.append({
             "step": event.step,
@@ -86,12 +86,12 @@ class RecordingTracer(Tracer):
             "reason": trip.reason,
         })
 
-    def recovery(self, path) -> None:  # type: ignore[override]
+    def recovery(self, path) -> None:
         self.recoveries += 1
         self.paths.append(path)
         self.recovery_log.append({"action": path.action.value, "backend": path.backend})
 
-    def summary(self, totals: dict) -> None:  # type: ignore[override]
+    def summary(self, totals: dict) -> None:
         pass
 
 
