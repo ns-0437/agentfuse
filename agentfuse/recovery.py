@@ -23,7 +23,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from .env import load_env, offline_mode
 from .events import ExecutionSnapshot
@@ -159,7 +159,7 @@ class RecoveryEngine:
         if backend == "real" and self._client is None:
             self.backend = "mock"  # graceful fallback if SDK missing
 
-    def _make_client(self):
+    def _make_client(self) -> Optional[Any]:
         load_env()  # pick up a key from .env if the shell has none
         try:
             from openai import OpenAI
