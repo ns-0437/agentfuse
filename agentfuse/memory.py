@@ -261,8 +261,8 @@ class QdrantMemory:
     def __init__(self, embedder, path: Optional[str] = None,
                  collection: str = "agentfuse_recovery", dim: Optional[int] = None):
         try:
-            from qdrant_client import QdrantClient  # type: ignore
-            from qdrant_client.models import Distance, VectorParams  # type: ignore
+            from qdrant_client import QdrantClient
+            from qdrant_client.models import Distance, VectorParams
         except ImportError as exc:  # pragma: no cover - optional dependency
             raise ImportError(
                 "QdrantMemory needs the optional extra: pip install agentfuse[memory]"
@@ -343,7 +343,7 @@ class QdrantMemory:
         return f"{record.detector} failure on {record.tool or 'unknown tool'}: {record.goal}"
 
     def remember(self, record: RecoveryRecord) -> str:
-        from qdrant_client.models import PointStruct  # type: ignore
+        from qdrant_client.models import PointStruct
 
         vec = self._embedder(self._text_for(record))
         self._by_id[record.record_id] = record
