@@ -219,7 +219,7 @@ class MultiNotifier:
 
 
 def build_notifier(webhook_url: Optional[str] = None, echo: bool = True,
-                   **kwargs) -> Optional[Notifier]:
+                   **kwargs: Any) -> Optional[Notifier]:
     """Assemble the channels a config asks for, or ``None`` if it asks for none."""
     channels: list[Notifier] = []
     if webhook_url:
