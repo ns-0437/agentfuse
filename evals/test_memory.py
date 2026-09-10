@@ -52,12 +52,16 @@ def test_remember_appends_instead_of_rewriting_the_file(tmp_path):
             rewrites["n"] += 1
         return original(self, mode, *a, **kw)
 
-    pathlib.Path.open = counting_open
+    # Swapping a builtin type's method is invalid by mypy's static model (it
+    # cannot verify the restore in `finally` below), but is the only way to
+    # count real file-open calls without reimplementing JSONMemory's write
+    # path in the test itself.
+    pathlib.Path.open = counting_open  # type: ignore[method-assign]
     try:
         for i in range(50):
             mem.remember(_rec(signature=f"s{i}"))
     finally:
-        pathlib.Path.open = original
+        pathlib.Path.open = original  # type: ignore[method-assign]
 
     assert rewrites["n"] == 0, (
         f"{rewrites['n']} full-file rewrites during 50 appends — remember() is "
