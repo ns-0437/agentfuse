@@ -103,7 +103,7 @@ async def main() -> None:
     input_items: list[TResponseInputItem] = [
         {"role": "user", "content": "Begin monitoring the job now."}]
 
-    for attempt in range(5):
+    for _ in range(5):
         try:
             result = await Runner.run(agent, input_items, hooks=fuse, max_turns=12)
             from agentfuse import AgentEvent, EventType

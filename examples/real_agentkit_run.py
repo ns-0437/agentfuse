@@ -133,7 +133,7 @@ async def main() -> None:
     input_items: list[TResponseInputItem] = [
         {"role": "user", "content": "Please rotate the production DB credential now."}]
 
-    for attempt in range(6):
+    for _ in range(6):
         try:
             result = await Runner.run(agent, input_items, hooks=fuse,
                                       run_config=run_config, max_turns=12)
