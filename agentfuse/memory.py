@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field, asdict
 import threading
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 from .events import stable_hash
 
@@ -258,7 +258,7 @@ class QdrantMemory:
     which in practice means an API key, so the JSON backend stays the default.
     """
 
-    def __init__(self, embedder, path: Optional[str] = None,
+    def __init__(self, embedder: Callable[[str], list[float]], path: Optional[str] = None,
                  collection: str = "agentfuse_recovery", dim: Optional[int] = None):
         try:
             from qdrant_client import QdrantClient
