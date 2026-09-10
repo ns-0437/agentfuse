@@ -106,7 +106,7 @@ def observed_event_count(scenarios: list[Scenario]) -> int:
     """How many detector-visible events the suite produces (for rate matching)."""
     n = 0
     for s in scenarios:
-        for step in s.steps:
+        for _ in s.steps:
             n += 1  # TOOL_CALL or LLM_CALL
     return n
 
