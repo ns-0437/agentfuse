@@ -25,7 +25,6 @@ Two failure modes of this script are worth naming rather than hiding:
 from __future__ import annotations
 
 import json
-import math
 import statistics
 import sys
 from pathlib import Path
@@ -35,22 +34,22 @@ sys.path.insert(0, str(ROOT))
 
 from evals.runner import run_scenario  # noqa: E402
 from evals.schema import Label  # noqa: E402
+from evals.stats import wilson as _wilson  # noqa: E402
 from evals.trace_import import scenario_from_trace  # noqa: E402
 
 SUITE = ROOT / "evals" / "captured" / "suite"
 
 
-def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
-    if n == 0:
-        return (0.0, 1.0)
-    p = k / n
-    d = 1 + z * z / n
-    c = p + z * z / (2 * n)
-    m = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
-    # Clamped: floating error puts the lower bound a hair below zero when k=0,
-    # and an interval printed as "-0.0%" invites the reader to distrust every
-    # other number on the page.
-    return (max(0.0, (c - m) / d), min(1.0, (c + m) / d))
+def wilson(k: int, n: int) -> tuple[float, float]:
+    """Thin (lo, hi) wrapper -- the real math lives in evals/stats.py.
+
+    This used to be its own independent reimplementation of the Wilson score
+    interval, byte-for-byte re-derived rather than shared. Exactly the class
+    of duplication CLAUDE.md warns is most expensive where it happens: a
+    headline confidence interval this script prints straight to the console.
+    """
+    i = _wilson(k, n)
+    return (i.low, i.high)
 
 
 def replay(spec: dict) -> dict:

@@ -48,7 +48,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import sys
 from pathlib import Path
@@ -60,6 +59,7 @@ from agentfuse import CircuitBreakerMonitor, MonitorConfig, Tracer  # noqa: E402
 from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 from evals.capture_real_runs import TOOL_SCHEMA, make_router  # noqa: E402
 from evals.measure_resistance import TASKS  # noqa: E402
+from evals.stats import wilson as _wilson  # noqa: E402
 from evals.steering_compliance import compliance_from_trace  # noqa: E402
 
 OUT = ROOT / "evals" / "captured" / "intervention"
@@ -107,13 +107,10 @@ def run_arm(arm: str, base_url: str, model: str, names: list[str],
 
 
 def wilson(k: int, n: int) -> tuple[float, float]:
-    if n == 0:
-        return (0.0, 1.0)
-    z, p = 1.96, k / n
-    d = 1 + z * z / n
-    c = (p + z * z / (2 * n)) / d
-    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
-    return (max(0.0, c - h), min(1.0, c + h))
+    """Thin (lo, hi) wrapper -- the real math lives in evals/stats.py, shared
+    rather than re-derived (see score_real_suite.py's identical consolidation)."""
+    i = _wilson(k, n)
+    return (i.low, i.high)
 
 
 def main() -> int:
