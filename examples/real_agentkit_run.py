@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agents import (
     Agent, Runner, Model, ModelProvider, ModelResponse, Usage, RunConfig, function_tool,
 )
+from agents.items import TResponseInputItem
 from openai.types.responses import (
     ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText,
 )
@@ -129,7 +130,8 @@ async def main() -> None:
 
     scripted = ScriptedModel()
     run_config = RunConfig(model_provider=_Provider(scripted))  # remove for a real model
-    input_items = [{"role": "user", "content": "Please rotate the production DB credential now."}]
+    input_items: list[TResponseInputItem] = [
+        {"role": "user", "content": "Please rotate the production DB credential now."}]
 
     for attempt in range(6):
         try:

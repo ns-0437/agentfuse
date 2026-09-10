@@ -53,6 +53,7 @@ if not os.getenv("OPENAI_API_KEY"):
     raise SystemExit(1)
 
 from agents import Agent, Runner, function_tool  # noqa: E402
+from agents.items import TResponseInputItem  # noqa: E402
 from agentfuse.adapters.agentkit_hooks import FuseRunHooks, BreakerInterrupt  # noqa: E402
 from agentfuse import DirectiveKind  # noqa: E402
 
@@ -99,7 +100,8 @@ async def main() -> None:
         jsonl_path="runs/real_gpt.jsonl",
     )
 
-    input_items = [{"role": "user", "content": "Begin monitoring the job now."}]
+    input_items: list[TResponseInputItem] = [
+        {"role": "user", "content": "Begin monitoring the job now."}]
 
     for attempt in range(5):
         try:

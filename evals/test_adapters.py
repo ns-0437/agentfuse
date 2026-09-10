@@ -31,6 +31,7 @@ agents = pytest.importorskip("agents", reason="pip install openai-agents")
 from agents import (  # noqa: E402
     Agent, Runner, Model, ModelProvider, ModelResponse, Usage, RunConfig, function_tool,
 )
+from agents.items import TResponseInputItem  # noqa: E402
 from openai.types.responses import (  # noqa: E402
     ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText,
 )
@@ -105,7 +106,8 @@ def _drive(max_attempts: int = 6, **fuse_kwargs):
                       tools=[search_files, secret_manager_get])
         fuse = FuseRunHooks(original_goal=GOAL, loop_threshold=3, **fuse_kwargs)
         cfg = RunConfig(model_provider=_Provider(ScriptedModel()))
-        items = [{"role": "user", "content": "Rotate the credential."}]
+        items: list[TResponseInputItem] = [
+            {"role": "user", "content": "Rotate the credential."}]
         for attempt in range(max_attempts):
             try:
                 res = await Runner.run(agent, items, hooks=fuse, run_config=cfg, max_turns=12)
