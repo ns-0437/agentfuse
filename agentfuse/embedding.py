@@ -60,7 +60,7 @@ def local_embedder(model_name: Optional[str] = None) -> Optional[Callable[[str],
         return _local_cache[name]
 
     try:
-        from fastembed import TextEmbedding  # type: ignore
+        from fastembed import TextEmbedding
     except ImportError:
         return None
 
@@ -82,7 +82,7 @@ def openai_embedder() -> Optional[Callable[[str], list[float]]]:
     if offline_mode() or not os.getenv("OPENAI_API_KEY"):
         return None
     try:
-        from openai import OpenAI  # type: ignore
+        from openai import OpenAI
 
         client = OpenAI()
         model = os.getenv("AGENTFUSE_EMBED_MODEL", "text-embedding-3-small")
