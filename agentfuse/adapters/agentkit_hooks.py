@@ -59,19 +59,19 @@ class FuseRunHooks(RunHooks):
         self._deferred: Optional[Directive] = None
 
     # -- lifecycle hooks -------------------------------------------------
-    async def on_agent_start(self, context, agent) -> None:
+    async def on_agent_start(self, context: Any, agent: Any) -> None:
         self._observe(AgentEvent(
             type=EventType.ROUTE, step=self._step, node=getattr(agent, "name", "agent"),
             text=f"enter {getattr(agent, 'name', 'agent')}",
         ))
 
-    async def on_handoff(self, context, from_agent, to_agent) -> None:
+    async def on_handoff(self, context: Any, from_agent: Any, to_agent: Any) -> None:
         self._observe(AgentEvent(
             type=EventType.ROUTE, step=self._step, node=getattr(to_agent, "name", "agent"),
             text=f"{getattr(from_agent,'name','?')} -> {getattr(to_agent,'name','?')}",
         ))
 
-    async def on_llm_end(self, context, agent, response) -> None:
+    async def on_llm_end(self, context: Any, agent: Any, response: Any) -> None:
         node = getattr(agent, "name", "agent")
         usage = getattr(response, "usage", None)
         tin = int(getattr(usage, "input_tokens", 0) or 0)
@@ -109,13 +109,14 @@ class FuseRunHooks(RunHooks):
                 tool_name=getattr(tc, "name", "tool"), tool_args=args,
             ))
 
-    async def on_llm_start(self, context, agent, system_prompt, input_items) -> None:
+    async def on_llm_start(self, context: Any, agent: Any, system_prompt: Any,
+                           input_items: Any) -> None:
         """Safe boundary: surface any trip deferred from tool handling."""
         if self._deferred is not None:
             directive, self._deferred = self._deferred, None
             raise BreakerInterrupt(directive)
 
-    async def on_tool_end(self, context, agent, tool, result) -> None:
+    async def on_tool_end(self, context: Any, agent: Any, tool: Any, result: Any) -> None:
         # Mark genuine progress only when the result actually advances the task,
         # so failed/empty tool results don't reset the loop/stall detectors.
         text = str(result)
