@@ -182,7 +182,7 @@ class WebhookNotifier:
     def send(self, note: Notification) -> bool:
         body = json.dumps(note.payload(self.include_agent_text)).encode("utf-8")
         headers = self._signed_headers(body)
-        for attempt in range(self.retries + 1):
+        for _ in range(self.retries + 1):
             try:
                 req = urllib.request.Request(self.url, data=body,
                                              headers=headers, method="POST")
