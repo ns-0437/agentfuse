@@ -105,7 +105,7 @@ agentfuse/
                                  rather than rewritten from scratch each time (REPORT.md 3.17-3.21)
     captured/                    committed real traces + hand/oracle-written labels (*.json + *.jsonl)
       suite/                      real_suite.py's own corpus + labels.json
-    test_*.py                   349 tests total, `pytest evals/ -q`
+    test_*.py                   350 tests total, `pytest evals/ -q`
 
   models/                     local GGUF weights (qwen2.5-3b, qwen2.5-7b) — no API key needed
   dashboard/                  static HTML dashboard, published via GitHub Pages
