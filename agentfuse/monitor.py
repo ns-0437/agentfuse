@@ -266,6 +266,12 @@ class CircuitBreakerMonitor:
             "calibrator": state_dict(self.calibrator),
             "baseline": state_dict(self.calibrator.baseline),
             "verify_seen": state_dict(self._verify_seen),
+            # Same genuine-advance question the calibrator's observe() answers
+            # for its own baseline (REPORT.md 3.22's bug, recurring here) --
+            # its bounded-window novelty tracker needs the same persistence
+            # `_verify_seen` gets, or a resumed run re-admits every state the
+            # pre-restart run had already visited as "new" again.
+            "calibrator_seen": state_dict(self.calibrator._seen),
             # Keyed by detector name, so reordering or adding a detector cannot
             # silently load one detector's counters into another.
             "detectors": {d.name: state_dict(d) for d in self.detectors},
@@ -324,6 +330,7 @@ class CircuitBreakerMonitor:
             load_state_dict(self.calibrator, saved.get("calibrator", {}))
             load_state_dict(self.calibrator.baseline, saved.get("baseline", {}))
             load_state_dict(self._verify_seen, saved.get("verify_seen", {}))
+            load_state_dict(self.calibrator._seen, saved.get("calibrator_seen", {}))
             by_name = saved.get("detectors", {})
             for d in self.detectors:
                 if d.name in by_name:
