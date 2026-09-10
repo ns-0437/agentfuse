@@ -48,13 +48,13 @@ class _SilentTracer(Tracer):
     def __init__(self) -> None:
         super().__init__(jsonl_path=None, echo=False)
 
-    def trip(self, event, trip) -> None:  # type: ignore[override]
+    def trip(self, event, trip) -> None:
         self.trips += 1
 
-    def recovery(self, path) -> None:  # type: ignore[override]
+    def recovery(self, path) -> None:
         self.recoveries += 1
 
-    def summary(self, totals) -> None:  # type: ignore[override]
+    def summary(self, totals) -> None:
         pass
 
 
