@@ -44,7 +44,7 @@ from typing import Optional
 from .checkpoint import SQLiteCheckpointStore, load_state_dict, state_dict
 from .events import AgentEvent, EventType, ExecutionSnapshot, SeenStateTracker
 from .notify import Notification, Notifier, build_notifier
-from .detectors import (Detector, LoopDetector, DriftDetector, SpendDetector,
+from .detectors import (Detector, Trip, LoopDetector, DriftDetector, SpendDetector,
                         NoProgressDetector, RateOfProgressDetector)
 from .calibration import AdaptiveCalibrator
 from .detectors.base import Severity
@@ -464,7 +464,7 @@ class CircuitBreakerMonitor:
         return Directive(DirectiveKind.CONTINUE)
 
     # ------------------------------------------------------------------
-    def _handle_trip(self, event: AgentEvent, detector, trip) -> Directive:
+    def _handle_trip(self, event: AgentEvent, detector: Detector, trip: Trip) -> Directive:
         # Tripping again is the clearest possible evidence the last steer failed.
         self._verify_pending(event, new_trip=True)
         self.tracer.trip(event, trip)
@@ -511,7 +511,7 @@ class CircuitBreakerMonitor:
         return Directive(DirectiveKind.INJECT, steering_text=path.instruction, path=path)
 
     # ------------------------------------------------------------------
-    def _escalate(self, event: AgentEvent, trip, path) -> None:
+    def _escalate(self, event: AgentEvent, trip: Trip, path: SteeringPath) -> None:
         """Tell a human, and record whether one was actually reached.
 
         Delivery is tracked rather than assumed. A notifier that fails silently
