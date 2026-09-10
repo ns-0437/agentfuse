@@ -162,7 +162,7 @@ class RecoveryEngine:
     def _make_client(self):
         load_env()  # pick up a key from .env if the shell has none
         try:
-            from openai import OpenAI  # type: ignore
+            from openai import OpenAI
 
             if self.base_url:
                 # Self-hosted servers ignore the key but the SDK requires one.
@@ -326,7 +326,7 @@ class RecoveryEngine:
     def _extract_text(resp) -> str:
         try:
             parts = []
-            for item in resp.output:  # type: ignore[attr-defined]
+            for item in resp.output:
                 for c in getattr(item, "content", []) or []:
                     t = getattr(c, "text", None)
                     if t:
