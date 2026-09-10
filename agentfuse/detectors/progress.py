@@ -47,6 +47,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from ..calibration import AdaptiveCalibrator
 from ..events import AgentEvent, EventType, SeenStateTracker
 from .base import Detector, Trip, Severity
 
@@ -63,7 +64,7 @@ class NoProgressDetector(Detector):
     #: the grace period is overridden. Bounds the blind window.
     GRACE_MULTIPLIER = 2.0
 
-    def __init__(self, patience: int = 6, calibrator=None):
+    def __init__(self, patience: int = 6, calibrator: Optional[AdaptiveCalibrator] = None):
         self.patience = patience
         self.calibrator = calibrator
         # Recent-window membership, not a single last-hash comparison: see

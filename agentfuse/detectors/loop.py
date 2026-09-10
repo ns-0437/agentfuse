@@ -60,6 +60,7 @@ import re
 from collections import deque
 from typing import Any, Optional
 
+from ..calibration import AdaptiveCalibrator
 from ..events import AgentEvent, EventType, SeenStateTracker, stable_hash
 from .base import Detector, Trip, Severity
 
@@ -102,7 +103,7 @@ class LoopDetector(Detector):
 
     def __init__(self, threshold: int = 3, window: int = 12,
                  blind_multiplier: int = 2, retry_multiplier: int = 2,
-                 calibrator=None):
+                 calibrator: Optional[AdaptiveCalibrator] = None):
         # Optional per-run calibration. Widens the threshold for workloads that
         # legitimately repeat calls (polling, retrying) — never tightens it.
         self.calibrator = calibrator
