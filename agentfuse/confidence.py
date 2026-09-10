@@ -39,6 +39,7 @@ from __future__ import annotations
 import math
 from typing import Any, Iterable, Optional
 
+from .calibration import AdaptiveCalibrator
 from .events import AgentEvent, EventType
 from .detectors.base import Detector, Severity, Trip
 
@@ -139,7 +140,8 @@ class ConfidenceDetector(Detector):
     MIN_SAMPLES = 3
 
     def __init__(self, drop_sigmas: float = 1.0, patience: int = 3,
-                 alpha: float = 0.3, calibrator=None, min_drop: float = 0.03):
+                 alpha: float = 0.3, calibrator: Optional[AdaptiveCalibrator] = None,
+                 min_drop: float = 0.03):
         #: How far below baseline counts as a collapse, measured in standard
         #: deviations of THIS RUN's own healthy turns rather than in nats.
         #:
