@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-09-10** · 361 commits · 349 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-09-10** · 372 commits · 350 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -2117,6 +2117,44 @@ precision/recall/F1, 0.0% FPR, 0 errors) both pass unchanged — the
 calibration on, vs. 100% off, per `baseline.json`) is not touched by this
 fix, since a genuinely sparse-but-advancing workload still passes the
 narrowed gate on every real advance.
+
+### 3.32 A zero-sample Wilson interval claimed certainty it did not have, and existed three times
+
+Found while checking `evals/stats.py`'s `wilson()`/`clustered_wilson()`
+against two independent reimplementations in `score_real_suite.py` and
+`measure_intervention.py` — the same duplicated-formula risk section 15 of
+CLAUDE.md names directly (`sig()` existed twice, untested, before it was
+extracted). Numerically the three agreed to 5-6 decimal places everywhere
+`n > 0`, but diverged exactly at `n = 0`: the two independent copies both
+returned `(0.0, 1.0)` — the honest, maximally-uninformative bounds for zero
+evidence — while `stats.py`, the canonical, *tested* implementation, returned
+`Interval(0.0, 0.0, 0.0, 0)`, claiming perfect certainty a zero-sample rate
+is exactly zero.
+
+This never surfaced because `render()`/`pct()`/`ci_pct()` all special-case
+`n == 0` and print `"n/a"` before ever touching the stored bounds — but
+`Interval.to_dict()`, which feeds every `results.json` artifact, has no such
+guard and would hand a downstream reader a falsely narrow interval for any
+metric computed on zero scenarios (an ablated arm with zero attributed
+trips, e.g.). Fixed both `n == 0` branches to return `(0.0, 1.0)`; a new test
+(`test_a_zero_sample_interval_is_maximally_uncertain_not_a_point_at_zero`)
+fails against the pre-fix code (verified via stash) and passes after.
+
+**Consolidated the duplication** rather than leave three formulas to drift
+independently: `score_real_suite.py` and `measure_intervention.py` now both
+import `evals.stats.wilson` instead of re-deriving it. Re-ran
+`score_real_suite.py` live against the captured real-trace corpus —
+output unchanged (precision 100.0% [56.6%, 100.0%], recall 83.3% [43.6%,
+97.0%], FPR 0.0% [0.0%, 12.1%]) — and it now inherits the n=0 fix for free
+instead of needing it applied a third time.
+
+**Also found in passing:** re-running `evals/validity.py` twice (deterministic,
+fixed seed) showed every number in README's "trivial baselines" table had
+drifted 0.1-1.0 points from what was documented on 2026-08-23 — small enough
+to be code drift since that date rather than a regression worth its own
+entry, but corrected in the README per the standing rule on stale numbers
+found in passing. The "sample independence" and per-detector ablation
+figures nearby were re-checked the same way and still match exactly.
 
 ---
 
