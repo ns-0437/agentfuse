@@ -115,7 +115,7 @@ def trace(scenario) -> None:
             anchored = "yes" if _anchors_match(det, ev) else "no"
         print(f"{i:>3} {ev.type.value:<10} {ema:>7} {det._low_streak:>4} "
               f"{anchored:>5} {tool_ok:>5} "
-              f"{str(det._last_action_grounded):>5}  {what}"
+              f"{det._last_action_grounded!s:>5}  {what}"
               + ("   <== TRIP" if trip else ""))
 
     print()
