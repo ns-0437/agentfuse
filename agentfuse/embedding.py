@@ -55,7 +55,13 @@ def local_embedder(model_name: Optional[str] = None) -> Optional[Callable[[str],
     The model is loaded once per process and cached: construction takes a second
     or two, per-sentence inference about 4ms.
     """
-    name = model_name or os.getenv("AGENTFUSE_LOCAL_EMBED_MODEL", DEFAULT_LOCAL_MODEL)
+    # Split rather than `model_name or os.getenv(..., DEFAULT)` in one
+    # expression: os.getenv with a str default always returns str, but mypy's
+    # overload resolution cannot see that through the `or` (confirmed via an
+    # isolated reveal_type() script -- a pure inference gap, no runtime risk).
+    # Splitting it removes the false positive without a type: ignore.
+    env_default = os.getenv("AGENTFUSE_LOCAL_EMBED_MODEL", DEFAULT_LOCAL_MODEL)
+    name: str = model_name or env_default
     if name in _local_cache:
         return _local_cache[name]
 
