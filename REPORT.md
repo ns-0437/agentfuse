@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-09-10** · 372 commits · 350 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-09-11** · 414 commits · 346 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -285,8 +285,18 @@ Qwen2.5-3B-Instruct-Q4, n=14 per condition:
 
 The signal is real and it tracks *failure*, not *difficulty* — the healthy-but-hard
 control did not drop. **And the detector is still harmful**: ablation puts it at
-**ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. It
-ships off by default. See section 4.12 for why, because the reason generalises.
+**ΔF1 +10.8 for removal**, with identical recall and 118 extra false positives. See
+section 4.12 for why, because the reason generalises.
+
+**Update, 2026-09-11: `ConfidenceDetector` deleted, not merely shipped off.**
+It had never been wired into `MonitorConfig` at all — no user could enable it
+by accident, but also no user could enable it on purpose, which made "ships
+off by default" an overstatement: it did not ship in any reachable sense.
+Kept unreachable, fully-built, tested, and measured-harmful code around
+longer than it needed a decision. `_token_logprobs`/`summarize`, the
+extraction utilities it consumed, remain — they are still used by
+`openai_sdk.py`'s `logprobs=True` capture and `measure_resistance.py`'s
+`probe_confidence` independent of this detector.
 
 ### 3.5 The corrections are ignored — 40 times out of 41
 
@@ -2570,9 +2580,9 @@ All sources are now scanned for control characters by a test.
 | Phase | Scope | Status |
 |---|---|---|
 | **1 — Eval harness** | ground-truth scenarios, hard negatives, Wilson + clustered CIs, ablation, random control | ✅ Done |
-| **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(reasoning-model premise unproven — 3.3; the verification loop itself had a bug until 2026-08-24 — 3.22; the ladder has never actually climbed in a real trace — 3.24)* |
+| **2 — Verified + memoried recovery** | steering ladder, failure→steer→outcome memory, closed verification loop | ✅ Done *(reasoning-model premise unproven — 3.3; the verification loop itself had a bug until 2026-08-24 — 3.22; whether the ladder climbing past rung 1 helps is attempted but still open — 3.24, 3.33)* |
 | **3 — Adaptive thresholds** | per-run baselines from evidenced-healthy stretches, widen-only | ✅ Done |
-| **4 — Signal ladder** | Tier 0 behavioural ✅ · Tier 1 logprobs ✅ · Tier 2 activation probes ✅ | ✅ Done *(both internal tiers measured, both ship OFF — Section 3.4, section 4.11)* |
+| **4 — Signal ladder** | Tier 0 behavioural ✅ · Tier 1 logprobs (deleted 2026-09-11) · Tier 2 activation probes ✅ (ships OFF) | ✅ Done *(both internal tiers measured and rejected — Section 3.4, section 4.11; Tier 1 removed rather than left unreachable)* |
 | **5 — Productionisation** | injection hardening ✅ · thread-safety ✅ · SQLite checkpoints ✅ · real cost table ✅ · webhook escalation ✅ · PyPI ❌ | 🟡 5 of 6 |
 
 **4 of 5 complete.** Phase 5 is at 5 of 6 — only PyPI packaging remains.
@@ -2921,12 +2931,16 @@ started committing the output.
 - **Async is untested under load.** `observe()` is synchronous and called from
   async hooks. It works; it has never been profiled with concurrent agents.
 
-### 8.8 Phase 4 — complete, and both internal tiers ship OFF
+### 8.8 Phase 4 — complete, both internal tiers rejected, Tier 1 since deleted
 
-All three tiers are built and measured. **Tier 1 costs 10.8 F1 when enabled
+All three tiers were built and measured. **Tier 1 cost 10.8 F1 when enabled
 (section 3.4); Tier 2 is 19,000× more expensive than the string comparison that already
-catches the same thing (section 4.11).** Both remain in the tree as measured, opt-in
-research tools.
+catches the same thing (section 4.11).** Tier 2 remains in the tree as a measured,
+opt-in research tool (activation probes, no path to production use given section
+8.1's unproven steering premise). Tier 1 (`ConfidenceDetector`) was **deleted
+2026-09-11**, not merely left off: it had never been wired into `MonitorConfig`
+at all, so "ships OFF" overstated it — it was unreachable, not opt-in. The
+extraction utilities it depended on remain, since other code still uses them.
 
 The honest summary of Phase 4: **reading the model's insides did not beat reading
 its behaviour.** That is a real answer to the question the phase existed to ask,
