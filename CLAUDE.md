@@ -8,7 +8,7 @@ judging the run is never the thing performing it.
 
 Repo: https://github.com/ns-0437/agentfuse (public) · Dashboard: https://ns-0437.github.io/agentfuse/
 
-## Current state (2026-08-25)
+## Current state (2026-09-11)
 
 Synthetic suite: 1018 scenarios, **0 errors**, precision/recall/F1 all 100.0%,
 FPR 0.0% — re-verified with a full ablation, 25-seed significance test, 4-seed
@@ -20,15 +20,26 @@ against the world. Real-trace suite: 34 runs (28 healthy), precision 100%,
 recall 83.3%, FPR 0% — still far too small to trust the FPR on its own, and
 carrying one honest known miss (the anchor-grounding gap, REPORT.md 3.17-3.18).
 
-**The single highest-value open item is no longer detection — it's whether the
-escalation ladder helps at all (REPORT.md 3.24).** A real bug (3.22, fixed)
-meant the recovery ladder never climbed past its first rung (`re-anchor`) in
-ANY real trace this project has ever captured, across every arm. Section 3.6's
-83%/6-of-8 delivery-mechanism result still holds, but it tested obedience to
-rung 1 almost exclusively, not the escalating strategies `strategies.py`
-mostly consists of. Needs a live-model capture with the fix active — see
-section 7 for the full current priority list, kept live and re-audited rather
-than trusted at face value (3.23 caught it going stale once already).
+**Whether the escalation ladder helps at all is still the single highest-value
+open item (REPORT.md 3.24) — attempted 2026-09-11 with the section 3.22 fix
+active, and still open (section 3.33).** ~17 real-model runs (two model
+sizes, two threshold configs, two delivery mechanisms) produced 3 trips
+total, none of them a second trip on the same task — so the ladder never got
+a chance to climb, not because the fix is broken (it correctly marked the one
+ignored steer observed as failed, not worked) but because these models
+resolve or abandon the task before a second trip occurs. Section 3.6's
+83%/6-of-8 delivery-mechanism result still holds, but still tests obedience
+to rung 1 almost exclusively. Answering this for real likely needs a task
+that forecloses giving up, a frontier-size model, or a much larger sample
+than one sitting's thermal budget allows — see section 7 for the full current
+priority list, kept live and re-audited rather than trusted at face value
+(3.23 caught it going stale once already, and this same header just did).
+
+**mypy is now a CI gate** (`.github/workflows/ci.yml`'s `typecheck` job),
+closing a real weakness named in an earlier readiness review: every type
+annotation fixed across two full sessions of work had nothing enforcing it
+going forward. `evals.generators`/`evals.generators_extra` are the one
+deliberate, stated exception (see `pyproject.toml`'s `[tool.mypy]` comment).
 
 The anchor-grounding gap (detection-side) has FOUR independently rejected fix
 attempts on record (REPORT.md 3.17, 3.18, 3.20, 3.21), spanning every static
@@ -105,7 +116,7 @@ agentfuse/
                                  rather than rewritten from scratch each time (REPORT.md 3.17-3.21)
     captured/                    committed real traces + hand/oracle-written labels (*.json + *.jsonl)
       suite/                      real_suite.py's own corpus + labels.json
-    test_*.py                   350 tests total, `pytest evals/ -q`
+    test_*.py                   354 tests total, `pytest evals/ -q`
 
   models/                     local GGUF weights (qwen2.5-3b, qwen2.5-7b) — no API key needed
   dashboard/                  static HTML dashboard, published via GitHub Pages
