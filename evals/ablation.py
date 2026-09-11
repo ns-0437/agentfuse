@@ -41,9 +41,10 @@ from .metrics import Metrics, score
 from .runner import run_suite
 from .schema import CostModel, DEFAULT_COST, Scenario
 
-# "confidence" is deliberately absent: it is off by default (dF1 +10.8 —
-# removing it HELPS), so an ablation row for it would always read +0.0 and
-# imply it is running. The measured figure lives in baseline.json.
+# "confidence" is deliberately absent: the detector that used the name was
+# deleted 2026-09-11 (REPORT.md 3.4/4.12 -- measured actively harmful, dF1
+# +10.8 for removing it, never reachable through MonitorConfig anyway). The
+# measurement lives in baseline.json.
 DETECTOR_NAMES = ["loop", "drift", "progress", "rate", "spend"]
 
 
