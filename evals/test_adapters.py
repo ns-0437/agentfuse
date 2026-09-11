@@ -61,7 +61,7 @@ class ScriptedModel(Model):
     def __init__(self):
         self.calls = 0
 
-    def _usage(self):
+    def _usage(self) -> Usage:
         return Usage(requests=1, input_tokens=900, output_tokens=180, total_tokens=1080)
 
     async def get_response(self, system_instructions, input, model_settings, tools,
