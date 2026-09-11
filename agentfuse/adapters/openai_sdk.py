@@ -15,11 +15,12 @@ real tasks. Restarting from the objective completed six. See ``intervention`` on
 
 from __future__ import annotations
 
+import json
 from typing import Any, Callable, Optional
 
 from ..confidence import _token_logprobs, summarize
 from ..events import AgentEvent, EventType
-from ..monitor import CircuitBreakerMonitor, MonitorConfig, DirectiveKind
+from ..monitor import CircuitBreakerMonitor, MonitorConfig, Directive, DirectiveKind
 
 
 def guarded_tool_loop(
@@ -124,7 +125,6 @@ def guarded_tool_loop(
 
         restart = False
         for tc in tool_calls:
-            import json as _json
             # A model can emit arguments that are not valid JSON — an invalid
             # escape is the common one. This was an unguarded json.loads, so a
             # single malformed call raised JSONDecodeError straight out of the
@@ -138,7 +138,7 @@ def guarded_tool_loop(
             # guessed arguments — inventing a call the model did not make would
             # put fiction in the trace.
             try:
-                args, bad_args = _json.loads(tc.function.arguments or "{}"), None
+                args, bad_args = json.loads(tc.function.arguments or "{}"), None
             except (ValueError, TypeError) as exc:
                 args, bad_args = {}, str(exc)
             step += 1
@@ -189,7 +189,8 @@ def guarded_tool_loop(
     return mon.finish("max_turns")
 
 
-def _apply_directive(mon, directive, messages, intervention: str = "rerun",
+def _apply_directive(mon: CircuitBreakerMonitor, directive: Directive,
+                     messages: list[dict], intervention: str = "rerun",
                      baseline: Optional[list] = None) -> str:
     """Deliver a steering correction. HOW it is delivered is a real variable.
 
