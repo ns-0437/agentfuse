@@ -241,7 +241,9 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     names = args.tasks.split(",") if args.tasks else list(TASKS)
     from openai import OpenAI
-    client = OpenAI(base_url=args.base_url, api_key="not-needed")
+
+    from evals.toolcall_shim import ToolCallShim
+    client = ToolCallShim(OpenAI(base_url=args.base_url, api_key="not-needed"))
 
     print("=" * 76)
     print("ESR MERGE — does the agent's own confidence predict whether a steer lands?")
