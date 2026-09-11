@@ -875,7 +875,7 @@ agentfuse/
   checkpoint.py        durable run state — a restart keeps its ceiling
   pricing.py           token -> USD, and never prices the unknown at zero
   redact.py            credentials stripped on every path text can escape
-  confidence.py        Tier 1 logprob signal — measured, and ships OFF
+  confidence.py        token-logprob utilities — the detector that used them was deleted, measured harmful
   notify.py            escalation that reaches a human, and says if it didn't
   strategies.py        the escalating ladder of interventions
   calibration.py       per-run thresholds learned from healthy stretches

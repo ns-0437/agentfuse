@@ -87,7 +87,8 @@ agentfuse/
       rate.py                    RateOfProgressDetector — the "Zeno" trap (progress that never finishes)
       spend.py                   token/cost ceiling and burst-rate breach
       drift.py                   goal drift — embedding/lexical similarity + action grounding
-    confidence.py               Tier-1 signal: token logprobs vs the run's own baseline (opt-in, ships OFF)
+    confidence.py               token-logprob extraction/summarising utilities (the detector that used to
+                                 consume them was deleted 2026-09-11 -- measured actively harmful, REPORT.md 3.4/4.12)
     calibration.py              adaptive per-run threshold calibration
     recovery.py + strategies.py  the steering ladder (recovery reasoning model, separate from the agent)
     memory.py                   JSONMemory (append-only) / QdrantMemory (vector) for steering history
