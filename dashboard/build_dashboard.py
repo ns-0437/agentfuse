@@ -317,7 +317,7 @@ function timeline(r){
     if(rec.kind==='trip')
       h+=`<div class="notice trip"><div class="h">${BOLT} BREAKER TRIP — ${esc(rec.detector.toUpperCase())} · ${esc(rec.severity)}</div><div class="rz">${esc(rec.reason)}</div></div>`;
     if(rec.kind==='recovery')
-      h+=`<div class="notice heal"><div class="h">${STEER} STEERING RECOVERY<span class="tag">${esc(rec.action).toUpperCase()}</span></div><div class="rz"><b>WHY</b> ${esc(rec.rationale)} <span style="color:var(--faint)">· conf ${rec.confidence} · ${esc(rec.backend)}</span></div><div class="instr">${esc(rec.instruction)}</div></div>`;
+      h+=`<div class="notice heal"><div class="h">${STEER} STEERING RECOVERY<span class="tag">${esc(rec.action).toUpperCase()}</span>${rec.strategy?`<span class="tag" style="margin-left:4px">${esc(rec.strategy)}</span>`:''}</div><div class="rz"><b>WHY</b> ${esc(rec.rationale)} <span style="color:var(--faint)">· conf ${rec.confidence} · ${esc(rec.backend)}</span></div><div class="instr">${esc(rec.instruction)}</div></div>`;
   }
   return h+'</div>';
 }
