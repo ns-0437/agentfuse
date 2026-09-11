@@ -66,7 +66,7 @@ class ScriptedModel(Model):
     loops until it receives a corrective steering message, then course-corrects.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.calls = 0
 
     def _usage(self) -> Usage:

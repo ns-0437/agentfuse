@@ -46,7 +46,7 @@ class SimulatedAgent:
         path, it switches to the *correct* plan: query the secret manager API.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.step = 0
         self.steered = False
         self.done = False
