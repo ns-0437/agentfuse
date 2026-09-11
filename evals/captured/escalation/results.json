@@ -1,0 +1,42 @@
+{
+  "audit_empty": {
+    "trips": 0,
+    "detectors_seen": [],
+    "rungs_fired": [],
+    "max_rung_index": -1,
+    "climbed_past_rung_1": false,
+    "outcome": "complete"
+  },
+  "false_premise": {
+    "trips": 0,
+    "detectors_seen": [],
+    "rungs_fired": [],
+    "max_rung_index": -1,
+    "climbed_past_rung_1": false,
+    "outcome": "complete"
+  },
+  "impossible_path": {
+    "trips": 0,
+    "detectors_seen": [],
+    "rungs_fired": [],
+    "max_rung_index": -1,
+    "climbed_past_rung_1": false,
+    "outcome": "complete"
+  },
+  "rotate_missing": {
+    "trips": 0,
+    "detectors_seen": [],
+    "rungs_fired": [],
+    "max_rung_index": -1,
+    "climbed_past_rung_1": false,
+    "outcome": "complete"
+  },
+  "verify_loop_bait": {
+    "trips": 0,
+    "detectors_seen": [],
+    "rungs_fired": [],
+    "max_rung_index": -1,
+    "climbed_past_rung_1": false,
+    "outcome": "complete"
+  }
+}
