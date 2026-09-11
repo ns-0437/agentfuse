@@ -185,5 +185,5 @@ def test_shim_proxies_unknown_attributes():
     # Deliberately setting an attribute _FakeClient never declares: the whole
     # point of this test is that ToolCallShim.__getattr__ proxies ANY attribute
     # through to the wrapped client, not just the ones the fake was built with.
-    client.base_url = "http://x/v1"
+    client.base_url = "http://x/v1"  # type: ignore[attr-defined]
     assert ToolCallShim(client).base_url == "http://x/v1"
