@@ -151,7 +151,13 @@ class Tracer:
     def recovery(self, path: SteeringPath) -> None:
         self.recoveries += 1
         _echo = self.echo
+        # `strategy` is the rung of the ladder (re-anchor, alternate-action, ...)
+        # -- without it a persisted trace cannot answer "did the ladder climb, or
+        # did it just repeat rung 1?", which is exactly the question an incident
+        # review or a real-model capture needs the trace file (not the live
+        # Python objects) to answer.
         self._write({"kind": "recovery", "action": path.action.value,
+                     "strategy": path.strategy,
                      "instruction": path.instruction, "rationale": path.rationale,
                      "confidence": path.confidence, "backend": path.backend})
         if not _echo:
