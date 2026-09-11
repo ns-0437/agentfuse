@@ -31,8 +31,13 @@ The hypothesis behind `drop_tool` is blunter: stop asking. If the tool is not in
 the schema, the loop is not available to repeat.
 
     python -m llama_cpp.server --model models/<m>.gguf --n_ctx 8192 --port 8080 \\
-        --chat_format chatml-function-calling
+        --n_gpu_layers 0 --n_threads 6
     python evals/measure_intervention.py --base-url http://127.0.0.1:8080/v1
+
+Deliberately NOT --chat_format chatml-function-calling: that handler cannot
+terminate once handed a finished answer, and previously hung/corrupted a whole
+capture batch. The native template is used instead, with ToolCallShim (see
+real_suite.py) recovering the tool calls it leaves as unparsed text.
 
 Compliance is read off BEHAVIOUR — did the next tool call differ from the one
 that tripped the breaker — exactly as in measure_resistance.py, so the arms are
@@ -71,7 +76,11 @@ def run_arm(arm: str, base_url: str, model: str, names: list[str],
     complied = total = 0
     per_task = {}
     from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key="not-needed")
+
+    from evals.toolcall_shim import ToolCallShim
+    # Native template + shim, not --chat_format chatml-function-calling: see
+    # real_suite.py's capture() for why (that handler cannot terminate).
+    client = ToolCallShim(OpenAI(base_url=base_url, api_key="not-needed"))
 
     for name in names:
         prompt, world = TASKS[name]

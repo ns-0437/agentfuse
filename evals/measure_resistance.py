@@ -44,8 +44,13 @@ the trace forward and label the outcome by what the agent actually did next:
 The label is an observation of behaviour, not an opinion about the steering text.
 
     python -m llama_cpp.server --model models/<m>.gguf --n_ctx 8192 --port 8080 \\
-        --chat_format chatml-function-calling
+        --n_gpu_layers 0 --n_threads 6
     python evals/measure_resistance.py --base-url http://127.0.0.1:8080/v1
+
+Deliberately NOT --chat_format chatml-function-calling: that handler cannot
+terminate once handed a finished answer, and previously hung/corrupted a whole
+capture batch. The native template is used instead, with ToolCallShim (see
+real_suite.py) recovering the tool calls it leaves as unparsed text.
 
 What a negative result looks like, so it cannot be explained away afterwards: if
 compliance and resistance have overlapping confidence distributions, the internal
@@ -147,7 +152,11 @@ def run_task(name: str, base_url: str, model: str, max_turns: int) -> Path:
     router, _ = make_router(world)
     trace = OUT / f"{name}.jsonl"
     from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key="not-needed")
+
+    from evals.toolcall_shim import ToolCallShim
+    # Native template + shim, not --chat_format chatml-function-calling: see
+    # real_suite.py's capture() for why (that handler cannot terminate).
+    client = ToolCallShim(OpenAI(base_url=base_url, api_key="not-needed"))
 
     mon = CircuitBreakerMonitor(
         MonitorConfig(original_goal=prompt, echo=False, loop_threshold=3,
