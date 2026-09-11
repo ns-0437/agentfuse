@@ -2156,6 +2156,93 @@ entry, but corrected in the README per the standing rule on stale numbers
 found in passing. The "sample independence" and per-detector ablation
 figures nearby were re-checked the same way and still match exactly.
 
+### 3.33 The first live escalation-ladder capture with the fix active — attempted, inconclusive, and why
+
+Section 7 item 1 named this the single highest-value open question: does the
+ladder climbing past `re-anchor` (section 3.22's fix, now active) actually
+help, given every real trace before that fix tested obedience to `re-anchor`
+repeated, never the escalating rungs? This is the first attempt at measuring
+it, and the honest result is that it could not be answered — not because the
+mechanism is broken, but because the condition it needs (the SAME task
+tripping a SECOND time) essentially never occurred.
+
+**Before trusting the capture infrastructure, two real bugs had to be fixed
+first.** `measure_resistance.py` and `measure_intervention.py` both still told
+a reader to start `llama.cpp.server` with `--chat_format
+chatml-function-calling` — the exact flag CLAUDE.md permanently bans, since it
+cannot terminate and silently corrupted the entire first real-trace corpus.
+Neither script had been updated when `real_suite.py` fixed this pattern for
+itself. Both now use the native template + `ToolCallShim`, matching
+`real_suite.py`. Separately, `Tracer.recovery()` never persisted
+`path.strategy` (which rung fired) to the JSONL trace at all — `runner.py` and
+`real_model.py` read it off the live Python object because synthetic/real-model
+runs happen in one process, but nothing reading a trace file afterward could
+ever recover which rung fired. Both fixed and tested before this capture ran,
+because the capture is worthless without them.
+
+**Method.** `evals/measure_escalation.py` (new): real agent tasks from
+`measure_resistance.py`'s `TASKS` (the "empty"-world variants, whose premise
+is genuinely false), breaker armed with `max_recoveries=6` (room for all four
+steerable rungs) and backend="mock" (the deterministic ladder — section 8.1
+already settled that a reasoning model loses to it, so this isolates the
+ladder-mechanism question from that already-answered one).
+
+**What was tried, and what happened.** ~17 real-model task runs across two
+model sizes (Qwen2.5-3B and -7B), two threshold configurations (library
+defaults, and a deliberately more sensitive `loop_threshold=2` /
+`stall_patience=3` meant to make trips easier to observe), and two delivery
+mechanisms (the production default `"rerun"`, and `"system"` — the
+worst-performing arm from sections 3.5-3.6, chosen deliberately because its
+0%-completion rate should maximise the chance of a second failure). Across all
+of it: **3 trips total, each the first and only trip on its task. Zero
+instances of a second trip on the same task, and therefore zero observed
+climbs past `re-anchor`.**
+
+**Why, read directly off the traces, not guessed at.** Both models
+consistently did one of two things after being steered: genuinely succeed (the
+correction worked), or **stop acting entirely** — reason for a turn or two and
+end the run without calling another tool, rather than doggedly repeating a
+failure pattern a second time. One `verify_loop_bait` run (observed directly
+during this investigation, not preserved in the committed trace — the file
+was overwritten by a later run of the same task name, a limitation of this
+script worth fixing before the next batch) showed a third behaviour worth
+naming on its own: after `re-anchor`, the model invented tool names that do
+not exist in the schema (`connect_to_database`, `execute_sql`,
+`simulate_sql_execution`) rather than repeating its original mistake. The
+summary for that run correctly recorded `steers_verified_failed: 1` — the
+section 3.22 fix operating exactly as intended, no longer crediting an
+ignored steer as "worked" — but the model's invented calls never repeated the
+same signature twice, so `NoProgressDetector` needed several more actions to
+re-cross `stall_patience` than the turn budget allowed. **Hallucinated tool
+invention under pressure is a distinct, realistic failure mode this project
+has now observed directly and none of the five detectors specifically name**
+(`NoProgressDetector` eventually catches its symptom — no genuine state
+advance — but nothing in this project labels "the agent is inventing
+nonexistent tools" as its own signal).
+
+**What this does and does not settle.** It does not settle whether escalation
+helps — that remains open, exactly as section 7 left it. What it adds: the
+verify-progress fix is confirmed operating correctly in the one repeat-failure
+case actually observed (a steer that did not land is recorded as failed, not
+worked). And it reframes the open question: the bottleneck is no longer "the
+fix might mask failed rungs as worked" (settled, fixed, verified) — it is
+that **small-to-mid local models resolve or abandon a task before a second
+trip has a chance to occur**, at least on this task family. Getting real
+evidence on ladder climbing likely needs one of: a task deliberately designed
+so giving up is not an available move, a frontier-size model that persists
+longer before conceding (section 8.1's "disproven at every size we can test"
+caveat applies here too), or accepting a much larger sample than this
+machine's thermal budget allows in one sitting.
+
+**Kept:** `evals/captured/escalation/*.jsonl` (5 traces, all single-trip or
+no-trip, each ending in `status: complete`) and `results.json`. Not kept: the
+`verify_loop_bait` capture that showed invented-tool behaviour — overwritten
+by an earlier version of this script, which wrote to `OUT / f"{name}.jsonl"`
+(one file per task name), so a later run of the same task silently destroyed
+it. **Fixed same-day**: trace filenames now carry a timestamp
+(`{name}.{stamp}.jsonl`), so no future capture can erase an earlier one this
+way again.
+
 ---
 
 ## 4. Findings worth keeping
@@ -2627,14 +2714,17 @@ Kept as a live list, not a monument: re-audit it before trusting it, the same
 lesson section 3.23 learned about section 8.2.
 
 1. **Real capture of whether the escalation ladder helps, with the fix
-   active** (section 3.24). The single highest-value open item: every real
-   trace this project has ever captured tested obedience to `re-anchor`,
-   repeated, never the escalating strategies `strategies.py` mostly consists
-   of. Needs live model calls with the breaker armed, deliberately provoking
-   a multi-steer failure per detector type. Not attempted yet in this
-   project because it needs the same live-capture workload that hard-restarted
-   the machine earlier the same day this was found — check in on that
-   tradeoff before launching it, not a reason to skip it.
+   active** (section 3.24) — **attempted 2026-09-11, inconclusive (section
+   3.33).** ~17 real-model runs across two model sizes, two threshold
+   configs, and two delivery mechanisms produced 3 trips total, none of them
+   a second trip on the same task — so the ladder never got a chance to
+   climb, not because the mechanism is broken (the verify-progress fix was
+   confirmed correctly marking an ignored steer as failed in the one
+   repeat-failure case observed) but because these models resolve or give up
+   before a second trip occurs. Still open. What would move it forward now:
+   a task deliberately designed so giving up is not an available move, or a
+   frontier-size model, or a much larger sample than one sitting's thermal
+   budget allows.
 2. **The other two section 3.25 findings**, implemented as code-reading
    arguments only, no real-model evidence: detector-aware rung selection
    (`next_strategy` currently ignores `trip_detector` entirely), and giving
