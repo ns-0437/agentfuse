@@ -110,6 +110,27 @@ jobs:
           AGENTFUSE_OFFLINE: "1"
         run: python -m evals.run_eval --generated 20 --seed 20260812 --no-ablation
 
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[all]"
+          pip install mypy
+      # Runs once, not per test-matrix-cell, same reasoning as the benchmark
+      # job below. Config (ignore_missing_imports, the generators.py/
+      # generators_extra.py override) lives in pyproject.toml's [tool.mypy],
+      # not here, so a local `mypy agentfuse/ evals/ examples/ dashboard/`
+      # run behaves identically to this step.
+      - name: Type check
+        run: mypy agentfuse/ evals/ examples/ dashboard/
+
   demos:
     name: demos still run
     runs-on: ubuntu-latest
@@ -156,7 +177,7 @@ jobs:
   # and tag-driven.
   deploy-dashboard:
     name: rebuild + publish dashboard
-    needs: [test, benchmark, demos]
+    needs: [test, benchmark, demos, typecheck]
     # Any deliberate run against main publishes: a push, or a manual dispatch.
     # The first version required event_name == 'push', which silently skipped
     # the whole job on workflow_dispatch — so the one way to re-publish by hand
