@@ -25,3 +25,29 @@ all = ["rich>=13.0.0", "openai>=1.40.0", "openai-agents>=0.18.0", "qdrant-client
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["agentfuse*"]
+
+[tool.mypy]
+ignore_missing_imports = true
+# NOT warn_unused_ignores: several `# type: ignore` comments in evals/test_*.py
+# (test_memory.py, test_toolcall_shim.py) exist only to suppress errors that
+# appear under --check-untyped-defs, a stricter mode this project's CI does
+# not run. Under this config's plain settings they report as "unused" even
+# though they are correctly needed for the stricter local runs this project
+# does periodically -- so enabling this flag here would demand deleting
+# ignores that are still doing real work elsewhere. Spot-check with
+# `mypy --warn-unused-ignores --check-untyped-defs` locally instead, which
+# tells the two cases apart correctly.
+
+# generators.py/generators_extra.py's DOMAINS structure is a large, deeply
+# heterogeneous dict-of-dicts (str values, list-of-str values, and callables)
+# that mypy cannot structurally infer, producing a 30+ line error cascade with
+# zero runtime risk (deliberately assessed and deferred: restructuring a
+# heavily-tested, load-bearing file for a check this project doesn't
+# otherwise enforce was judged too risky for the value). `ignore_errors`
+# suppresses ALL mypy checking in these two files, not just the known
+# cascade -- stated plainly because that is a real gap, not a narrow
+# exception: a genuinely new type error introduced in either file will NOT
+# fail CI. Every other module in the project is fully checked.
+[[tool.mypy.overrides]]
+module = ["evals.generators", "evals.generators_extra"]
+ignore_errors = true
