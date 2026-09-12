@@ -55,7 +55,8 @@ if not os.getenv("OPENAI_API_KEY"):
 from agents import Agent, Runner, function_tool  # noqa: E402
 from agents.items import TResponseInputItem  # noqa: E402
 from agentfuse.adapters.agentkit_hooks import FuseRunHooks, BreakerInterrupt  # noqa: E402
-from agentfuse import DirectiveKind  # noqa: E402
+from agentfuse import CircuitBreakerMonitor, DirectiveKind, MonitorConfig  # noqa: E402
+from agentfuse.recovery import RecoveryEngine  # noqa: E402
 
 MODEL = os.getenv("AGENTFUSE_MODEL", "gpt-4o-mini")
 
@@ -92,13 +93,24 @@ async def main() -> None:
 
     agent = Agent(name="job-monitor", model=MODEL,
                   instructions=GOAL, tools=[check_job_status, report_status])
-    fuse = FuseRunHooks(
-        original_goal=GOAL,
-        loop_threshold=4,          # allow a few honest polls before calling it a loop
-        max_recoveries=2,
-        max_tokens=40_000,         # hard ceiling -> escalate rather than burn budget
-        jsonl_path="runs/real_gpt.jsonl",
+    monitor = CircuitBreakerMonitor(
+        MonitorConfig(
+            original_goal=GOAL,
+            loop_threshold=4,      # allow a few honest polls before calling it a loop
+            max_recoveries=2,
+            max_tokens=40_000,     # hard ceiling -> escalate rather than burn budget
+            jsonl_path="runs/real_gpt.jsonl",
+        ),
+        # Explicit, not inferred from OPENAI_API_KEY being set (which the
+        # agent above already needs for its own, unrelated reason): this demo
+        # exists specifically to show the reasoning-model recovery path in
+        # action, even though REPORT.md 3.4/4.12/8.1 measured it losing to
+        # the deterministic ladder at every model size tested. Drop this
+        # RecoveryEngine override entirely to use that better-performing
+        # default instead.
+        recovery=RecoveryEngine(backend="real"),
     )
+    fuse = FuseRunHooks(original_goal=GOAL, monitor=monitor)
 
     input_items: list[TResponseInputItem] = [
         {"role": "user", "content": "Begin monitoring the job now."}]
