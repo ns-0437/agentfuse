@@ -64,8 +64,19 @@ python examples/demo_escalation.py    # unrecoverable failure -> hard stop / hum
 ```
 
 Each prints a live trace and writes a machine-readable `runs/*.jsonl`.
-`pip install rich` for colored panels; set `OPENAI_API_KEY` to swap the offline
-mock for a real reasoning model + real embedding-based drift detection.
+`pip install rich` for colored panels; `pip install fastembed` (the
+`[embeddings]` extra) for real embedding-based drift detection instead of the
+lexical fallback — this needs no API key at all, ONNX runs locally.
+
+The recovery ladder defaults to the deterministic templates regardless of
+whether `OPENAI_API_KEY` is set — deliberately: REPORT.md 3.4/4.12/8.1
+measured a real reasoning-model backend losing to the templates at every
+model size tested (3B, 7B, o4-mini), so setting that key does not change
+which recovery path runs. To experiment with the reasoning-model backend
+anyway, set `AGENTFUSE_RECOVERY_BACKEND=real` explicitly — it is opt-in, not
+automatic, because a variable your OWN agent almost certainly already needs
+for something else should not silently switch you to billed calls and a
+worse ladder.
 
 ### Real AgentKit run (not simulated)
 
