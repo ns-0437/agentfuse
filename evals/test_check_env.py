@@ -57,5 +57,26 @@ def test_a_normal_file_with_real_newlines_reports_no_backslash_n_problem(tmp_pat
 
     check_env.main()
     out = capsys.readouterr().out
-    assert "backslash-n" not in out
+    assert "unexpected name" not in out
+    assert "All good" in out
+
+
+def test_the_new_explicit_opt_in_vars_are_not_flagged_as_unexpected(tmp_path, monkeypatch, capsys):
+    """A reader following REPORT.md 3.34's own fix into their .env must not
+    have this script call it a mistake -- the regression this test prevents."""
+    p = tmp_path / ".env"
+    p.write_text(
+        "OPENAI_API_KEY=sk-proj-realkey123\n"
+        "AGENTFUSE_RECOVERY_BACKEND=real\n"
+        "AGENTFUSE_EMBED_BACKEND=none\n",
+        encoding="utf-8")
+    monkeypatch.setattr(check_env, "find_env_file", lambda: p)
+    monkeypatch.setattr(check_env, "load_env", lambda: True)
+    monkeypatch.setattr(check_env, "describe", lambda: "OPENAI_API_KEY: sk-proj…y123")
+
+    check_env.main()
+    out = capsys.readouterr().out
+    assert "unexpected name" not in out, (
+        f"AGENTFUSE_RECOVERY_BACKEND/AGENTFUSE_EMBED_BACKEND must be recognised, "
+        f"not reported as a mistake:\n{out}")
     assert "All good" in out
