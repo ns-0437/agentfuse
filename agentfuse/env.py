@@ -31,7 +31,7 @@ def find_env_file(start: Optional[Path] = None) -> Optional[Path]:
     return None
 
 
-def _read_env_text(env_path) -> str:
+def read_env_text(env_path) -> str:
     """Read a .env whatever encoding the operating system wrote it in.
 
     Reading it as plain UTF-8 was a real bug, and a Windows-shaped one. The
@@ -45,6 +45,12 @@ def _read_env_text(env_path) -> str:
     undecodable bytes — a mangled line is skipped by the KEY=value parser
     below, which is a far better outcome than an exception from a helper whose
     entire job is "find the key if there is one".
+
+    Public (not prefixed) because ``check_env.py`` needs it too: it used to
+    carry its own naive ``read_text(encoding="utf-8")``, which reproduced the
+    exact bug this function exists to fix (found 2026-09-12 running the
+    script against this project's own UTF-16 ``.env`` — it garbled the file
+    into mojibake and reported the key as entirely missing).
     """
     raw = env_path.read_bytes()
     for encoding in ("utf-8-sig", "utf-16", "utf-8"):
@@ -83,7 +89,7 @@ def load_env(path: Optional[Path] = None, override: bool = False) -> bool:
     # looks present, has a plausible length, and fails authentication with a
     # 401 that points nowhere near the real cause. Measured on this machine:
     # key length 200 instead of 164, and the second variable silently absent.
-    text = _read_env_text(env_path).replace("\\n", "\n")
+    text = read_env_text(env_path).replace("\\n", "\n")
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -119,20 +125,52 @@ def has_openai_key() -> bool:
     return bool(key) and not key.startswith("sk-your")
 
 
+def _actual_recovery_backend() -> str:
+    """What RecoveryEngine() would actually pick right now, not what a key implies.
+
+    Local import: env.py sits below recovery.py in the dependency graph
+    (recovery.py imports FROM env.py), so importing it back here at module
+    load time would be circular. Deferred to call time, where it is safe.
+    """
+    from .recovery import RecoveryEngine
+    return RecoveryEngine().backend
+
+
+def _actual_embed_mode() -> str:
+    """What get_embedder() would actually pick right now. Same reasoning."""
+    from .embedding import get_embedder
+    _, mode = get_embedder()
+    return mode
+
+
 def describe() -> str:
-    """A short, safe status line. Never reveals the key itself."""
+    """A short, safe status line. Never reveals the key itself.
+
+    Reports what will ACTUALLY be used, not what a key's presence implies --
+    REPORT.md 3.34 found that those two things quietly diverged: an
+    OPENAI_API_KEY no longer flips RecoveryEngine to "real" on its own (it
+    needs AGENTFUSE_RECOVERY_BACKEND=real or a self-hosted base_url), and
+    get_embedder() prefers a local embedder over a hosted one whenever
+    fastembed is installed, key or no key.
+    """
     env_path = find_env_file()
+    recovery_backend = _actual_recovery_backend()
+    embed_mode = _actual_embed_mode()
     if has_openai_key():
         key = os.environ["OPENAI_API_KEY"]
         masked = f"{key[:7]}…{key[-4:]}" if len(key) > 14 else "set"
         return (f"OPENAI_API_KEY: {masked}\n"
                 f"  source        : {env_path if _LOADED else 'shell environment'}\n"
                 f"  agent model   : {os.getenv('AGENTFUSE_MODEL', 'gpt-4o-mini')}\n"
-                f"  recovery model: {os.getenv('AGENTFUSE_RECOVERY_MODEL', 'o4-mini')}\n"
-                f"  embed model   : {os.getenv('AGENTFUSE_EMBED_MODEL', 'text-embedding-3-small')}")
-    return ("OPENAI_API_KEY: NOT SET — AgentFuse will run in offline mode\n"
-            "  (mock recovery + lexical drift; everything still works, "
-            "just without real-model validation)")
+                f"  recovery      : {recovery_backend}"
+                f"{' (' + os.getenv('AGENTFUSE_RECOVERY_MODEL', 'o4-mini') + ')' if recovery_backend == 'real' else ' -- set AGENTFUSE_RECOVERY_BACKEND=real to use ' + os.getenv('AGENTFUSE_RECOVERY_MODEL', 'o4-mini') + ' instead (measured worse, REPORT.md 3.4/8.1)'}\n"
+                f"  drift embed   : {embed_mode}")
+    return (f"OPENAI_API_KEY: NOT SET\n"
+            f"  recovery      : {recovery_backend}\n"
+            f"  drift embed   : {embed_mode}\n"
+            f"  Everything still works without a key — mock recovery is the "
+            f"measured-better default anyway (REPORT.md 8.1), and local "
+            f"embeddings need no key at all if fastembed is installed.")
 
 
 if __name__ == "__main__":
