@@ -241,7 +241,7 @@ python evals/run_eval.py --generated 40 --json --significance 25  # + ablation +
 python evals/validity.py                                  # seed-generalisation + trivial baselines + ICC (~3 min)
 python evals/score_real_suite.py                          # real-trace scoring
 python evals/real_suite.py --relabel                      # re-derive labels only, no model calls
-pytest evals/ -q                                           # 346-test gate (~5-6 min)
+pytest evals/ -q                                           # 364-test gate (~5-6 min)
 
 python -m llama_cpp.server --model models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf \
   --n_ctx 8192 --port 8080 --n_gpu_layers 0 --n_threads 6

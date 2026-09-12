@@ -561,7 +561,7 @@ OpenAI-compatible endpoint, so a local model on the same machine costs nothing:
 
 ```bash
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-python -m llama_cpp.server --model models/qwen2.5-3b-instruct-q4_k_m.gguf --n_ctx 4096 --port 8080
+python -m llama_cpp.server --model models/qwen2.5-3b-instruct-q4_k_m.gguf --n_ctx 4096 --port 8080 --n_threads 6
 python evals/real_model.py --n 4 --base-url http://127.0.0.1:8080/v1
 ```
 
