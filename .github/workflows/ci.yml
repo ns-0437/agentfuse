@@ -126,10 +126,12 @@ jobs:
       # Runs once, not per test-matrix-cell, same reasoning as the benchmark
       # job below. Config (ignore_missing_imports, the generators.py/
       # generators_extra.py override) lives in pyproject.toml's [tool.mypy],
-      # not here, so a local `mypy agentfuse/ evals/ examples/ dashboard/`
-      # run behaves identically to this step.
+      # not here, so a local `mypy agentfuse/ evals/ examples/ dashboard/
+      # check_env.py` run behaves identically to this step. check_env.py
+      # added 2026-09-12 -- it was fixed twice this round (UTF-16 and
+      # backslash-n .env parsing) while sitting outside this gate entirely.
       - name: Type check
-        run: mypy agentfuse/ evals/ examples/ dashboard/
+        run: mypy agentfuse/ evals/ examples/ dashboard/ check_env.py
 
   demos:
     name: demos still run
