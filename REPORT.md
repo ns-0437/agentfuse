@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-09-11** · 414 commits · 346 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-09-12** · 420 commits · 352 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -2252,6 +2252,50 @@ by an earlier version of this script, which wrote to `OUT / f"{name}.jsonl"`
 it. **Fixed same-day**: trace filenames now carry a timestamp
 (`{name}.{stamp}.jsonl`), so no future capture can erase an earlier one this
 way again.
+
+### 3.34 An unrelated OPENAI_API_KEY silently upgraded a user into billed calls and a worse recovery ladder
+
+Found while auditing the recovery path for "make it usable" work.
+`RecoveryEngine(backend=None)` — exactly what a plain
+`CircuitBreakerMonitor(config)` constructs, since nothing in the public
+examples ever passed an explicit `recovery=` — auto-selected `backend="real"`
+whenever `OPENAI_API_KEY` happened to be present in the environment, with no
+other signal at all.
+
+**Reproduced directly.** With only a fake, unrelated key set
+(`OPENAI_API_KEY=sk-fake-key-the-users-OWN-agent-needs`, nothing else
+configured), `RecoveryEngine().backend` resolved to `"real"`. That is the
+single most common environment variable an integrator's own agent already
+needs for something that has nothing to do with AgentFuse's recovery step —
+its mere presence is not consent to (a) billed API calls to `o4-mini`, or
+(b) a recovery backend section 8.1/3.4/4.12 already measured losing to the
+deterministic templates at every model size tested. A user integrating
+AgentFuse into their own already-OpenAI-backed agent would have been opted
+into both, silently, purely as a side effect of a variable existing for an
+unrelated reason.
+
+**Fixed** by removing the `OPENAI_API_KEY`-triggered branch entirely. The
+default is now always `"mock"` unless a deliberate, AgentFuse-specific
+signal is present: a self-hosted `AGENTFUSE_LLM_BASE_URL` (already an
+intentional opt-in, unchanged) or the new `AGENTFUSE_RECOVERY_BACKEND=real`.
+6 new tests in `evals/test_recovery_backend.py` pin this — the exact logic
+responsible for the bug had zero coverage before (every existing test that
+constructs `RecoveryEngine` passes an explicit `backend=`); 2 of the 6 fail
+against the pre-fix code, verified by stashing the change.
+
+**One example's own documented promise had to be preserved explicitly.**
+`examples/real_gpt_run.py`'s docstring says "a separate reasoning model
+produces a steering path" — true only because it happened to rely on the
+exact bug just fixed (it already needs `OPENAI_API_KEY` for its own real GPT
+agent, and that key was silently also flipping its recovery backend). Wired
+`RecoveryEngine(backend="real")` explicitly there instead of letting the fix
+silently break what the demo claims to show.
+
+Also corrected the README's "60-second demo" section, which told a reader to
+"set `OPENAI_API_KEY` to swap the offline mock for a real reasoning model" —
+framed as an upgrade, when it is a measured downgrade the project itself
+already knew about (section 8.1) but had not connected back to this specific
+piece of documentation.
 
 ---
 
