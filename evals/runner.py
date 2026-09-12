@@ -27,7 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # The benchmark is free and deterministic BY DEFAULT. Without this, simply
 # having a key configured would turn an ordinary `pytest` run into thousands of
 # billed embedding and reasoning calls as a side effect. Opt in deliberately
-# with AGENTFUSE_OFFLINE=0 (or `run_eval.py --live`).
+# with AGENTFUSE_OFFLINE=0 -- this suite always replays scripted trajectories
+# through a mocked recovery backend regardless (see this module's own
+# docstring), so there is no --live flag here; for an actual live model run
+# see evals/real_suite.py or evals/real_model.py instead.
 os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 
 from agentfuse import (  # noqa: E402
