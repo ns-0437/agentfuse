@@ -26,6 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from agentfuse import CircuitBreakerMonitor, MonitorConfig  # noqa: E402
 from agentfuse.recovery import RecoveryEngine  # noqa: E402
 
 
@@ -87,3 +88,19 @@ def test_offline_mode_still_forces_mock_even_with_explicit_opt_in(monkeypatch):
     eng = RecoveryEngine()
     assert eng.backend == "mock", (
         "AGENTFUSE_OFFLINE must be the hard override no other signal can beat")
+
+
+def test_the_actual_end_to_end_path_a_real_user_hits(monkeypatch):
+    """CircuitBreakerMonitor(config) with no explicit recovery=, exactly what
+    every public example constructs -- not RecoveryEngine directly. This
+    file's own module docstring claims this is "exactly what a plain
+    CircuitBreakerMonitor(config) constructs"; this test is what actually
+    checks that claim end-to-end instead of only testing RecoveryEngine in
+    isolation.
+    """
+    _clear_recovery_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake-key-the-users-OWN-agent-needs")
+    mon = CircuitBreakerMonitor(MonitorConfig(original_goal="test goal", echo=False))
+    assert mon.recovery.backend == "mock", (
+        "the real construction path a user actually calls must resolve to "
+        "mock, not just RecoveryEngine() in isolation")
