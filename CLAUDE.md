@@ -8,7 +8,7 @@ judging the run is never the thing performing it.
 
 Repo: https://github.com/ns-0437/agentfuse (public) · Dashboard: https://ns-0437.github.io/agentfuse/
 
-## Current state (2026-09-11)
+## Current state (2026-09-12)
 
 Synthetic suite: 1018 scenarios, **0 errors**, precision/recall/F1 all 100.0%,
 FPR 0.0% — re-verified with a full ablation, 25-seed significance test, 4-seed
@@ -40,6 +40,20 @@ closing a real weakness named in an earlier readiness review: every type
 annotation fixed across two full sessions of work had nothing enforcing it
 going forward. `evals.generators`/`evals.generators_extra` are the one
 deliberate, stated exception (see `pyproject.toml`'s `[tool.mypy]` comment).
+
+**`ConfidenceDetector` deleted** (2026-09-11, user's explicit call): fully
+built, tested, and measured actively harmful (+10.8 F1 for removing it), but
+never wired into `MonitorConfig` — unreachable, not merely off. Kept the
+`_token_logprobs`/`summarize` utilities it depended on; other code still
+uses them.
+
+**`RecoveryEngine` no longer auto-upgrades to the billed backend from a bare
+`OPENAI_API_KEY`** (2026-09-12, REPORT.md 3.34) — a real, reproduced bug: any
+key present for a user's own unrelated agent silently switched them into
+paid API calls and the measurably worse reasoning-model recovery ladder.
+Fixed to require an explicit `AGENTFUSE_RECOVERY_BACKEND=real` (or a
+self-hosted `AGENTFUSE_LLM_BASE_URL`, already deliberate); default is always
+`mock` otherwise.
 
 The anchor-grounding gap (detection-side) has FOUR independently rejected fix
 attempts on record (REPORT.md 3.17, 3.18, 3.20, 3.21), spanning every static
@@ -117,7 +131,7 @@ agentfuse/
                                  rather than rewritten from scratch each time (REPORT.md 3.17-3.21)
     captured/                    committed real traces + hand/oracle-written labels (*.json + *.jsonl)
       suite/                      real_suite.py's own corpus + labels.json
-    test_*.py                   346 tests total, `pytest evals/ -q`
+    test_*.py                   352 tests total, `pytest evals/ -q`
 
   models/                     local GGUF weights (qwen2.5-3b, qwen2.5-7b) — no API key needed
   dashboard/                  static HTML dashboard, published via GitHub Pages
