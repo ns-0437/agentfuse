@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from agentfuse.env import find_env_file, load_env, describe  # noqa: E402
+from agentfuse.env import find_env_file, load_env, describe, read_env_text  # noqa: E402
 
 EXPECTED = ("OPENAI_API_KEY", "AGENTFUSE_MODEL",
             "AGENTFUSE_RECOVERY_MODEL", "AGENTFUSE_EMBED_MODEL")
@@ -30,7 +30,7 @@ def main() -> int:
     problems: list[str] = []
     seen: set[str] = set()
 
-    for i, raw in enumerate(env_path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+    for i, raw in enumerate(read_env_text(env_path).splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
