@@ -19,9 +19,11 @@ llama.cpp server needs no key and costs nothing:
 
 Why a sample rather than the full suite
 ---------------------------------------
-A 3B model on CPU takes ~20s per steering call. The full 936-scenario suite fires
-~440 trips, which is over three hours for one configuration and useless as a
-feedback loop. This takes a **stratified sample across detectors and rungs**
+A 3B model on CPU takes ~20s per steering call. The full 1018-scenario suite
+fires ~490 trips (one per positive scenario, at the suite's own measured 100%
+recall / 0% FPR), which is over two and a half hours for one configuration
+and useless as a feedback loop. This takes a **stratified sample across
+detectors and rungs**
 instead, which is enough to compare two backends on the same inputs. It is a
 paired comparison on identical snapshots, so it is far more sensitive than the
 sample size suggests — but the sample is small, and any result should be read as
