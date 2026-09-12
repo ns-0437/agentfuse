@@ -36,6 +36,7 @@ disabling it would confuse "don't bill me" with "don't think".
 from __future__ import annotations
 
 import os
+import warnings
 from typing import Callable, Optional
 
 from .env import load_env, offline_mode
@@ -123,6 +124,23 @@ def get_embedder(prefer: Optional[str] = None) -> tuple[Optional[Callable[[str],
         return e, "embedding:local"
     e = openai_embedder()
     if e:
+        # "auto" falling through to the billed backend is a real, silent-cost
+        # path: it happens purely because OPENAI_API_KEY exists (almost
+        # always set for the caller's OWN agent, not as a request for
+        # AgentFuse to spend money) and fastembed is not installed. Unlike
+        # RecoveryEngine's backend selection (REPORT.md 3.34), this is not
+        # measured worse than the alternative -- real embeddings genuinely
+        # beat the lexical fallback -- so it stays the default. But it must
+        # not be silent: `pip install fastembed` or AGENTFUSE_EMBED_BACKEND=none
+        # are both one line away, and a bill nobody expected is exactly the
+        # kind of surprise this project's whole safety posture exists to avoid.
+        warnings.warn(
+            "AgentFuse is using hosted OpenAI embeddings for drift detection "
+            "because OPENAI_API_KEY is set and no local embedder is available "
+            "(pip install agentfuse[embeddings] for a free, local ONNX "
+            "alternative). This bills your OpenAI account per call. Set "
+            "AGENTFUSE_EMBED_BACKEND=none to force the lexical fallback instead.",
+            RuntimeWarning, stacklevel=3)
         return e, "embedding:openai"
     return None, "lexical"
 
