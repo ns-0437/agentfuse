@@ -16,7 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agentfuse.env import find_env_file, load_env, describe, read_env_text  # noqa: E402
 
 EXPECTED = ("OPENAI_API_KEY", "AGENTFUSE_MODEL",
-            "AGENTFUSE_RECOVERY_MODEL", "AGENTFUSE_EMBED_MODEL")
+            "AGENTFUSE_RECOVERY_MODEL", "AGENTFUSE_EMBED_MODEL",
+            # Explicit opt-ins added when RecoveryEngine stopped auto-selecting
+            # "real" from a bare OPENAI_API_KEY (REPORT.md 3.34) -- a reader
+            # following that fix's own advice into their .env would otherwise
+            # have this script call it an "unexpected name".
+            "AGENTFUSE_RECOVERY_BACKEND", "AGENTFUSE_EMBED_BACKEND")
 
 
 def main() -> int:
