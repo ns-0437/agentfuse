@@ -232,6 +232,19 @@ agentfuse/
     claim — existed as two byte-identical, untested copies in two different
     scripts before being extracted to `steering_compliance.py`. The evidence
     for a headline number is exactly where duplication is most expensive.
+16. **A generic environment variable's presence is not informed consent for
+    a billed call or a behavior change.** `RecoveryEngine` used to auto-select
+    `backend="real"` from a bare `OPENAI_API_KEY` — a variable an
+    integrator's own agent almost always already needs for something
+    unrelated — silently opting them into paid API calls and the measurably
+    worse recovery ladder (REPORT.md 3.34). The fix pattern, worth repeating
+    anywhere a similar check gets added: gate real/billed/non-default
+    behavior on an AgentFuse-specific signal (a dedicated env var, an
+    explicit constructor argument), never on a widely-reused variable's mere
+    presence. Where a silent fallback is legitimate (e.g. `get_embedder()`
+    preferring hosted embeddings over lexical when no local model is
+    installed — a genuine quality win, not a measured-worse path), it must
+    still warn, not stay silent.
 
 ## Useful commands
 
