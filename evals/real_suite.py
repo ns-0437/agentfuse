@@ -33,7 +33,7 @@ healthy. That rule reads only the agent's behaviour, so scoring the detectors
 against it is not circular — the design intent above is a *hypothesis about what
 the model will do*, and where the model disagrees the observation wins.
 
-    python -m llama_cpp.server --model models/<m>.gguf --n_ctx 8192 --port 8080
+    python -m llama_cpp.server --model models/<m>.gguf --n_ctx 8192 --port 8080 --n_threads 6
     python evals/real_suite.py --base-url http://127.0.0.1:8080/v1
 
 Note the ABSENT `--chat_format chatml-function-calling`. That handler parses tool

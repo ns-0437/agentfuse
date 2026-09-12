@@ -14,7 +14,7 @@ scored against an agent that was actually *thinking*.
 This fixes that. It runs a real model through the real ``guarded_tool_loop``
 adapter against real tools, and records whatever happens.
 
-    python -m llama_cpp.server --model models/<m>.gguf --n_ctx 4096 --port 8080
+    python -m llama_cpp.server --model models/<m>.gguf --n_ctx 4096 --port 8080 --n_threads 6
     python evals/capture_real_runs.py --base-url http://127.0.0.1:8080/v1
 
 Method, and the parts that keep it honest

@@ -15,7 +15,7 @@ same rubric, so the comparison is like-for-like:
 Point ``AGENTFUSE_LLM_BASE_URL`` at any OpenAI-compatible endpoint. A local
 llama.cpp server needs no key and costs nothing:
 
-    python -m llama_cpp.server --model models/<model>.gguf --n_ctx 4096 --port 8080
+    python -m llama_cpp.server --model models/<model>.gguf --n_ctx 4096 --port 8080 --n_threads 6
 
 Why a sample rather than the full suite
 ---------------------------------------
@@ -129,7 +129,7 @@ def main() -> int:
     if not args.base_url:
         print("No endpoint configured. Set AGENTFUSE_LLM_BASE_URL or pass --base-url.\n"
               "A local llama.cpp server costs nothing:\n"
-              "  python -m llama_cpp.server --model models/<m>.gguf --n_ctx 4096 --port 8080")
+              "  python -m llama_cpp.server --model models/<m>.gguf --n_ctx 4096 --port 8080 --n_threads 6")
         return 2
 
     cases = [(GOALS[i % len(GOALS)], trip, 7 + i)
