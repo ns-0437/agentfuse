@@ -14,7 +14,21 @@ Backends:
     and synthesizes a sensible recovery. Lets the whole system be demoed offline
     and keeps CI hermetic.
 
-The engine auto-selects ``real`` when ``OPENAI_API_KEY`` is present, else ``mock``.
+``mock`` is the default, and stays the default even when ``OPENAI_API_KEY`` is
+set. That is a deliberate reversal of this module's original behaviour (auto-
+selecting ``real`` whenever a key was present), which had a real problem: an
+integrator's OWN agent almost always needs ``OPENAI_API_KEY`` for something
+unrelated to AgentFuse, and the old logic silently opted them into billed API
+calls AND a measurably worse recovery ladder the moment that variable existed
+in their environment — never something they asked for. Section 8.1/4.12 of
+REPORT.md settled that the reasoning-model backend loses to the deterministic
+templates at every model size tested (3B, 7B, and o4-mini), so there is no
+quality reason to auto-upgrade even if there were no billing concern.
+
+``real`` is now reachable only by explicit choice: pass ``backend="real"``,
+point ``AGENTFUSE_LLM_BASE_URL`` at a self-hosted endpoint (an AgentFuse-
+specific variable nobody sets by accident), or set
+``AGENTFUSE_RECOVERY_BACKEND=real``.
 """
 
 from __future__ import annotations
@@ -152,8 +166,17 @@ class RecoveryEngine:
                 backend = "real"
             elif offline_mode():
                 backend = "mock"
+            elif os.getenv("AGENTFUSE_RECOVERY_BACKEND") == "real":
+                backend = "real"
             else:
-                backend = "real" if os.getenv("OPENAI_API_KEY") else "mock"
+                # Deliberately NOT `"real" if os.getenv("OPENAI_API_KEY") else
+                # "mock"` -- see the module docstring. An integrator's own
+                # agent almost always needs that variable for something that
+                # has nothing to do with AgentFuse's recovery step, and
+                # inferring consent to billed calls (and a measurably worse
+                # ladder) from its mere presence is not a default anyone
+                # should get by accident.
+                backend = "mock"
         self.backend = backend
         self._client = self._make_client() if backend == "real" else None
         if backend == "real" and self._client is None:
