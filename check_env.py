@@ -30,7 +30,24 @@ def main() -> int:
     problems: list[str] = []
     seen: set[str] = set()
 
-    for i, raw in enumerate(read_env_text(env_path).splitlines(), 1):
+    raw_text = read_env_text(env_path)
+    # The other half of load_env()'s own workaround (agentfuse/env.py):
+    # PowerShell's `>` redirect does not interpret \n, so the documented
+    # `printf 'A=1\nB=2\n' > .env` writes ONE line containing the escape
+    # sequences verbatim. load_env() unglues it before parsing; this
+    # diagnostic must check the RAW text for the pattern first, or it never
+    # tells the user what actually went wrong -- it would just see an
+    # oversized value with another variable's name glued into it. Measured
+    # on this machine once: key length 200 instead of 164, second variable
+    # silently absent (agentfuse/env.py's load_env() docstring).
+    if "\\n" in raw_text:
+        problems.append(
+            "the file contains a literal backslash-n instead of a real newline "
+            "-- your shell's redirect did not interpret \\n. AgentFuse still "
+            "works around this internally, but fix the file directly: put each "
+            "KEY=value pair on its own real line")
+
+    for i, raw in enumerate(raw_text.replace("\\n", "\n").splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
