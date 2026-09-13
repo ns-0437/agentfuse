@@ -68,8 +68,21 @@ They are complementary rather than competing, and neither is sufficient alone:
 - An external monitor is deterministic and model-agnostic, but is blind to the
   model's internal state and can only reason about observable behaviour.
 
-The interesting synthesis, which is on the AgentFuse roadmap as the "signal
-ladder", is that ESR demonstrates the internal off-topic signal genuinely exists
-and is causally implicated — the model simply acts on it rarely. Extracting that
-signal directly (rather than waiting for the model to act on it) and fusing it
-with behavioural evidence is strictly better than either alone.
+The interesting synthesis this section originally proposed as future work — a
+"signal ladder" fusing an internal off-topic signal with behavioural evidence —
+has since been attempted, not merely proposed. **Update, 2026-09:** two internal
+tiers were built and measured against AgentFuse's own detectors (REPORT.md
+sections 3.4, 4.11, 4.12, 8.8). Both underperformed rather than complemented:
+a token-logprob confidence signal cost 10.8 F1 points when enabled (later
+deleted from the codebase entirely, not merely disabled) and an activation-probe
+tier was 19,000× more expensive than the string comparison that already caught
+the same failures. A separate attempt to merge an internal receptiveness signal
+with the external supervisor (REPORT.md section 6.5) found the internal signal
+had no variance left to predict against a real model, since it resisted 97.6%
+of corrections regardless. "Fusing it with behavioural evidence is strictly
+better than either alone" was the hypothesis this citation motivated; it did
+not hold up against a real model at the sizes tested, and the honest synthesis
+turned out to be simpler than either line of work implied: reading the model's
+insides did not beat reading its behaviour, and the model's own internal
+consistency monitoring engaged too rarely (ESR's own headline number) to serve
+as a control lever regardless.
