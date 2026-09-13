@@ -62,7 +62,17 @@ def test_explicit_backend_argument_is_never_overridden(monkeypatch):
 
 
 def test_agentfuse_recovery_backend_env_var_is_a_real_explicit_opt_in(monkeypatch):
+    """The decision logic, isolated from whether `openai` happens to be
+    installed. `_make_client` gracefully falls back to mock when the SDK is
+    genuinely unavailable (correct: CI's own "test" job installs the package
+    with zero extras specifically to verify the stdlib-only core, so `openai`
+    is NOT installed there -- this test found that gap live, failing in CI
+    while passing locally where openai happens to be installed for other
+    tests). Stubbing _make_client isolates "which env var wins" from "is the
+    SDK importable", which is the thing this test actually means to check.
+    """
     _clear_recovery_env(monkeypatch)
+    monkeypatch.setattr(RecoveryEngine, "_make_client", lambda self: object())
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake-but-syntactically-present")
     monkeypatch.setenv("AGENTFUSE_RECOVERY_BACKEND", "real")
     eng = RecoveryEngine()
@@ -72,8 +82,13 @@ def test_agentfuse_recovery_backend_env_var_is_a_real_explicit_opt_in(monkeypatc
 
 
 def test_a_self_hosted_base_url_is_still_a_deliberate_signal(monkeypatch):
-    """AGENTFUSE_LLM_BASE_URL is AgentFuse-specific -- nobody sets it by accident."""
+    """AGENTFUSE_LLM_BASE_URL is AgentFuse-specific -- nobody sets it by accident.
+
+    _make_client stubbed for the same reason as the test above: this checks
+    which signal the decision logic honours, not whether openai is installed.
+    """
     _clear_recovery_env(monkeypatch)
+    monkeypatch.setattr(RecoveryEngine, "_make_client", lambda self: object())
     monkeypatch.setenv("AGENTFUSE_LLM_BASE_URL", "http://127.0.0.1:8080/v1")
     eng = RecoveryEngine()
     assert eng.backend == "real"
