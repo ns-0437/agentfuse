@@ -1,4 +1,14 @@
-"""OpenAI AgentKit adapter — first-class integration.
+"""A generic, manually-wired AgentKit bridge — for a hook API that does not
+match ``agents.RunHooks`` directly.
+
+If your installed AgentKit version's lifecycle hooks match the current
+``openai-agents`` SDK's ``RunHooks`` interface, use
+:class:`agentfuse.adapters.agentkit_hooks.FuseRunHooks` instead — it is a
+genuine ``RunHooks`` subclass this project tests directly against the real
+SDK, and the one README.md recommends. This class exists for the case that
+doesn't cover: an AgentKit release whose hook names or lifecycle shape have
+since diverged, where a drop-in subclass isn't an option and something has to
+be wired by hand.
 
 AgentKit runs agents as a graph of nodes with a runner and lifecycle hooks. This
 adapter bridges those hooks to the AgentFuse monitor: each tool call, model turn,
@@ -6,11 +16,17 @@ and node transition becomes an ``AgentEvent``; when the breaker returns an INJEC
 directive, we push the steering instruction back into the agent as a system-role
 message before the next turn.
 
-AgentKit's hook surface has evolved across releases, so this adapter is written
-against the stable *concepts* (on_tool_call / on_message / on_handoff / on_step)
-and exposes them as plain callables. Wire whichever hook names your installed
-AgentKit version exposes to the matching ``on_*`` method below — the mapping is
-one line each and documented inline.
+Written against the stable *concepts* (on_tool_call / on_message / on_handoff /
+on_step) and exposes them as plain callables, since a hook surface that has
+already evolved out from under a real RunHooks subclass is not something a
+second subclass can absorb either. Wire whichever hook names your installed
+AgentKit version exposes to the matching ``on_*`` method below — the mapping
+is one line each and documented inline.
+
+Internal logic (step counting, directive plumbing, the take_steering() stash)
+is unit-tested (``evals/test_agentkit_breaker.py``); the actual AgentKit hook
+names it needs wiring to are, by construction, not something this project can
+test without knowing which divergent version a caller has.
 """
 
 from __future__ import annotations
