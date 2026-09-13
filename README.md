@@ -2,6 +2,8 @@
 
 > Autonomy that knows when it's going wrong — and steers itself back.
 
+[![CI](https://github.com/ns-0437/agentfuse/actions/workflows/ci.yml/badge.svg)](https://github.com/ns-0437/agentfuse/actions/workflows/ci.yml)
+
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
 **▶ Live observability dashboard:** https://ns-0437.github.io/agentfuse/ — explore every supervised run (timeline, trips, steering recoveries, token spend) right in the browser. Rebuilt automatically by CI on every green push, and it includes a **real Qwen2.5-7B run the breaker caught three times and never rescued** (the old delivery mechanism — see [REPORT.md section 3.6](REPORT.md)) — the failures are on the dashboard too, not just the successes.
