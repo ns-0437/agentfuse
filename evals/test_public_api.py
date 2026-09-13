@@ -12,14 +12,36 @@ lives in, so the top-level `__init__.py` had no test surface of its own at all.
 
 from __future__ import annotations
 
+import re
 import sys
-import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import agentfuse  # noqa: E402
+
+
+def _parse_optional_dependencies(pyproject_text: str) -> dict:
+    """Extract `[project.optional-dependencies]`'s `name = ["pkg", ...]` pairs.
+
+    Deliberately not `tomllib`: that is Python 3.11+ only, and this project's
+    own `requires-python = ">=3.9"` is tested in CI down to 3.9 -- `import
+    tomllib` at module level broke collection of this ENTIRE test file (and,
+    because pytest aborts the run on any collection error, silently skipped
+    every other test in the suite too) on every 3.9 CI cell the moment this
+    file was added. A real TOML parser is unwarranted for one flat,
+    single-section table this project controls the exact shape of; a scoped
+    regex is honest about what it actually handles.
+    """
+    section = re.search(
+        r"\[project\.optional-dependencies\](.*?)(?:\n\[|\Z)", pyproject_text, re.DOTALL)
+    assert section, "could not find [project.optional-dependencies] in pyproject.toml"
+    out: dict = {}
+    for name, body in re.findall(r"^(\w[\w.-]*)\s*=\s*\[(.*?)\]", section.group(1),
+                                 re.MULTILINE | re.DOTALL):
+        out[name] = re.findall(r'"([^"]+)"', body)
+    return out
 from agentfuse.detectors import __all__ as DETECTOR_EXPORTS  # noqa: E402
 
 
@@ -55,8 +77,7 @@ def test_the_all_extra_is_a_superset_of_every_other_extra():
     A generic check beats another one-off list, so this can't silently drop
     a future extra the same way.
     """
-    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    extras = data["project"]["optional-dependencies"]
+    extras = _parse_optional_dependencies((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     all_pkgs = {pkg.split(">=")[0].split("==")[0] for pkg in extras["all"]}
     for name, pkgs in extras.items():
         if name == "all":
