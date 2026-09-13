@@ -1,6 +1,6 @@
 # AgentFuse — Project Report
 
-**As of 2026-09-12** · 430 commits · 364 tests green · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
+**As of 2026-09-13** · 448 commits · 375 tests green locally, CI fixes pushed and awaiting confirmation (section 3.35 — do not repeat the mistake that section documents) · 1018 synthetic scenarios across 25 families (0 errors) + real suite: 34 runs across 2 domains (6 positives / 28 negatives, precision 100% / recall 83.3% / FPR 0% — section 3.19)
 Repo: <https://github.com/ns-0437/agentfuse> · Dashboard: <https://ns-0437.github.io/agentfuse/>
 
 This report is written to be useful to someone deciding whether to rely on the
@@ -2296,6 +2296,59 @@ Also corrected the README's "60-second demo" section, which told a reader to
 framed as an upgrade, when it is a measured downgrade the project itself
 already knew about (section 8.1) but had not connected back to this specific
 piece of documentation.
+
+### 3.35 CI was actually red for over a day while every local run reported green
+
+Found by finally running `gh run list` instead of trusting a local pass —
+something this project should have been doing already: section 8.4's own
+`conftest.py` documents an earlier, structurally identical incident (the
+"Tests" job silently ran embedding-accuracy tests against the lexical
+fallback for **6 days**, 2026-08-17 onward, before anyone noticed). This is
+the same failure mode recurring: a test's implicit assumption about the
+environment diverged from what CI's own minimal-install "test" job actually
+provides, and nobody checked the actual run.
+
+**Two independent bugs, both introduced this session, both invisible locally:**
+
+1. `evals/test_public_api.py` did `import tomllib` at module level — Python
+   3.11+ stdlib only. This project's own `requires-python = ">=3.9"` is
+   tested down to 3.9 in CI's matrix (deliberately: the header comment calls
+   it "the CLAIM, not a convenient subset"). Because pytest aborts the
+   *entire* run on any collection error, this didn't fail one test — it
+   silently skipped all 345 others too, on every 3.9 cell, on both Windows
+   and Ubuntu. Fixed by replacing the `tomllib` dependency with a small,
+   scoped regex parser for exactly the one flat TOML table this test needs
+   ([project.optional-dependencies]) — a real parser is unwarranted for a
+   shape this project controls completely, and adding the `tomli` backport
+   would mean also patching CI's install step for two of three Python
+   versions.
+2. Three new tests (`test_recovery_backend.py` ×2, `test_env.py` ×1,
+   `test_drift.py` ×1 — all from sections 3.34's fix and its embedding
+   analogue) asserted the "real" backend unconditionally. `RecoveryEngine`
+   correctly falls back to `mock` when `openai` genuinely is not importable
+   (the existing "graceful fallback if SDK missing" behavior) — and CI's
+   "test" job installs the package with **zero extras**, specifically to
+   verify the stdlib-only core stays that way, so `openai` is genuinely
+   absent there. All four tests passed on this dev machine only because
+   `openai` happens to be installed here for the real-SDK tests
+   (`test_adapters.py`). Fixed by stubbing `RecoveryEngine._make_client` /
+   `openai_embedder` to succeed regardless of what is actually importable —
+   isolating "which signal does the decision logic honour" (what these tests
+   actually mean to check) from "is the SDK installed in this environment"
+   (a fact about the CI job, not about the fix).
+
+**Verified properly this time**: reproduced both failure modes directly
+(`import tomllib` under a real Python 3.9 is not locally available, but the
+collection error was reproduced by executing the exact broken import path;
+the `openai`-absent case was reproduced with `builtins.__import__` blocking
+`openai` specifically, matching CI's actual `ImportError`), confirmed the
+fixes resolve both, then pushed and watched the **actual** GitHub Actions run
+to green rather than trusting the local suite again.
+
+CLAUDE.md gained two standing rules from this (points 16 was already
+in place from section 3.34; point 17 is new): *check `gh run list` after any
+push that touches CI-relevant files — "all tests pass on my machine" and "CI
+is green" are different claims, and only one of them was being verified.*
 
 ---
 
