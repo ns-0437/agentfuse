@@ -4,6 +4,9 @@ __pycache__/
 *.pyc
 .venv/
 
+# `pip install -e .` (README's own documented install step) creates this
+*.egg-info/
+
 # Captured traces are eval fixtures, not scratch output
 !evals/captured/
 
