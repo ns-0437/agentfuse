@@ -80,3 +80,19 @@ def test_the_new_explicit_opt_in_vars_are_not_flagged_as_unexpected(tmp_path, mo
         f"AGENTFUSE_RECOVERY_BACKEND/AGENTFUSE_EMBED_BACKEND must be recognised, "
         f"not reported as a mistake:\n{out}")
     assert "All good" in out
+
+
+def test_flags_the_literal_env_example_placeholder(tmp_path, monkeypatch, capsys):
+    """.env.example itself ships `OPENAI_API_KEY=sk-...` as its placeholder --
+    a reader who copies the file verbatim without editing it must be told,
+    not shown "All good" for a key that obviously is not a real one."""
+    p = tmp_path / ".env"
+    p.write_text("OPENAI_API_KEY=sk-...\n", encoding="utf-8")
+    monkeypatch.setattr(check_env, "find_env_file", lambda: p)
+    monkeypatch.setattr(check_env, "load_env", lambda: True)
+    monkeypatch.setattr(check_env, "describe", lambda: "OPENAI_API_KEY: sk-...")
+
+    check_env.main()
+    out = capsys.readouterr().out
+    assert "placeholder" in out
+    assert "All good" not in out
