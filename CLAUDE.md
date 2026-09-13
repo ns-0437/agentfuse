@@ -245,6 +245,20 @@ agentfuse/
     preferring hosted embeddings over lexical when no local model is
     installed — a genuine quality win, not a measured-worse path), it must
     still warn, not stay silent.
+17. **"All tests pass locally" is not "CI is green" — check `gh run list`,
+    not just your own machine.** Two real bugs shipped and sat broken in CI
+    for over a day despite every local run this session reporting full green:
+    (a) a test file used `tomllib` (Python 3.11+ stdlib), which aborted
+    collection of the ENTIRE suite on every 3.9 CI cell — 345 other tests
+    silently skipped, not just the one file; (b) three new tests asserted the
+    "real" recovery/embedding backend without accounting for `openai` not
+    being installed, which is true in CI's own minimal "test" job (`pip
+    install -e .` with zero extras, specifically to verify the stdlib-only
+    core) and false on this dev machine (installed for other, real-SDK
+    tests). Both passed every local run and both broke on GitHub Actions
+    immediately. `gh run list` / `gh run view <id> --log-failed` after any
+    push that touches CI-relevant files is not optional verification, it is
+    the only way to see the actual target environment.
 
 ## Useful commands
 
