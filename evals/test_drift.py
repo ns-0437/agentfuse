@@ -246,10 +246,20 @@ def test_silently_falling_back_to_the_billed_backend_warns(monkeypatch):
     3.34), real embeddings genuinely beat the lexical fallback, so this stays
     the default. But it must not happen without the caller ever finding out
     it is now paying for API calls it never explicitly requested.
+
+    Both local_embedder AND openai_embedder are stubbed, not just the first:
+    this checks get_embedder()'s decision/warning logic, not whether `openai`
+    happens to be importable in the current environment. Found failing in
+    CI's minimal-install "test" job for exactly that gap -- that job installs
+    the package with zero extras specifically to verify the stdlib-only core,
+    so `openai_embedder()` correctly returns None there (ImportError caught),
+    the warning correctly never fires, and this test's un-stubbed first draft
+    wrongly expected it to.
     """
     import agentfuse.embedding as embedding_module
 
     monkeypatch.setattr(embedding_module, "local_embedder", lambda model_name=None: None)
+    monkeypatch.setattr(embedding_module, "openai_embedder", lambda: (lambda text: [0.0]))
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake-key-an-unrelated-agent-needs")
     monkeypatch.delenv("AGENTFUSE_OFFLINE", raising=False)
     monkeypatch.delenv("AGENTFUSE_EMBED_BACKEND", raising=False)
