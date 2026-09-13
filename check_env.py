@@ -67,7 +67,7 @@ def main() -> int:
         seen.add(key)
         if key not in EXPECTED:
             problems.append(f"line {i}: unexpected name {key!r}")
-        if value.upper().startswith(("SK-YOUR", "SK-PROJ-YOUR", "SK-PROJ-PASTE")):
+        if value.upper().startswith(("SK-YOUR", "SK-PROJ-YOUR", "SK-PROJ-PASTE")) or value in ("sk-...", "sk-…"):
             problems.append(f"line {i}: {key} still holds the placeholder text")
         if value.startswith(("'", '"', "“", "‘")):
             problems.append(f"line {i}: {key} value is quoted — remove the quotes")
