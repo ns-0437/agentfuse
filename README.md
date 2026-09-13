@@ -3,6 +3,7 @@
 > Autonomy that knows when it's going wrong — and steers itself back.
 
 [![CI](https://github.com/ns-0437/agentfuse/actions/workflows/ci.yml/badge.svg)](https://github.com/ns-0437/agentfuse/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ![AgentFuse breaking a live agent loop and self-healing](assets/demo.gif)
 
