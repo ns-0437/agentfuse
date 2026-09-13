@@ -100,7 +100,15 @@ def test_describe_does_not_claim_real_recovery_from_a_bare_key(monkeypatch):
 
 
 def test_describe_reports_real_recovery_only_with_explicit_opt_in(monkeypatch):
+    """_make_client stubbed so this checks describe()'s reporting logic, not
+    whether `openai` happens to be installed in the current environment --
+    found failing in CI's minimal-install "test" job for exactly that reason
+    before this fix (RecoveryEngine gracefully falls back to mock when the
+    SDK genuinely is not importable, which is correct production behavior;
+    the test just needs to not depend on which environment it runs in)."""
     _isolate(monkeypatch)
+    from agentfuse.recovery import RecoveryEngine
+    monkeypatch.setattr(RecoveryEngine, "_make_client", lambda self: object())
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake-key")
     monkeypatch.setenv("AGENTFUSE_RECOVERY_BACKEND", "real")
     out = env.describe()
