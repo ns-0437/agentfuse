@@ -2512,6 +2512,42 @@ idempotent / compensatable / irreversible, reconcile unknown outcomes before
 retrying) — real future work, not solved here. Regression test in
 `evals/test_adapters_untested.py`.
 
+### 3.42 A checkpoint save failure vanished into a bare `except: pass`
+
+The last of section 3.36's "operational guarantees need explicit boundaries"
+list handled directly rather than only noted. `checkpoint()` swallowed any
+write failure silently — correct in spirit (a checkpoint failure must never
+take down the run being supervised, the same rule the recovery engine
+follows) but wrong in that it gave a caller who set `checkpoint_path=`
+*specifically* to survive a restart no way to learn that durability had
+quietly stopped. A disk-full or permissions error mid-run would leave the
+budget ceiling, loop counters and recovery-ladder position unpersisted from
+that point on, with nothing in the run's own output saying so.
+
+**Fix:** `checkpoint_healthy` (`None` = no store configured; `True`/`False`
+= the last save attempt's outcome) is now tracked on the monitor and
+surfaced in `finish()`'s summary dict alongside `escalation_delivered` (the
+same "silence must not look like success" principle that field already
+established). The first failure also warns once, not on every subsequent
+checkpoint interval — a run that cannot persist is a fact worth surfacing,
+not one worth repeating into a log nobody reads. Regression tests in
+`evals/test_checkpoint.py`.
+
+A related finding — `history`/`route_history` growing unbounded across a
+run measured in days — was investigated and deliberately NOT fixed this
+round: `evals/test_concurrency.py::test_token_accounting_survives_concurrency`
+asserts `len(mon.history) == 6 * 120 * 3` as a "no events lost under
+concurrency" guarantee, and no detector actually reads the `history`
+argument its own `inspect()` signature carries (each keeps its own bounded
+internal state instead) — the only real use is `history[-10:]` in a trip
+snapshot. Bounding it would contradict an existing, deliberately-tested
+guarantee rather than trade one real problem for a worse one; the honest
+answer is that the unbounded-memory-growth finding is real for a run long
+enough to matter, and closing it needs the "no events lost" test's own
+guarantee redesigned first (e.g. an unbounded audit log the caller owns,
+separate from a small bounded window the monitor keeps for itself) — not
+attempted here.
+
 ---
 
 ## 4. Findings worth keeping
