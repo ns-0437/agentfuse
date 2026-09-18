@@ -167,3 +167,44 @@ def test_hard_stop_escalates_instead_of_looping_forever():
     fuse, out, attempts = _drive(max_attempts=3, max_recoveries=0)
     assert out is None, "expected an escalation, not a completion"
     assert attempts <= 3
+
+
+# ---------------------------------------------------- progress vocabulary
+def test_progress_state_reflects_the_result_not_a_hardcoded_wordlist():
+    """Independent review (2026-09-17): ``on_tool_end`` used to keyword-match
+    the result against a fixed list lifted from THIS module's own demo
+    scenario (``"rotated"``, ``"secret-"``, ``"token:"``). A genuinely
+    successful result outside that demo registered as no progress at all,
+    and a FAILURE message merely containing the substring ``"secret-"``
+    registered as progress. Reproduced directly against the real hooks class
+    before fixing; see REPORT.md.
+    """
+    import asyncio
+    from types import SimpleNamespace as NS
+    from agentfuse.monitor import Directive
+
+    class Capture:
+        def __init__(self):
+            self.events = []
+
+        def observe(self, event):
+            self.events.append(event)
+            return Directive()
+
+    cap = Capture()
+    hooks = FuseRunHooks(original_goal="create an invoice", monitor=cap)
+
+    asyncio.run(hooks.on_tool_end(
+        None, NS(name="a"), NS(name="create_invoice"),
+        "Invoice 123 created successfully"))
+    assert cap.events[-1].state is not None, (
+        "a genuinely successful result outside the demo vocabulary must "
+        "still be reported as state, not silently dropped as None")
+
+    asyncio.run(hooks.on_tool_end(
+        None, NS(name="a"), NS(name="read_log"),
+        "ERROR: secret-not-found; operation failed"))
+    assert "ERROR" in cap.events[-1].state["result"], (
+        "the failure's own text must reach the monitor unfiltered — whether "
+        "it counts as a genuine ADVANCE is SeenStateTracker's job downstream, "
+        "not a keyword match at the adapter layer")

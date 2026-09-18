@@ -2442,6 +2442,28 @@ bit unchanged), and the real 34-trace corpus (precision 100%/recall
 without moving any headline number. Regression tests in
 `evals/test_monitor.py`.
 
+### 3.38 `FuseRunHooks` judged progress by a hardcoded, demo-specific wordlist
+
+Finding 4 from section 3.36. `on_tool_end` decided whether a tool result
+counted as progress by checking whether its text contained `"rotated"`,
+`"secret-"`, or `"token:"` — words lifted straight from this project's own
+credential-rotation demo (`evals/test_adapters.py`'s `secret_manager_get`
+happens to return text containing all three). Reproduced directly: "Invoice
+123 created successfully" registered `state=None` (no progress at all, on a
+message that plainly describes a completed task), and "ERROR:
+secret-not-found; operation failed" registered `progress=True` (on a message
+that plainly describes a failure), purely because of the substring
+`"secret-"`.
+
+**Fix:** set `state` unconditionally from the actual result, matching
+`openai_sdk.py`'s own `TOOL_RESULT` handling — `{"tool": ..., "result":
+text[:120]}` every time, no keyword filter. Whether a state is a *genuine*
+advance is already answered correctly downstream by `SeenStateTracker`'s
+bounded-window novelty check (the same mechanism CLAUDE.md point 13 already
+applied once to fix `_verify_pending`'s identical mistake) — the adapter's
+job is only to report what happened, not to pre-judge it. Regression test in
+`evals/test_adapters.py`.
+
 ---
 
 ## 4. Findings worth keeping
