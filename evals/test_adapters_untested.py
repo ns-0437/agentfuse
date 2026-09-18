@@ -33,6 +33,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace as NS
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -41,6 +42,7 @@ os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 from agentfuse import (  # noqa: E402
     AgentEvent, CircuitBreakerMonitor, EventType, MonitorConfig, Tracer,
 )
+from agentfuse.monitor import Directive, DirectiveKind  # noqa: E402
 from agentfuse.adapters.openai_sdk import guarded_tool_loop  # noqa: E402
 from agentfuse.adapters.langgraph import FuseCallbackHandler  # noqa: E402
 
@@ -279,6 +281,110 @@ def test_malformed_arguments_are_reported_back_to_the_model():
     tool_msgs = [m for turn in client.seen for m in turn if m.get("role") == "tool"]
     assert tool_msgs, "no tool message was fed back after the parse failure"
     assert "not valid JSON" in tool_msgs[-1]["content"]
+
+
+# --------------------------------------------- auto-built monitor config
+def test_guarded_tool_loop_forwards_model_for_pricing_when_no_monitor_given():
+    """Independent review (2026-09-17): ``model`` drove inference but was
+    never forwarded into the auto-built ``MonitorConfig``, so a configured
+    ``max_cost_usd`` ceiling could never be enforced -- every token stayed
+    "unpriced" and the run finished ``complete`` regardless of the ceiling.
+    No test exercised this path: every other call site in this repo passes
+    an explicit ``monitor=``, so the auto-construct branch was untested.
+    """
+    class Completions:
+        def create(self, **kwargs):
+            return NS(choices=[NS(message=NS(content="Done", tool_calls=None))],
+                      usage=NS(prompt_tokens=1000, completion_tokens=1000))
+
+    client = NS(chat=NS(completions=Completions()))
+    summary = guarded_tool_loop(
+        client, model="gpt-4o", system_prompt="Assist", user_input="Do task",
+        tools=[], tool_router=lambda *_: None, max_cost_usd=0.000001, echo=False)
+
+    assert summary["unpriced_tokens"] == 0, "the model must be priced automatically"
+    assert summary["cost_is_complete"] is True
+    assert summary["status"] == "escalated", (
+        "an exhausted dollar ceiling must actually stop the run, not just warn")
+
+
+def test_guarded_tool_loop_anchors_on_user_input_not_a_generic_system_prompt():
+    """A generic system prompt ("You are a helpful assistant") is a poor drift
+    anchor for a concrete task; the auto-built config should anchor on the
+    actual task (user_input) when the caller does not override it."""
+    mon_holder = {}
+
+    class _CapturingMonitor(CircuitBreakerMonitor):
+        def __init__(self, config, **kw):
+            mon_holder["config"] = config
+            super().__init__(config, **kw)
+
+    import agentfuse.adapters.openai_sdk as sdk_mod
+    original = sdk_mod.CircuitBreakerMonitor
+    sdk_mod.CircuitBreakerMonitor = _CapturingMonitor
+    try:
+        guarded_tool_loop(
+            FakeOpenAI([_Resp(_Msg("done", None))]), model="gpt-4.1",
+            system_prompt="You are a helpful assistant.",
+            user_input="Reconcile invoice 123 against the ledger.",
+            tools=[], tool_router=lambda n, a: "ok", max_turns=3)
+    finally:
+        sdk_mod.CircuitBreakerMonitor = original
+
+    assert mon_holder["config"].original_goal == "Reconcile invoice 123 against the ledger."
+
+
+def test_rerun_does_not_repeat_an_already_committed_write():
+    """Independent review (2026-09-17): ``rerun`` discards the failing turns'
+    MESSAGES on a steer but not their EFFECTS. If the model reissues the same
+    call after the restart, the old adapter re-invoked ``tool_router`` a
+    second time -- a real duplicate write. Reproduced directly with a
+    scripted two-write task before fixing.
+    """
+    def turn(calls):
+        return _Resp(_Msg("working", [
+            _ToolCall(name, {}, i) for i, name in enumerate(calls)]))
+
+    class RerunClient:
+        def __init__(self):
+            self.i = 0
+            self.chat = type("Chat", (), {"completions": self})()
+
+        def create(self, model, messages, **kw):
+            turns = [turn(["write_record", "search"]), turn(["write_record"]),
+                     _Resp(_Msg("done", None))]
+            resp = turns[min(self.i, len(turns) - 1)]
+            self.i += 1
+            return resp
+
+    writes = []
+
+    class OneTripMonitor:
+        def __init__(self):
+            self.tripped = False
+
+        def observe(self, event):
+            if (event.type is EventType.TOOL_RESULT and event.tool_name == "search"
+                    and not self.tripped):
+                self.tripped = True
+                return Directive(DirectiveKind.INJECT, steering_text="Try another approach")
+            return Directive()
+
+        def finish(self, status):
+            return {"status": status}
+
+    def route(name, args):
+        if name == "write_record":
+            writes.append("committed")
+        return "ok"
+
+    guarded_tool_loop(RerunClient(), model="fake", system_prompt="task",
+                      user_input="task", tools=[], tool_router=route,
+                      monitor=OneTripMonitor())
+
+    assert len(writes) == 1, (
+        f"write_record was invoked {len(writes)} times across one rerun; "
+        f"a steer must not cause an already-committed write to repeat")
 
 
 # ------------------------------------------------------------- langgraph

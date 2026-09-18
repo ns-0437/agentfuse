@@ -2464,6 +2464,54 @@ applied once to fix `_verify_pending`'s identical mistake) — the adapter's
 job is only to report what happened, not to pre-judge it. Regression test in
 `evals/test_adapters.py`.
 
+### 3.39 The SDK adapter's auto-built config couldn't price its own model, and anchored on boilerplate
+
+Two more findings from section 3.36, both in `guarded_tool_loop`'s
+untested auto-construct path (every real call site in this repo passes an
+explicit `monitor=`, so nobody had exercised the branch that builds one):
+
+1. **Finding 3.** `model` drives the actual inference call but was never
+   forwarded into the auto-built `MonitorConfig`, so `SpendDetector` had
+   nothing to price tokens with. Reproduced directly: a real dollar ceiling
+   with 2,000 synthetic tokens finished `complete`, all 2,000 reported
+   `unpriced`, ceiling never enforced (a warning fired; a warning is not
+   enforcement). Fixed by defaulting the config's `model` to the same one
+   driving inference — `config_kwargs.setdefault("model", model)` — while an
+   explicit override still wins.
+2. **Section 7's operational-boundaries list.** `original_goal` defaulted to
+   `system_prompt` alone, which is frequently generic boilerplate ("You are a
+   helpful assistant") and a poor drift anchor for a concrete task. Now
+   defaults to `user_input` (the actual task), with an explicit override
+   still available.
+
+Regression tests in `evals/test_adapters_untested.py`; full suite (381 tests,
+after this batch's additions) and both eval corpora re-verified clean.
+
+### 3.40 `rerun` discarded the failing messages but not their effects
+
+Finding 6 from section 3.36. The `"rerun"` intervention — the mechanism
+behind section 3.6's 0-of-8-to-6-of-8 result — rebuilds the conversation from
+`baseline` plus the correction, discarding every message from the turns that
+failed. It never tracked which of those turns had already committed a real
+effect through `tool_router`. Reproduced directly: a scripted two-write task
+(`write_record` called once before the steer, once again after the model
+reissued the identical call post-restart) committed the write **twice**.
+
+**Fix, scoped honestly.** This is a same-run, in-memory safeguard, not a
+durable operation ledger: `guarded_tool_loop` now caches
+`(tool, canonical-args) -> result` for every call that succeeds, and a repeat
+of an already-committed signature replays the cached result instead of
+calling `tool_router` again — unless the tool is named in the new
+`idempotent_tools` parameter, for tools where repeating is known-safe (a
+read-only lookup, or a write with its own dedup key). What this does **not**
+do, stated plainly rather than implied: survive a process restart, reconcile
+a call whose outcome was genuinely unknown (a timeout mid-write), or handle a
+semantically-equivalent-but-textually-different repeat. Those need the
+operation-ledger design the review sketches (classify tools as read-only /
+idempotent / compensatable / irreversible, reconcile unknown outcomes before
+retrying) — real future work, not solved here. Regression test in
+`evals/test_adapters_untested.py`.
+
 ---
 
 ## 4. Findings worth keeping
