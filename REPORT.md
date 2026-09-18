@@ -2512,6 +2512,61 @@ idempotent / compensatable / irreversible, reconcile unknown outcomes before
 retrying) — real future work, not solved here. Regression test in
 `evals/test_adapters_untested.py`.
 
+### 3.41 LangGraph's halt was a string in the conversation, not an enforced stop
+
+Finding 2 from section 3.36 — the largest rewrite of this batch, because it
+is architectural rather than a one-line bug. `FuseCallbackHandler` had no
+untested-adapter test file at all before this (`test_adapters_untested.py`
+covers the SDK adapter and this one's loop/token-usage/supervisor-node
+behaviour, but never drove it through LangChain's real callback dispatch).
+Two compounding defects:
+
+1. **The halt itself.** A PAUSE/ABORT directive became a `"[HALT] ..."`
+   string appended to the message state by `supervisor_node`, while
+   `on_tool_start`/`on_tool_end` returned normally — nothing stopped the
+   graph from dispatching its next tool call. A model is free to ignore a
+   string in its own context; that is not enforcement, and the review's
+   probe confirmed it: an ABORT directive produced an ordinary system
+   message and the callback returned without incident.
+2. **The documented integration pattern itself was broken.** The class
+   docstring recommended
+   `class Handler(BaseCallbackHandler, FuseCallbackHandler): ...`. Python's
+   MRO resolves `on_tool_start`/`on_tool_end` to whichever base class is
+   listed FIRST — `BaseCallbackHandler`'s own no-op implementations, not
+   `FuseCallbackHandler`'s real ones. The review's probe built exactly the
+   documented subclass and it observed **zero events**.
+
+**Fix.** `FuseCallbackHandler` now subclasses `langchain_core.callbacks.
+BaseCallbackHandler` directly (a lazy optional import — `object` when
+`langchain_core` is not installed), removing the multi-inheritance
+requirement entirely rather than just fixing the docstring's word order. It
+sets `raise_error = True` (a real, documented `BaseCallbackHandler`
+attribute the callback manager checks before deciding whether an exception
+from a handler propagates or is only logged) and raises a new
+`BreakerInterrupt` the moment a PAUSE/ABORT directive fires, persisting a
+`self.halted` flag checked at the top of every subsequent `on_tool_start`
+and a newly added `on_llm_start`, so a later benign event cannot silently
+un-halt a run. Verified this actually works through LangChain's real
+dispatch, not just by calling the method directly — first against a bare
+`@tool`-decorated function driven via `.invoke()` (confirmed `raise_error`
+only propagates on the modern `Runnable.invoke()` path, NOT the legacy
+`.run()` path — an earlier manual check against `.run()` showed the
+exception silently swallowed and the tool running anyway), then against the
+real production class end-to-end: an ABORT directive raised `BreakerInterrupt`
+out of `charge_card.invoke(...)` and the tool body never executed.
+
+A third, independent defect found the same day: `_inflight_tool` was a
+single instance slot, so interleaved calls to different tools —
+`start(A), start(B), end(A)` — attributed A's own result to B. Fixed with a
+`run_id`-keyed dict (LangChain supplies a unique `run_id` on both the start
+and end callback for each in-flight call), matching the same lane-keyed
+design `LoopDetector._lane` already uses for exactly this reason.
+
+Six new tests in `evals/test_langgraph_breaker.py` (gated behind
+`pytest.importorskip("langchain_core")`, matching `test_adapters.py`'s
+pattern for the optional `agents` SDK) cover all three fixes, including the
+real-dispatch enforcement proof. Full 388-test suite green.
+
 ### 3.42 A checkpoint save failure vanished into a bare `except: pass`
 
 The last of section 3.36's "operational guarantees need explicit boundaries"
