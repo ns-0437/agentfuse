@@ -565,3 +565,32 @@ def test_prune_with_no_arguments_deletes_nothing(tmp_path):
     assert store.prune() == 0
     assert store.load("a") == {"x": 1}
     store.close()
+
+
+# --------------------------------------------- a checkpoint failure is loud
+def test_a_failed_checkpoint_save_is_reported_not_swallowed(tmp_path):
+    """Independent review, REPORT.md section 7's operational-boundaries list:
+    a checkpoint write failure used to vanish into a bare ``except: pass``,
+    so a caller who set ``checkpoint_path=`` specifically to survive a
+    restart had no way to learn that durability had quietly stopped."""
+    mon = _mon(tmp_path / "runs.db")
+    assert mon.checkpoint_healthy is None, "nothing attempted yet"
+
+    def _boom(*a, **kw):
+        raise OSError("disk full")
+    mon._store.save = _boom
+
+    import warnings
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mon.checkpoint()
+
+    assert mon.checkpoint_healthy is False
+    assert any("checkpoint save failed" in str(w.message) for w in caught)
+
+
+def test_checkpoint_healthy_is_none_without_a_store():
+    mon = CircuitBreakerMonitor(MonitorConfig(original_goal=GOAL, echo=False),
+                                tracer=Tracer(None, False))
+    mon.checkpoint()   # a no-op; must not raise or set a verdict either way
+    assert mon.checkpoint_healthy is None

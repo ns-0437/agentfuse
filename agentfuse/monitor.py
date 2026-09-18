@@ -198,6 +198,11 @@ class CircuitBreakerMonitor:
         self._store = (SQLiteCheckpointStore(config.checkpoint_path)
                        if config.checkpoint_path else None)
         self._events_since_checkpoint = 0
+        #: None until checkpoint() has been tried at least once; then whether
+        #: the LAST attempt succeeded. Distinct from "no store configured" —
+        #: that case has nothing to report, this one has something wrong.
+        self.checkpoint_healthy: Optional[bool] = None
+        self._warned_checkpoint_failed = False
         # Misuse detection only; see _warn_if_shared_across_agents.
         self._agent_id: Optional[str] = None
         self._warned_shared = False
@@ -278,7 +283,18 @@ class CircuitBreakerMonitor:
         }
 
     def checkpoint(self) -> None:
-        """Persist now. Safe to call at any time; a no-op without a store."""
+        """Persist now. Safe to call at any time; a no-op without a store.
+
+        A save failure must never take down the run being supervised — the
+        same rule the recovery engine follows — but silently swallowing it
+        used to mean a caller who set ``checkpoint_path=`` specifically to
+        survive a restart had no way to learn that durability had quietly
+        stopped (independent review, REPORT.md section 7's operational-
+        boundaries list). ``self.checkpoint_healthy`` now reflects the last
+        attempt, and the first failure warns once rather than every 20
+        events — a run that cannot persist is a fact worth surfacing, not
+        one worth repeating into a log nobody reads.
+        """
         if self._store is None:
             return
         with self._lock:
@@ -286,10 +302,17 @@ class CircuitBreakerMonitor:
             try:
                 self._store.save(self.run_id, snap, step=snap["totals"]["last_step"])
                 self._events_since_checkpoint = 0
-            except Exception:
-                # A checkpoint failure must never take down the run being
-                # supervised — the same rule the recovery engine follows.
-                pass
+                self.checkpoint_healthy = True
+            except Exception as exc:
+                self.checkpoint_healthy = False
+                if not self._warned_checkpoint_failed:
+                    self._warned_checkpoint_failed = True
+                    warnings.warn(
+                        f"checkpoint save failed ({exc!r}); this run's durable "
+                        f"state (spend ceiling, loop counters, recovery-ladder "
+                        f"position) is no longer being persisted. A crash from "
+                        f"here loses progress a restart was supposed to keep.",
+                        RuntimeWarning, stacklevel=2)
 
     def restore(self, run_id: Optional[str] = None) -> bool:
         """Reload a previous run's counters. Returns whether anything was found.
@@ -612,6 +635,9 @@ class CircuitBreakerMonitor:
             "escalations": self.escalations,
             # None = never escalated. False = escalated and NOBODY was told.
             "escalation_delivered": self.escalation_delivered,
+            # None = no checkpoint store configured. False = configured, and
+            # the last save attempt failed -- durability is currently degraded.
+            "checkpoint_healthy": self.checkpoint_healthy,
             "route": " -> ".join(self.route_history[-12:]),
         }
         self.tracer.summary(totals)
