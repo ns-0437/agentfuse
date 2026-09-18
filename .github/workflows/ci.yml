@@ -110,6 +110,34 @@ jobs:
           AGENTFUSE_OFFLINE: "1"
         run: python -m evals.run_eval --generated 20 --seed 20260812 --no-ablation
 
+  # An independent review (2026-09-17, REPORT.md 3.36) pointed out that no CI
+  # job ever installed the optional adapter SDKs (openai-agents, langgraph +
+  # langchain-core, qdrant-client) and then ran pytest -- `typecheck` installs
+  # `.[all]` but only runs mypy, and the `test` matrix deliberately installs
+  # nothing extra (see its own comment). So every adapter test gated behind
+  # `pytest.importorskip(...)` -- test_adapters.py, test_langgraph_breaker.py,
+  # test_qdrant_memory.py -- silently SKIPPED in CI, every run, and nobody
+  # noticed because skipped is not failed. This job exists so those tests
+  # actually execute somewhere, not just on whichever developer's machine
+  # happens to have the SDKs installed.
+  adapters:
+    name: adapter SDK tests (openai-agents, langgraph, qdrant)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[all]"
+          pip install pytest
+      - name: Tests (with every optional adapter SDK installed)
+        env:
+          AGENTFUSE_OFFLINE: "1"
+        run: pytest evals/ -q --durations=10
+
   typecheck:
     name: mypy
     runs-on: ubuntu-latest
@@ -179,7 +207,7 @@ jobs:
   # and tag-driven.
   deploy-dashboard:
     name: rebuild + publish dashboard
-    needs: [test, benchmark, demos, typecheck]
+    needs: [test, benchmark, demos, typecheck, adapters]
     # Any deliberate run against main publishes: a push, or a manual dispatch.
     # The first version required event_name == 'push', which silently skipped
     # the whole job on workflow_dispatch — so the one way to re-publish by hand
