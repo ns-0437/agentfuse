@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -34,7 +35,7 @@ GOAL = "Rotate the production database credential."
 class Capture:
     """A stand-in monitor that returns a scripted directive on the Nth event."""
 
-    def __init__(self, directive: Directive = None, trip_on: int = None):
+    def __init__(self, directive: Optional[Directive] = None, trip_on: Optional[int] = None):
         self.events: list = []
         self._directive = directive or Directive()
         self._trip_on = trip_on

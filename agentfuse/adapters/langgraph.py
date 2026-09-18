@@ -37,7 +37,7 @@ from ..monitor import CircuitBreakerMonitor, MonitorConfig, Directive, Directive
 try:
     from langchain_core.callbacks import BaseCallbackHandler as _LCBase
 except ImportError:      # langchain-core is this adapter's own optional extra
-    _LCBase = object
+    _LCBase = object  # type: ignore[misc, assignment]
 
 
 class BreakerInterrupt(Exception):
