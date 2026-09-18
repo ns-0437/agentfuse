@@ -455,13 +455,36 @@ class CircuitBreakerMonitor:
 
         self._verify_pending(event)
 
+        # Every detector must see every event, even one that trips an earlier
+        # detector in the list. The old code returned on the FIRST trip found,
+        # which meant a detector positioned later (SpendDetector is last, by
+        # design — see __init__'s comment on tie-breaking) never got to
+        # inspect() an event that an earlier detector tripped on. Harmless for
+        # counters a trip's own reset() clears, but SpendDetector's cumulative
+        # totals are NOT cleared by reset() (they are the run's running
+        # total, not a per-incident counter) — so a token-bearing event that
+        # tripped Drift first left SpendDetector permanently missing those
+        # tokens. Reproduced directly: a 150-token ceiling with Drift tripping
+        # on the qualifying event left the monitor's own total at 200 tokens
+        # while the spend detector — the thing that is supposed to enforce the
+        # ceiling — still read 100, and returned INJECT instead of the hard
+        # stop the exhausted budget should have forced.
+        trips: list[tuple[Detector, Trip]] = []
         for detector in self.detectors:
             trip = detector.inspect(event, self.history)
-            if trip is None:
-                continue
-            return self._handle_trip(event, detector, trip)
+            if trip is not None:
+                trips.append((detector, trip))
 
-        return Directive(DirectiveKind.CONTINUE)
+        if not trips:
+            return Directive(DirectiveKind.CONTINUE)
+
+        # A hard budget breach must never be masked by a soft steering trip on
+        # the SAME event just because that detector happened to run first —
+        # policy, not detector order, decides. CRITICAL (escalate/abort-worthy)
+        # outranks a normal TRIP; ties keep the detectors' own list order.
+        trips.sort(key=lambda dt: 0 if dt[1].severity == Severity.CRITICAL else 1)
+        detector, trip = trips[0]
+        return self._handle_trip(event, detector, trip)
 
     # ------------------------------------------------------------------
     def _handle_trip(self, event: AgentEvent, detector: Detector, trip: Trip) -> Directive:
