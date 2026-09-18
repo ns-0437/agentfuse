@@ -35,15 +35,49 @@ def guarded_tool_loop(
     tool_choice: Any = "auto",
     logprobs: bool = False,
     intervention: str = "rerun",
+    idempotent_tools: Optional[frozenset] = None,
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
 
     ``tool_router(name, args)`` executes a tool and returns its result. Pricing
     for spend tracking can be passed via ``config_kwargs`` (max_tokens/max_cost).
+
+    When no ``monitor=`` is supplied, one is built here from ``model``,
+    ``system_prompt`` and ``user_input``. Independent review (2026-09-17)
+    found this path silently failed to enforce a ``max_cost_usd`` ceiling:
+    ``model`` is used to run inference but was never forwarded into the
+    auto-built ``MonitorConfig``, so nothing could price the tokens.
+    Reproduced directly: a real dollar ceiling with 2,000 synthetic tokens
+    finished ``complete`` with all 2,000 unpriced and the ceiling never
+    enforced (a warning fired, but a warning is not enforcement). Fixed by
+    defaulting the config's ``model`` to the same one driving inference,
+    while still letting an explicit ``config_kwargs["model"]`` override it.
+    Also: ``original_goal`` used to default to ``system_prompt`` alone,
+    which is frequently generic boilerplate ("You are a helpful assistant")
+    and a poor anchor for drift detection against a concrete task; it now
+    defaults to ``user_input`` (the actual task), overridable the same way.
+    See REPORT.md.
+
+    ``idempotent_tools`` names tools that are safe to invoke again with the
+    same arguments (read-only lookups, or writes with their own dedup key).
+    Everything else is deduplicated by this adapter: independent review
+    (2026-09-17) found that ``"rerun"`` discards the failing turns' MESSAGES
+    on a steer but never rolled back their EFFECTS, so a tool call that had
+    already committed something real before the steer fired could be
+    re-issued — and re-committed — once the model reissued the same call
+    after the restart. Reproduced directly with a scripted two-write task:
+    the same ``write_record`` call landed twice. This is a same-run,
+    in-memory safeguard (a repeated ``(tool, args)`` signature replays its
+    first result instead of calling ``tool_router`` again), not a durable
+    operation ledger across process restarts — see REPORT.md for what a
+    complete fix would still need (reconciliation after an unknown-outcome
+    timeout, cross-restart persistence).
     """
+    config_kwargs.setdefault("model", model)
+    original_goal = config_kwargs.pop("original_goal", None) or user_input or system_prompt
     mon = monitor or CircuitBreakerMonitor(
-        MonitorConfig(original_goal=system_prompt, **config_kwargs)
+        MonitorConfig(original_goal=original_goal, **config_kwargs)
     )
     messages = [
         {"role": "system", "content": system_prompt},
@@ -52,6 +86,11 @@ def guarded_tool_loop(
     # Kept so the "rerun" intervention can rebuild the conversation from its
     # starting point rather than appending to a transcript full of the failure.
     baseline = list(messages)
+    idempotent_tools = idempotent_tools or frozenset()
+    # (tool, canonical-args) -> the result it already produced. A rerun that
+    # reissues the exact same call replays this instead of re-invoking
+    # tool_router, so a write that already committed cannot commit twice.
+    committed: dict[tuple[str, str], Any] = {}
     step = 0
     for _ in range(max_turns):
         step += 1
@@ -158,10 +197,21 @@ def guarded_tool_loop(
                 restart = True
                 break
 
-            result = (f"ERROR: arguments were not valid JSON ({bad_args}). "
-                      f"Re-issue the call with valid JSON arguments."
-                      if bad_args is not None
-                      else tool_router(tc.function.name, args))
+            sig = ((tc.function.name, json.dumps(args, sort_keys=True, default=str))
+                   if bad_args is None else None)
+            if bad_args is not None:
+                result = (f"ERROR: arguments were not valid JSON ({bad_args}). "
+                          f"Re-issue the call with valid JSON arguments.")
+            elif sig in committed and tc.function.name not in idempotent_tools:
+                # Same tool, same args, already committed once this run — a
+                # steer's "rerun" discarded the messages that led here, not
+                # the effect. Replay the prior result rather than risk a
+                # second real write.
+                result = committed[sig]
+            else:
+                result = tool_router(tc.function.name, args)
+                if sig is not None:
+                    committed[sig] = result
             d = mon.observe(AgentEvent(
                 type=EventType.TOOL_RESULT, step=step,
                 tool_name=tc.function.name, text=str(result)[:200],
