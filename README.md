@@ -544,10 +544,12 @@ The 33M model is not merely weaker — it scores gradual drift as *more* similar
 the objective than genuinely on-task text, so any threshold built on it fires
 backwards. **110M is the floor; a billion parameters buys nothing here.**
 
-This runs **locally and free**: `pip install agentfuse[embeddings]` pulls a
-~120MB ONNX model that needs no API key, touches no network, and costs ~4ms per
-sentence on CPU — faster than a hosted round trip, and the agent's reasoning
-never leaves the machine. Drift-family recall went **76.2% → 90.0%**.
+This runs **locally and free**: `pip install -e ".[embeddings]"` (from a clone
+of this repo — AgentFuse is not yet on PyPI, see the phase-status table in
+REPORT.md) pulls a ~120MB ONNX model that needs no API key, touches no
+network, and costs ~4ms per sentence on CPU — faster than a hosted round
+trip, and the agent's reasoning never leaves the machine. Drift-family
+recall went **76.2% → 90.0%**.
 
 `AGENTFUSE_OFFLINE` disables only the *hosted* backend; a local model spends
 nothing, so treating it as "offline" would force the weakest signal for no gain.
