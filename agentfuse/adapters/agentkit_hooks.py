@@ -117,11 +117,21 @@ class FuseRunHooks(RunHooks):
             raise BreakerInterrupt(directive)
 
     async def on_tool_end(self, context: Any, agent: Any, tool: Any, result: Any) -> None:
-        # Mark genuine progress only when the result actually advances the task,
-        # so failed/empty tool results don't reset the loop/stall detectors.
+        # `state` is set unconditionally, matching openai_sdk.py's own
+        # TOOL_RESULT handling. This used to keyword-match the result text
+        # against a fixed list ("rotated", "secret-", "token:") lifted from
+        # this project's own demo scenario -- which meant a genuinely
+        # successful result outside that demo ("Invoice 123 created
+        # successfully") registered as NO progress at all, while a FAILURE
+        # message merely containing the substring "secret-" registered as
+        # progress. Reproduced directly; see REPORT.md. Whether a state is a
+        # GENUINE advance is not this adapter's call to make from keywords --
+        # the monitor already answers that question correctly via
+        # SeenStateTracker's bounded-window novelty check (the same fix
+        # CLAUDE.md point 13 already applied once to _verify_pending), so the
+        # adapter's only job is to report what happened, unfiltered.
         text = str(result)
-        progressed = any(k in text.lower() for k in ("rotated", "secret-", "token:"))
-        state = {"progress": True, "result": text[:120]} if progressed else None
+        state = {"tool": getattr(tool, "name", None), "result": text[:120]}
         self._observe(AgentEvent(
             type=EventType.TOOL_RESULT, step=self._step, node=getattr(agent, "name", "agent"),
             tool_name=getattr(tool, "name", None), text=text[:200], state=state,
