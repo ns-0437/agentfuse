@@ -2352,6 +2352,98 @@ is green" are different claims, and only one of them was being verified.*
 
 ---
 
+### 3.36 An independent external review found six real release-blocking bugs
+
+An outside technical review (2026-09-17, against commit `9aa96de`) inspected
+the repository, built the wheel, ran the test suite (353 passed / 9 skipped —
+a slightly older count than this session's, from before some of its own
+additions), and — critically — wrote independent offline probes that exercise
+production classes directly rather than trusting the existing suite. Verdict:
+*"a useful version is buildable... the present implementation is not ready to
+be sold as dependable protection."* Its central point, restated because it
+reframes how this project should think about its own test count: **passing
+376 tests establishes regression coverage, not that the advertised
+integration guarantees hold.** Several probes below fail those guarantees
+while the existing suite stayed green throughout, because nothing in it had
+been written to look for these specific failure shapes.
+
+Six release-blocking findings, each reproduced directly against this
+repository before being trusted (this session's own standing rule — CLAUDE.md
+point 2 — applied to someone else's bug report, not just its own fixes):
+
+1. A soft detector trip could suppress a harder detector's accounting for the
+   same event (fixed this session — see below).
+2. LangGraph's halt directive was a string in the conversation, not an
+   enforced stop; a documented multi-inheritance usage pattern silently
+   observed zero events under the tested LangChain version.
+3. The plain-SDK adapter's `model=` argument was used for inference but never
+   reached the monitor's pricing, so a configured dollar ceiling could not be
+   enforced.
+4. `FuseRunHooks.on_tool_end` matched a hardcoded, demo-specific keyword list
+   (`"rotated"`, `"secret-"`, `"token:"`) to decide whether a tool result
+   counted as progress — a genuinely successful result outside the credential-
+   rotation demo (e.g. "Invoice 123 created successfully") registered as NO
+   progress, and a FAILURE message containing the substring `"secret-"`
+   registered as progress.
+5. LangGraph's concurrent tool-call tracking used a single `_inflight_tool`
+   slot rather than one per in-flight call, so interleaved calls to different
+   tools could have their results attributed to the wrong call.
+6. The SDK adapter's `"rerun"` intervention (the mechanism section 3.6 measured
+   taking real task completion from 0-of-8 to 6-of-8) discards conversation
+   history on a steer but has no operation ledger, so a tool call that already
+   committed an external effect before the steer fired could be re-issued and
+   re-committed after the restart.
+
+Kept, not thrown out with the criticism: the review explicitly endorses the
+event/monitor/adapter separation, deterministic-recovery-by-default, detector
+state preservation, telemetry redaction, and the ablation/random-control
+methodology as sound engineering — the finding is that several adapter-layer
+integration guarantees were unproven or actively wrong, not that the
+architecture is. Also flagged, not a code bug but worth recording here:
+another, unrelated PyPI project already publishes as `agent-fuse` (maintainer
+`abdulbasita`) with overlapping "budget and loop protection" framing. Shared
+branding could confuse discovery before any renaming decision is made — noted
+here rather than acted on unilaterally, since a public package/repo rename is
+not a call to make without the person who owns the name.
+
+Fixed this session, each with its own entry below as it landed: findings 1, 3,
+4, 5, and a scoped version of 6. Finding 2 (LangGraph enforcement) required
+the largest rewrite and is covered in its own section. "Build a usable alpha"
+(explicit observe/enforce/recover modes, an installation self-test, a richer
+result object, a supported-version matrix) and "create the external
+evaluation" (recruiting outside developers) are the review's own next two
+milestones after this batch and remain open — deliberately deferred, not
+missed.
+
+### 3.37 A soft detector trip could suppress a harder detector's accounting
+
+The bug behind finding 1 above. `_observe_locked` looped over `self.detectors`
+and returned on the FIRST trip found — so a detector positioned later in the
+list (`SpendDetector` is last by design; see `__init__`'s own comment on
+tie-breaking with `RateOfProgressDetector`) never had `inspect()` called for
+an event that an earlier detector already tripped on. Every detector's
+`reset()` runs after a trip, which hides this for most per-incident counters —
+but `SpendDetector._total_tokens`/`_total_cost` are the run's *cumulative*
+total, never cleared by `reset()`, so a missed event's tokens were gone for
+good. Reproduced directly (the review's own probe, re-run against this repo):
+`DriftDetector` tripping on step 2 of a run with a 150-token ceiling left the
+monitor's own running total at 200 tokens while `SpendDetector` still read
+100, and the directive was `INJECT` — a steering suggestion — instead of the
+hard stop an exhausted budget should force.
+
+**Fix:** every detector now runs `inspect()` on every event, unconditionally;
+trips are collected and then arbitrated by policy — CRITICAL severity (a hard
+budget breach) always outranks a normal TRIP from an earlier detector on the
+same event, rather than detector-list order deciding by accident. Re-verified
+against both corpora before trusting it (CLAUDE.md point 1): the full 376-test
+suite, the 1018-scenario synthetic suite (100.0%/100.0%/100.0%/0.0% — bit-for-
+bit unchanged), and the real 34-trace corpus (precision 100%/recall
+83.3%/FPR 0% — also unchanged) all re-ran clean, so the fix closes a real gap
+without moving any headline number. Regression tests in
+`evals/test_monitor.py`.
+
+---
+
 ## 4. Findings worth keeping
 
 ### 4.1 Never judge an action before its outcome arrives
