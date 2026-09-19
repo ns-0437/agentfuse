@@ -110,6 +110,7 @@ class FuseRunHooks(RunHooks):
             self._observe(AgentEvent(
                 type=EventType.TOOL_CALL, step=self._step, node=node,
                 tool_name=getattr(tc, "name", "tool"), tool_args=args,
+                meta={"call_id": getattr(tc, "call_id", None)},
             ))
 
     async def on_llm_start(self, context: Any, agent: Any, system_prompt: Any,
@@ -129,6 +130,7 @@ class FuseRunHooks(RunHooks):
         self._observe(AgentEvent(
             type=EventType.TOOL_RESULT, step=self._step, node=getattr(agent, "name", "agent"),
             tool_name=getattr(tool, "name", None), text=text[:200], state=state,
+            meta={"call_id": getattr(context, "tool_call_id", None)},
         ), defer_interrupt=True)
 
     # -- glue ------------------------------------------------------------
@@ -142,7 +144,10 @@ class FuseRunHooks(RunHooks):
 
         if defer_interrupt:
             # Raised at the next turn boundary — see on_llm_start.
-            self._deferred = directive
+            # A later recoverable finding must not erase a hard stop raised
+            # by another tool completing in the same batch.
+            if self._deferred is None or self._deferred.kind is DirectiveKind.INJECT:
+                self._deferred = directive
             return
         raise BreakerInterrupt(directive)
 

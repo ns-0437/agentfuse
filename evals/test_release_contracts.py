@@ -103,3 +103,15 @@ def test_sdk_progress_requires_application_evidence():
     hooks.progress_validator = lambda name, result: {"invoice_id": result["id"]}
     asyncio.run(hooks.on_tool_end(None, NS(name="a"), NS(name="create"), {"id": 123}))
     assert hooks.monitor.history[-1].state == {"invoice_id": 123}
+
+
+def test_real_agents_tool_pairs_retain_call_ids():
+    import pytest
+    pytest.importorskip("agents")
+    from evals.test_adapters import _drive
+    hooks, output, _ = _drive(echo=False)
+    calls = {e.meta["call_id"]: e.tool_name for e in hooks.monitor.history
+             if e.type is EventType.TOOL_CALL}
+    results = [e for e in hooks.monitor.history if e.type is EventType.TOOL_RESULT]
+    assert results and all(e.meta["call_id"] for e in results)
+    assert all(calls[e.meta["call_id"]] == e.tool_name for e in results)
