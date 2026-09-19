@@ -28,6 +28,9 @@ all = ["rich>=13.0.0", "openai>=1.40.0", "openai-agents>=0.18.0", "qdrant-client
 where = ["."]
 include = ["agentfuse*"]
 
+[tool.setuptools.package-data]
+agentfuse = ["py.typed"]
+
 [tool.mypy]
 ignore_missing_imports = true
 # NOT warn_unused_ignores: several `# type: ignore` comments in evals/test_*.py
