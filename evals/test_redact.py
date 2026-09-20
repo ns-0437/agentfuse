@@ -293,3 +293,25 @@ def test_redact_obj_leaves_token_counts_and_short_values_alone():
 def test_redact_obj_reaches_secrets_in_nested_lists():
     rec = {"calls": [{"headers": {"Authorization": "Bearer abc123def456ghi789"}}]}
     assert "abc123def456ghi789" not in json.dumps(redact_obj(rec))
+
+
+def test_basic_auth_header_is_redacted():
+    out = redact("Authorization: Basic dXNlcjpwYXNzd29yZDEyMzQ1")
+    assert "dXNlcjpwYXNzd29yZDEyMzQ1" not in out
+    assert out.startswith("Authorization: ")
+
+
+def test_basic_auth_in_json_headers_is_redacted():
+    out = redact('{"Authorization": "Basic dXNlcjpwYXNzd29yZDEyMzQ1"}')
+    assert "dXNlcjpwYXNzd29yZDEyMzQ1" not in out
+
+
+def test_the_word_basic_in_prose_is_left_alone():
+    text = "Authorization is basic internationalization of the request"
+    assert redact(text) == text
+
+
+def test_url_password_containing_a_colon_is_redacted():
+    out = redact("postgres://user:pa:ss@host/db")
+    assert "pa:ss" not in out
+    assert out.endswith("@host/db")
