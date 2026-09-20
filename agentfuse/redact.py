@@ -69,9 +69,13 @@ _RULES: list[tuple[str, Pattern[str]]] = [
     ("bearer-token", re.compile(r"(?i)\b(bearer|token)\s+[A-Za-z0-9_\-\.=]{16,}")),
     # -- Named assignments. The NAME is the signal; without it, ordinary prose
     #    full of long words would be shredded.
+    #    A short prefix is allowed (db_password, STRIPE_CLIENT_SECRET, my_api_key): \b sits
+    #    before the whole identifier, so a bare "password" alternative never matched inside
+    #    one, and real config names almost always carry a prefix. The prefix is bounded so
+    #    a long hyphenated run cannot make matching quadratic.
     ("secret-assignment", re.compile(
-        r"(?i)\b(api[_-]?key|apikey|secret|password|passwd|pwd|access[_-]?token|"
-        r"auth[_-]?token|client[_-]?secret|private[_-]?key)"
+        r"(?i)\b([A-Za-z0-9_\-]{0,40}?(?:api[_-]?key|apikey|secret|password|passwd|pwd|"
+        r"access[_-]?token|auth[_-]?token|client[_-]?secret|private[_-]?key))"
         r"(\s*[:=]\s*)(\"[^\"]{4,}\"|'[^']{4,}'|[^\s,;}\)]{4,})")),
     # -- Long high-entropy blobs with no other signal. 32+ only: this project's
     #    own hashes are 12 chars and must survive.
