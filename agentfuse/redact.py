@@ -64,7 +64,12 @@ _RULES: list[tuple[str, Pattern[str]]] = [
     ("stripe-key", re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{20,}\b")),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]+")),
     # -- Credentials embedded in a URL: postgres://user:secret@host/db
-    ("url-credentials", re.compile(r"(?<=://)([^\s:/@]+):([^\s:/@]+)(?=@)")),
+    #    The user is everything up to the first colon; the password may itself contain colons
+    #    (postgres://user:pa:ss@host/db), so only "/" and "@" end it.
+    ("url-credentials", re.compile(r"(?<=://)([^\s:/@]+):([^\s/@]+)(?=@)")),
+    # -- HTTP Basic auth is base64("user:password"): reversible, so as sensitive as the password.
+    #    Anchored on the header name because "basic" is an ordinary English word.
+    ("basic-auth", re.compile(r"(?i)\b(authorization[\"']?\s*[:=]\s*[\"']?)basic\s+[A-Za-z0-9+/]{8,}={0,2}")),
     # -- Authorization headers.
     ("bearer-token", re.compile(r"(?i)\b(bearer|token)\s+[A-Za-z0-9_\-\.=]{16,}")),
     # -- Named assignments. The NAME is the signal; without it, ordinary prose
@@ -109,6 +114,8 @@ def redact(text: str) -> str:
             out = pattern.sub(lambda m: f"{m.group(1)}{m.group(2)}{_MARK.format(label)}", out)
         elif label == "url-credentials":
             out = pattern.sub(_MARK.format(label), out)
+        elif label == "basic-auth":
+            out = pattern.sub(lambda m: f"{m.group(1)}{_MARK.format(label)}", out)
         elif label == "high-entropy":
             out = pattern.sub(_redact_if_mixed, out)
         else:
