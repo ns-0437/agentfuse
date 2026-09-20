@@ -116,12 +116,32 @@ def redact(text: str) -> str:
     return out
 
 
+#: Dict keys whose *value* is a credential no matter what it looks like. `redact()` only sees
+#: strings, so a structured `{"password": "hunter2"}` reached it as the bare value "hunter2",
+#: with the name that made it a secret already gone.
+_SENSITIVE_KEY = re.compile(
+    r"(?i)(?:^|[_\-.])(?:api[_-]?key|apikey|secret|password|passwd|pwd|"
+    r"(?:access|auth|refresh|bearer)[_-]?token|token|client[_-]?secret|private[_-]?key|"
+    r"authorization)$")
+
+
+def _redact_entry(key: Any, value: Any) -> Any:
+    if isinstance(key, str) and isinstance(value, str) and len(value) >= 4 \
+            and _SENSITIVE_KEY.search(key):
+        return _MARK.format("secret-assignment")
+    return redact_obj(value)
+
+
 def redact_obj(value: Any) -> Any:
-    """Redact recursively through the containers events and traces actually use."""
+    """Redact recursively through the containers events and traces actually use.
+
+    A dict entry whose key names a credential (password, api_key, token, ...) has its string
+    value redacted outright; every other value is redacted by content.
+    """
     if isinstance(value, str):
         return redact(value)
     if isinstance(value, dict):
-        return {k: redact_obj(v) for k, v in value.items()}
+        return {k: _redact_entry(k, v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         t = type(value)
         return t(redact_obj(v) for v in value)

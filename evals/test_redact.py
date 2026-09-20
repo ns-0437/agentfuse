@@ -270,3 +270,26 @@ def test_trip_evidence_json_is_redacted():
     """events.py builds EVIDENCE with json.dumps, i.e. quoted names."""
     evidence = json.dumps({"tool": "connect", "password": "hunter2hunter2"})
     assert "hunter2hunter2" not in redact(evidence)
+
+
+def test_redact_obj_redacts_values_under_sensitive_keys():
+    """The trace writer calls redact_obj on the structured record. A bare value like
+    "hunter2hunter2" has no shape to match, so the key name is the only signal."""
+    rec = {"tool": "connect", "args": {"host": "db", "password": "hunter2hunter2",
+                                       "api_key": "abcd1234", "refresh_token": "zzzz9999"}}
+    out = redact_obj(rec)
+    assert out["args"]["password"] == "[REDACTED:secret-assignment]"
+    assert out["args"]["api_key"] == "[REDACTED:secret-assignment]"
+    assert out["args"]["refresh_token"] == "[REDACTED:secret-assignment]"
+    assert out["args"]["host"] == "db"
+    assert out["tool"] == "connect"
+
+
+def test_redact_obj_leaves_token_counts_and_short_values_alone():
+    rec = {"max_tokens": "1024", "total_tokens": 50, "prompt_tokens": 12, "password": "x"}
+    assert redact_obj(rec) == rec
+
+
+def test_redact_obj_reaches_secrets_in_nested_lists():
+    rec = {"calls": [{"headers": {"Authorization": "Bearer abc123def456ghi789"}}]}
+    assert "abc123def456ghi789" not in json.dumps(redact_obj(rec))
