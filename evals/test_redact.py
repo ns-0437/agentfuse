@@ -217,3 +217,31 @@ def test_high_entropy_needs_letters_and_digits():
     assert redact("x" * 40) == "x" * 40, "letters only: ordinary text, left alone"
     assert redact("1" * 40) == "1" * 40, "digits only: an id or number, left alone"
     assert redact("abcdef123456") == "abcdef123456", "12-char project hash must survive"
+
+
+@pytest.mark.parametrize("text, secret", [
+    ("db_password=hunter2hunter2", "hunter2hunter2"),
+    ("DB_PASSWORD: hunter2hunter2", "hunter2hunter2"),
+    ("my_api_key = abcd1234efgh", "abcd1234efgh"),
+    ("STRIPE_CLIENT_SECRET=abcdef123456", "abcdef123456"),
+    ("mypassword=hunter2hunter2", "hunter2hunter2"),
+])
+def test_prefixed_secret_names_are_redacted(text, secret):
+    """A bare word boundary before `password` never matched inside `db_password`, so the
+    most common real-world config names slipped through."""
+    out = redact(text)
+    assert secret not in out
+    assert "[REDACTED:secret-assignment]" in out
+
+
+def test_prefixed_names_do_not_swallow_ordinary_text():
+    assert redact("the password policy is strict") == "the password policy is strict"
+    url = "password_reset_url=https://example.com/reset"
+    assert redact(url) == url
+
+
+def test_prefixed_names_stay_linear_on_long_hyphenated_runs():
+    import time
+    start = time.perf_counter()
+    redact("a-" * 20000)
+    assert time.perf_counter() - start < 1.0
