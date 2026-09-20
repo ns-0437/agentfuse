@@ -245,3 +245,28 @@ def test_prefixed_names_stay_linear_on_long_hyphenated_runs():
     start = time.perf_counter()
     redact("a-" * 20000)
     assert time.perf_counter() - start < 1.0
+
+
+@pytest.mark.parametrize("text, secret", [
+    ('{"password": "hunter2hunter2"}', "hunter2hunter2"),
+    ("{'api_key': 'abcd1234efgh'}", "abcd1234efgh"),
+    ('{"db_password":"hunter2hunter2","user":"bob"}', "hunter2hunter2"),
+    ('{"client_secret": "abcdef123456", "x": 1}', "abcdef123456"),
+])
+def test_json_style_quoted_names_are_redacted(text, secret):
+    """`\"password\": \"...\"` has a closing quote between the name and the colon, so the
+    assignment rule never matched JSON -- the shape tool arguments actually arrive in."""
+    out = redact(text)
+    assert secret not in out
+    assert "[REDACTED:secret-assignment]" in out
+
+
+def test_json_redaction_keeps_unrelated_fields():
+    out = redact('{"password": "hunter2hunter2", "user": "bob"}')
+    assert '"user": "bob"' in out
+
+
+def test_trip_evidence_json_is_redacted():
+    """events.py builds EVIDENCE with json.dumps, i.e. quoted names."""
+    evidence = json.dumps({"tool": "connect", "password": "hunter2hunter2"})
+    assert "hunter2hunter2" not in redact(evidence)
