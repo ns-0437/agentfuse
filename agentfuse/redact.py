@@ -75,10 +75,20 @@ _RULES: list[tuple[str, Pattern[str]]] = [
         r"(\s*[:=]\s*)(\"[^\"]{4,}\"|'[^']{4,}'|[^\s,;}\)]{4,})")),
     # -- Long high-entropy blobs with no other signal. 32+ only: this project's
     #    own hashes are 12 chars and must survive.
-    ("high-entropy", re.compile(r"\b(?=[A-Za-z0-9+/_\-]{32,}\b)"
-                                r"(?=[^\s]*[0-9])(?=[^\s]*[A-Za-z])"
-                                r"[A-Za-z0-9+/_\-]{32,}={0,2}\b")),
+    #    The digit-and-letter requirement is checked in redact() on the matched run, not with
+    #    lookaheads: `(?=[^\s]*[0-9])` rescanned to the end of the token from every start
+    #    position, which made a long space-free string (a minified blob, a base64 body with
+    #    no digits) quadratic -- ~4s for 16 KB, on every trace write.
+    ("high-entropy", re.compile(r"\b[A-Za-z0-9+/_\-]{32,}={0,2}\b")),
 ]
+
+
+def _redact_if_mixed(m: "re.Match[str]") -> str:
+    """Redact a long token only when it mixes letters and digits (see the rule above)."""
+    token = m.group(0)
+    if any(c.isdigit() for c in token) and any(c.isalpha() for c in token):
+        return _MARK.format("high-entropy")
+    return token
 
 
 def redact(text: str) -> str:
@@ -93,6 +103,8 @@ def redact(text: str) -> str:
             out = pattern.sub(lambda m: f"{m.group(1)}{m.group(2)}{_MARK.format(label)}", out)
         elif label == "url-credentials":
             out = pattern.sub(_MARK.format(label), out)
+        elif label == "high-entropy":
+            out = pattern.sub(_redact_if_mixed, out)
         else:
             out = pattern.sub(_MARK.format(label), out)
     return out
