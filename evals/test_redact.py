@@ -199,3 +199,21 @@ def test_redaction_happens_before_truncation():
                         detector="loop", step=1, goal=GOAL, action="escalate")
     body = json.dumps(note.payload())
     assert OPENAI_KEY[:18] not in body, "a truncated secret fragment escaped"
+
+
+def test_long_space_free_string_redacts_in_linear_time():
+    """A 16 KB token with no whitespace took ~4s (quadratic lookahead) and this runs on
+    every trace write."""
+    import time
+    start = time.perf_counter()
+    redact("a-" * 8000)
+    redact("ab" * 8000)
+    assert time.perf_counter() - start < 1.0
+
+
+def test_high_entropy_needs_letters_and_digits():
+    mixed = "aB3" * 12
+    assert redact(f"key {mixed} end") == "key [REDACTED:high-entropy] end"
+    assert redact("x" * 40) == "x" * 40, "letters only: ordinary text, left alone"
+    assert redact("1" * 40) == "1" * 40, "digits only: an id or number, left alone"
+    assert redact("abcdef123456") == "abcdef123456", "12-char project hash must survive"
