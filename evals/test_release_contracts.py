@@ -70,6 +70,16 @@ def test_monitor_modes_separate_observation_enforcement_and_recovery():
     assert decision(MonitorMode.RECOVER).kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT)
 
 
+def test_long_runs_keep_bounded_working_history():
+    mon = CircuitBreakerMonitor(MonitorConfig(original_goal="task", echo=False,
+        mode=MonitorMode.OBSERVE, history_limit=10, route_history_limit=3), detectors=[])
+    for step in range(30):
+        mon.observe(AgentEvent(type=EventType.ROUTE, step=step, node=f"node-{step}"))
+    assert len(mon.history) == 10
+    assert mon.history[-1].step == 29
+    assert mon.route_history == ["node-27", "node-28", "node-29"]
+
+
 def test_sdk_anchors_to_user_task_with_explicit_override(monkeypatch):
     from evals.test_adapters_untested import FakeOpenAI, _Resp, _Msg
     from agentfuse.adapters import openai_sdk

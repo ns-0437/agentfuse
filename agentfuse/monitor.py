@@ -133,12 +133,17 @@ class MonitorConfig:
     # Allow posting escalations over plaintext http://. Off by default: the
     # payload carries the goal, the failure reason and agent output.
     escalation_allow_insecure: bool = False
+    # Working memory is bounded; the tracer remains the complete audit stream.
+    history_limit: int = 10000
+    route_history_limit: int = 100
 
 
 class CircuitBreakerMonitor:
     def __init__(self, config: MonitorConfig, detectors: Optional[list[Detector]] = None,
                  recovery: Optional[RecoveryEngine] = None, tracer: Optional[Tracer] = None,
                  notifier: Optional[Notifier] = None):
+        if config.history_limit < 10 or config.route_history_limit < 1:
+            raise ValueError("history_limit must be >= 10 and route_history_limit >= 1")
         self.config = config
         self.calibrator = AdaptiveCalibrator(enabled=config.adaptive)
         self.detectors: list[Detector] = detectors or [
@@ -469,11 +474,15 @@ class CircuitBreakerMonitor:
     def _observe_locked(self, event: AgentEvent) -> Directive:
         self._warn_if_shared_across_agents(event)
         self.history.append(event)
+        if len(self.history) > self.config.history_limit:
+            del self.history[:-self.config.history_limit]
         self.total_tokens += event.tokens_in + event.tokens_out
         self.total_cost += event.cost_usd
         if event.node:
             if not self.route_history or self.route_history[-1] != event.node:
                 self.route_history.append(event.node)
+                if len(self.route_history) > self.config.route_history_limit:
+                    del self.route_history[:-self.config.route_history_limit]
         if event.goal:
             self.current_goal = event.goal
         self.tracer.event(event)
