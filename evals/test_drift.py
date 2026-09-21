@@ -238,24 +238,8 @@ def test_local_embeddings_are_preferred_over_hosted(monkeypatch):
     assert mode == "embedding:local"
 
 
-def test_silently_falling_back_to_the_billed_backend_warns(monkeypatch):
-    """An OPENAI_API_KEY set for an unrelated agent must not bill silently.
-
-    Falling back to hosted embeddings when no local one is available is not
-    itself wrong -- unlike RecoveryEngine's backend selection (REPORT.md
-    3.34), real embeddings genuinely beat the lexical fallback, so this stays
-    the default. But it must not happen without the caller ever finding out
-    it is now paying for API calls it never explicitly requested.
-
-    Both local_embedder AND openai_embedder are stubbed, not just the first:
-    this checks get_embedder()'s decision/warning logic, not whether `openai`
-    happens to be importable in the current environment. Found failing in
-    CI's minimal-install "test" job for exactly that gap -- that job installs
-    the package with zero extras specifically to verify the stdlib-only core,
-    so `openai_embedder()` correctly returns None there (ImportError caught),
-    the warning correctly never fires, and this test's un-stubbed first draft
-    wrongly expected it to.
-    """
+def test_auto_mode_never_selects_billed_embeddings_from_a_generic_key(monkeypatch):
+    """Hosted drift scoring requires the AgentFuse-specific explicit setting."""
     import agentfuse.embedding as embedding_module
 
     monkeypatch.setattr(embedding_module, "local_embedder", lambda model_name=None: None)
@@ -264,9 +248,10 @@ def test_silently_falling_back_to_the_billed_backend_warns(monkeypatch):
     monkeypatch.delenv("AGENTFUSE_OFFLINE", raising=False)
     monkeypatch.delenv("AGENTFUSE_EMBED_BACKEND", raising=False)
 
-    with pytest.warns(RuntimeWarning, match="hosted OpenAI embeddings"):
-        _, mode = embedding_module.get_embedder()
-    assert mode == "embedding:openai"
+    _, mode = embedding_module.get_embedder()
+    assert mode == "lexical"
+    _, explicit_mode = embedding_module.get_embedder("openai")
+    assert explicit_mode == "embedding:openai"
 
 
 # ------------------------------------------------- action grounding (section 3.9)
