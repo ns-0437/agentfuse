@@ -44,6 +44,7 @@ from .monitor import (
     MonitorConfig,
     Directive,
     DirectiveKind,
+    MonitorMode,
 )
 
 __version__ = "0.1.0"
@@ -69,5 +70,6 @@ __all__ = [
     "MonitorConfig",
     "Directive",
     "DirectiveKind",
+    "MonitorMode",
     "__version__",
 ]

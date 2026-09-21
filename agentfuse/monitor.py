@@ -60,6 +60,12 @@ class DirectiveKind(str, Enum):
     ABORT = "abort"        # stop the run entirely
 
 
+class MonitorMode(str, Enum):
+    OBSERVE = "observe"
+    ENFORCE = "enforce"
+    RECOVER = "recover"
+
+
 @dataclass
 class Directive:
     kind: DirectiveKind = DirectiveKind.CONTINUE
@@ -70,6 +76,7 @@ class Directive:
 @dataclass
 class MonitorConfig:
     original_goal: str
+    mode: MonitorMode = MonitorMode.RECOVER
     # Must be >= len(strategies.STEERABLE), or the steering ladder is truncated
     # and its upper rungs can never be reached. At 3 against a 4-rung ladder the
     # measured recovery rate was 55.4%; at 5 it is 75.2%, then it plateaus.
@@ -507,6 +514,14 @@ class CircuitBreakerMonitor:
         # outranks a normal TRIP; ties keep the detectors' own list order.
         trips.sort(key=lambda dt: 0 if dt[1].severity == Severity.CRITICAL else 1)
         detector, trip = trips[0]
+        if self.config.mode is MonitorMode.OBSERVE:
+            self.tracer.trip(event, trip)
+            return Directive(DirectiveKind.CONTINUE)
+        if self.config.mode is MonitorMode.ENFORCE:
+            self.tracer.trip(event, trip)
+            kind = (DirectiveKind.ABORT if trip.severity is Severity.CRITICAL
+                    else DirectiveKind.PAUSE)
+            return Directive(kind, steering_text=trip.reason)
         return self._handle_trip(event, detector, trip)
 
     # ------------------------------------------------------------------

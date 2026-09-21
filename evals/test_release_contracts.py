@@ -4,7 +4,7 @@ os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 
 from agentfuse import AgentEvent, CircuitBreakerMonitor, EventType, MonitorConfig
 from agentfuse.detectors import DriftDetector, SpendDetector
-from agentfuse.monitor import DirectiveKind
+from agentfuse.monitor import DirectiveKind, MonitorMode
 
 
 def test_hard_budget_wins_over_drift_and_counts_every_event():
@@ -58,6 +58,16 @@ def test_sdk_does_not_rerun_after_declared_external_write():
     assert result["status"] == "recovery_blocked"
     assert result["blocked_tool"] == "create_invoice"
     assert len(writes) == 1
+
+
+def test_monitor_modes_separate_observation_enforcement_and_recovery():
+    def decision(mode):
+        mon = CircuitBreakerMonitor(MonitorConfig(original_goal="task", mode=mode,
+            echo=False, max_tokens=1))
+        return mon.observe(AgentEvent(type=EventType.LLM_CALL, tokens_in=2))
+    assert decision(MonitorMode.OBSERVE).kind is DirectiveKind.CONTINUE
+    assert decision(MonitorMode.ENFORCE).kind is DirectiveKind.ABORT
+    assert decision(MonitorMode.RECOVER).kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT)
 
 
 def test_sdk_anchors_to_user_task_with_explicit_override(monkeypatch):
