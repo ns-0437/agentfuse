@@ -38,6 +38,28 @@ def test_sdk_returns_the_agent_output_with_run_summary():
     assert result["output"] == "Invoice reconciled"
 
 
+def test_sdk_does_not_rerun_after_declared_external_write():
+    from evals.test_adapters_untested import FakeOpenAI, _loop_turns
+    from agentfuse.adapters.openai_sdk import guarded_tool_loop
+    from agentfuse.monitor import Directive
+    class TripAfterResult:
+        def observe(self, event):
+            if event.type is EventType.TOOL_RESULT:
+                return Directive(DirectiveKind.INJECT, steering_text="change plan")
+            return Directive()
+        def finish(self, status):
+            return {"status": status}
+    writes = []
+    result = guarded_tool_loop(FakeOpenAI(_loop_turns(tool="create_invoice")),
+        "gpt-4o", "Assist", "Task", [],
+        lambda *_: writes.append("committed") or "invoice created",
+        tool_effects={"create_invoice": "write"}, monitor=TripAfterResult(),
+        max_turns=6, echo=False)
+    assert result["status"] == "recovery_blocked"
+    assert result["blocked_tool"] == "create_invoice"
+    assert len(writes) == 1
+
+
 def test_sdk_anchors_to_user_task_with_explicit_override(monkeypatch):
     from evals.test_adapters_untested import FakeOpenAI, _Resp, _Msg
     from agentfuse.adapters import openai_sdk
