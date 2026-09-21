@@ -189,7 +189,9 @@ from agentfuse.adapters.openai_sdk import guarded_tool_loop
 
 guarded_tool_loop(OpenAI(), model="gpt-4.1", system_prompt=GOAL,
                   user_input=TASK, tools=TOOLS, tool_router=run_tool,
-                  max_tokens=200_000)   # breaker steers the loop automatically
+                  max_tokens=200_000,
+                  # Automatic reruns are allowed only after declared-safe tools.
+                  tool_effects={"search": "read", "upsert": "idempotent"})
 ```
 
 ### LangGraph
@@ -199,7 +201,32 @@ from agentfuse.adapters.langgraph import FuseCallbackHandler
 handler = FuseCallbackHandler(original_goal=GOAL)
 graph.invoke(state, config={"callbacks": [handler]})
 # add handler.supervisor_node as a node to inject steering between agent turns
+# PAUSE/ABORT raises FuseHalt; it is an enforced stop, not a chat message.
 ```
+
+Instantiate `FuseCallbackHandler` directly. Do not put LangChain's
+`BaseCallbackHandler` before it in a multiple-inheritance class: the base no-op
+methods shadow the AgentFuse callbacks. Overlapping tools are correlated by the
+runtime's `run_id`.
+
+### Choose the intervention contract
+
+```python
+from agentfuse import MonitorMode
+
+MonitorConfig(original_goal=GOAL, mode=MonitorMode.OBSERVE)  # record only
+MonitorConfig(original_goal=GOAL, mode=MonitorMode.ENFORCE)  # pause/abort only
+MonitorConfig(original_goal=GOAL, mode=MonitorMode.RECOVER)  # bounded steering
+```
+
+Applications should pass a `progress_validator` to the Agents SDK hooks. It must
+return stable milestone data (for example `{"invoice_id": 123}`) or `None`.
+AgentFuse no longer guesses progress from demo-specific words in tool output.
+
+Run `agentfuse doctor` after installation to see the active drift backend and
+which optional integrations are installed. Hosted drift embeddings now require
+`AGENTFUSE_EMBED_BACKEND=openai`; a generic `OPENAI_API_KEY` never opts the
+supervisor into billed per-event calls.
 
 ### Surviving a restart
 
@@ -220,6 +247,10 @@ mon.restore()                       # picks up spend, loop counters, calibration
 Off by default. Always checkpoints on a trip regardless of interval, since that's
 the state a crash most often follows and the costliest to lose — it carries the
 recovery ladder's position.
+
+`finish()` reports `checkpoint_healthy` and `checkpoint_error`; a failed save is
+never presented as durable supervision. Working event and route histories are
+bounded in memory while the configured JSONL tracer remains the audit stream.
 
 ### Spending real money
 
