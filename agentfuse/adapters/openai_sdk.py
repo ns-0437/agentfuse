@@ -160,7 +160,9 @@ def guarded_tool_loop(
 
         tool_calls = getattr(msg, "tool_calls", None)
         if not tool_calls:
-            return mon.finish("complete")
+            summary = mon.finish("complete")
+            summary["output"] = msg.content or ""
+            return summary
 
         restart = False
         for tc in tool_calls:

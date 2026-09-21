@@ -29,6 +29,15 @@ def test_sdk_forwards_model_for_dollar_limit():
     assert result["total_cost_usd"] > 0
 
 
+def test_sdk_returns_the_agent_output_with_run_summary():
+    from evals.test_adapters_untested import FakeOpenAI, _Resp, _Msg
+    from agentfuse.adapters.openai_sdk import guarded_tool_loop
+    result = guarded_tool_loop(FakeOpenAI([_Resp(_Msg("Invoice reconciled"))]),
+        "gpt-4o", "Assist", "Task", [], lambda *_: None, echo=False)
+    assert result["status"] == "complete"
+    assert result["output"] == "Invoice reconciled"
+
+
 def test_sdk_anchors_to_user_task_with_explicit_override(monkeypatch):
     from evals.test_adapters_untested import FakeOpenAI, _Resp, _Msg
     from agentfuse.adapters import openai_sdk
