@@ -13,6 +13,23 @@
 honest readiness assessment, including the measurement showing the deterministic
 templates currently beat the only real model tested.
 
+## Install and verify
+
+This project is not the unrelated `agent-fuse` distribution on PyPI. Until an
+official release is published under the collision-safe distribution name
+`ns0437-agentfuse`, install this repository directly:
+
+```bash
+python -m pip install "ns0437-agentfuse @ git+https://github.com/ns-0437/agentfuse.git@main"
+agentfuse doctor
+agentfuse quickstart
+```
+
+`agentfuse quickstart` is offline and dependency-free. It drives the real
+monitor through a repeated-tool loop, verifies that deterministic steering is
+issued, and completes a recovered run. Add `--json` for automation or
+`--trace runs/quickstart.jsonl` to keep the complete event trace.
+
 Long-running agents (hours → days, hundreds of steps) don't usually fail with a
 crash. They fail *quietly*: an infinite tool loop, a slow drift from the original
 objective, a logical trap where the model reasons flawlessly from a false premise,
@@ -56,7 +73,7 @@ invalidated, but narrower than "the recovery system" ([section 3.24](REPORT.md))
 
 ---
 
-## 60-second demo (no API key, nothing to install)
+## 60-second demo (no API key)
 
 The core is **stdlib-only**. Clone and run:
 

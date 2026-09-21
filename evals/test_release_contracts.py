@@ -66,6 +66,23 @@ def test_doctor_reports_core_and_machine_readable_capabilities(capsys):
     assert set(report["integrations"]) == {"agents_sdk", "langgraph", "openai"}
 
 
+def test_quickstart_proves_recovery_and_can_write_a_trace(tmp_path, capsys):
+    import json
+    from agentfuse.cli import main
+    trace = tmp_path / "nested" / "quickstart.jsonl"
+    assert main(["quickstart", "--json", "--trace", str(trace)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["ok"] is True
+    assert result["detected"] == "loop"
+    assert result["directive"] == "inject"
+    assert result["status"] == "complete"
+    assert result["recoveries"] == 1
+    assert trace.exists()
+    records = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+    assert any(record.get("kind") == "trip" for record in records)
+    assert any(record.get("kind") == "recovery" for record in records)
+
+
 def test_sdk_progress_requires_application_evidence():
     import asyncio
     import pytest
