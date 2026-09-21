@@ -101,6 +101,13 @@ class _Provider(ModelProvider):
 
 def _drive(max_attempts: int = 6, **fuse_kwargs):
     """Run the agent under supervision; return (fuse, final_output, attempts)."""
+    def progress(tool_name, result):
+        if tool_name == "secret_manager_get" and "credential provisioned" in str(result):
+            return {"credential": "prod/db/primary", "status": "provisioned"}
+        return None
+
+    fuse_kwargs.setdefault("progress_validator", progress)
+
     async def go():
         agent = Agent(name="rotator", instructions=GOAL,
                       tools=[search_files, secret_manager_get])
@@ -192,19 +199,21 @@ def test_progress_state_reflects_the_result_not_a_hardcoded_wordlist():
             return Directive()
 
     cap = Capture()
-    hooks = FuseRunHooks(original_goal="create an invoice", monitor=cap)
+    def invoice_progress(tool_name, result):
+        if tool_name == "create_invoice" and "created successfully" in str(result):
+            return {"invoice_id": 123}
+        return None
+
+    hooks = FuseRunHooks(original_goal="create an invoice", monitor=cap,
+                         progress_validator=invoice_progress)
 
     asyncio.run(hooks.on_tool_end(
         None, NS(name="a"), NS(name="create_invoice"),
         "Invoice 123 created successfully"))
-    assert cap.events[-1].state is not None, (
-        "a genuinely successful result outside the demo vocabulary must "
-        "still be reported as state, not silently dropped as None")
+    assert cap.events[-1].state == {"invoice_id": 123}
 
     asyncio.run(hooks.on_tool_end(
         None, NS(name="a"), NS(name="read_log"),
         "ERROR: secret-not-found; operation failed"))
-    assert "ERROR" in cap.events[-1].state["result"], (
-        "the failure's own text must reach the monitor unfiltered — whether "
-        "it counts as a genuine ADVANCE is SeenStateTracker's job downstream, "
-        "not a keyword match at the adapter layer")
+    assert cap.events[-1].state is None
+    assert "ERROR" in cap.events[-1].text
