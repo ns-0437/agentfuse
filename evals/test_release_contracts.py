@@ -80,6 +80,15 @@ def test_long_runs_keep_bounded_working_history():
     assert mon.route_history == ["node-27", "node-28", "node-29"]
 
 
+def test_doctor_reports_core_and_machine_readable_capabilities(capsys):
+    from agentfuse.cli import main
+    assert main(["doctor", "--json"]) == 0
+    report = __import__("json").loads(capsys.readouterr().out)
+    assert report["core"] == "ok"
+    assert "drift_backend" in report
+    assert set(report["integrations"]) == {"agents_sdk", "langgraph", "openai"}
+
+
 def test_sdk_anchors_to_user_task_with_explicit_override(monkeypatch):
     from evals.test_adapters_untested import FakeOpenAI, _Resp, _Msg
     from agentfuse.adapters import openai_sdk

@@ -28,6 +28,9 @@ Homepage = "https://ns-0437.github.io/agentfuse/"
 Repository = "https://github.com/ns-0437/agentfuse"
 Issues = "https://github.com/ns-0437/agentfuse/issues"
 
+[project.scripts]
+agentfuse = "agentfuse.cli:main"
+
 [project.optional-dependencies]
 pretty = ["rich>=13.0.0"]
 openai = ["openai>=1.40.0"]

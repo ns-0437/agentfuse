@@ -36,7 +36,6 @@ disabling it would confuse "don't bill me" with "don't think".
 from __future__ import annotations
 
 import os
-import warnings
 from typing import Callable, Optional
 
 from .env import load_env, offline_mode
