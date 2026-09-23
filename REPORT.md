@@ -2455,14 +2455,13 @@ secret-not-found; operation failed" registered `progress=True` (on a message
 that plainly describes a failure), purely because of the substring
 `"secret-"`.
 
-**Fix:** set `state` unconditionally from the actual result, matching
-`openai_sdk.py`'s own `TOOL_RESULT` handling — `{"tool": ..., "result":
-text[:120]}` every time, no keyword filter. Whether a state is a *genuine*
-advance is already answered correctly downstream by `SeenStateTracker`'s
-bounded-window novelty check (the same mechanism CLAUDE.md point 13 already
-applied once to fix `_verify_pending`'s identical mistake) — the adapter's
-job is only to report what happened, not to pre-judge it. Regression test in
-`evals/test_adapters.py`.
+**Fix:** progress is now an application-owned contract. `FuseRunHooks` accepts
+a `progress_validator` that returns a stable milestone dictionary or `None`;
+without one the adapter abstains. This avoids both failure modes: arbitrary
+tool output no longer becomes proof of progress, and the adapter no longer
+guesses from words copied from one demo. Regression coverage verifies that a
+failure containing `secret-` does not advance the run while an application can
+recognise a real invoice identifier as a milestone.
 
 ### 3.39 The SDK adapter's auto-built config couldn't price its own model, and anchored on boilerplate
 
@@ -2588,20 +2587,22 @@ checkpoint interval — a run that cannot persist is a fact worth surfacing,
 not one worth repeating into a log nobody reads. Regression tests in
 `evals/test_checkpoint.py`.
 
-A related finding — `history`/`route_history` growing unbounded across a
-run measured in days — was investigated and deliberately NOT fixed this
-round: `evals/test_concurrency.py::test_token_accounting_survives_concurrency`
-asserts `len(mon.history) == 6 * 120 * 3` as a "no events lost under
-concurrency" guarantee, and no detector actually reads the `history`
-argument its own `inspect()` signature carries (each keeps its own bounded
-internal state instead) — the only real use is `history[-10:]` in a trip
-snapshot. Bounding it would contradict an existing, deliberately-tested
-guarantee rather than trade one real problem for a worse one; the honest
-answer is that the unbounded-memory-growth finding is real for a run long
-enough to matter, and closing it needs the "no events lost" test's own
-guarantee redesigned first (e.g. an unbounded audit log the caller owns,
-separate from a small bounded window the monitor keeps for itself) — not
-attempted here.
+A related finding — `history`/`route_history` growing without bound across a
+run measured in days — is now addressed by configurable working-history limits.
+The JSONL tracer remains the complete audit stream when configured; the monitor
+keeps only the recent window needed for detection and recovery context.
+
+### 3.43 Reliability alpha exposes its operating contract
+
+The monitor now separates `observe`, `enforce`, and `recover` modes so teams can
+collect evidence in shadow deployments before allowing interventions. The SDK
+returns the task output with supervision telemetry and can block conversation
+reruns after tools declared as writes or unknown effects. Hosted drift
+embeddings require explicit `AGENTFUSE_EMBED_BACKEND=openai` opt-in rather than
+activating from an unrelated API key, and `agentfuse doctor` reports the core,
+drift backend, and optional integration availability without importing those
+integrations eagerly. These are alpha boundaries: tool-effect declarations are
+still application supplied, and external workload validation remains open.
 
 ---
 

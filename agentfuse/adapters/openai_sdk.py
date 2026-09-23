@@ -36,6 +36,7 @@ def guarded_tool_loop(
     logprobs: bool = False,
     intervention: str = "rerun",
     idempotent_tools: Optional[frozenset] = None,
+    tool_effects: Optional[dict[str, str]] = None,
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
@@ -73,6 +74,12 @@ def guarded_tool_loop(
     operation ledger across process restarts — see REPORT.md for what a
     complete fix would still need (reconciliation after an unknown-outcome
     timeout, cross-restart persistence).
+
+    ``tool_effects`` can classify each tool as ``"read"``, ``"idempotent"``,
+    ``"write"``, or ``"unknown"``. When supplied, a rerun is blocked after a
+    completed write or unknown effect because replaying the conversation may
+    cause a different follow-up write even when exact duplicate calls are
+    deduplicated in memory. Omitting this mapping preserves compatibility.
     """
     config_kwargs.setdefault("model", model)
     original_goal = config_kwargs.pop("original_goal", None) or user_input or system_prompt
@@ -160,7 +167,9 @@ def guarded_tool_loop(
 
         tool_calls = getattr(msg, "tool_calls", None)
         if not tool_calls:
-            return mon.finish("complete")
+            summary = mon.finish("complete")
+            summary["output"] = msg.content or ""
+            return summary
 
         restart = False
         for tc in tool_calls:
@@ -218,6 +227,15 @@ def guarded_tool_loop(
                 state={"last_tool": tc.function.name, "result": str(result)[:200]},
                 meta={"call_id": tc.id},
             ))
+            effect = (tool_effects or {}).get(tc.function.name)
+            if (d.kind is DirectiveKind.INJECT and intervention == "rerun"
+                    and tool_effects is not None
+                    and effect not in ("read", "idempotent")):
+                summary = mon.finish("recovery_blocked")
+                summary["blocked_tool"] = tc.function.name
+                summary["blocked_reason"] = (
+                    "rerun requires the completed tool to be declared read or idempotent")
+                return summary
             # The directive from the RESULT was previously discarded. That is
             # where the loop detector now fires — it deliberately waits for the
             # outcome rather than judging a call it has not seen the result of —

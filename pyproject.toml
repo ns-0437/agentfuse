@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentfuse"
-version = "0.1.0"
+name = "ns0437-agentfuse"
+version = "0.2.0"
 description = "A logical circuit breaker for long-range autonomous agents: detects loops, drift, logic traps and runaway spend, then steers the agent back on track with a deterministic recovery ladder (an optional separate reasoning model can write corrections instead, but currently underperforms the ladder)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,6 +27,9 @@ dependencies = []  # core is stdlib-only
 Homepage = "https://ns-0437.github.io/agentfuse/"
 Repository = "https://github.com/ns-0437/agentfuse"
 Issues = "https://github.com/ns-0437/agentfuse/issues"
+
+[project.scripts]
+agentfuse = "agentfuse.cli:main"
 
 [project.optional-dependencies]
 pretty = ["rich>=13.0.0"]

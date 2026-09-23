@@ -20,6 +20,7 @@ from typing import Any, Optional
 from agents import RunHooks  # requires `pip install openai-agents`
 
 from ..events import AgentEvent, EventType
+from ..progress import ProgressValidator, progress_state
 from ..monitor import (
     CircuitBreakerMonitor,
     MonitorConfig,
@@ -44,7 +45,9 @@ class FuseRunHooks(RunHooks):
     """Drop-in ``RunHooks`` that supervises an AgentKit run with AgentFuse."""
 
     def __init__(self, original_goal: str, monitor: Optional[CircuitBreakerMonitor] = None,
+                 progress_validator: Optional[ProgressValidator] = None,
                  **config_kwargs: Any):
+        self.progress_validator = progress_validator
         self.monitor = monitor or CircuitBreakerMonitor(
             MonitorConfig(original_goal=original_goal, **config_kwargs)
         )
@@ -107,6 +110,7 @@ class FuseRunHooks(RunHooks):
             self._observe(AgentEvent(
                 type=EventType.TOOL_CALL, step=self._step, node=node,
                 tool_name=getattr(tc, "name", "tool"), tool_args=args,
+                meta={"call_id": getattr(tc, "call_id", None)},
             ))
 
     async def on_llm_start(self, context: Any, agent: Any, system_prompt: Any,
@@ -117,24 +121,16 @@ class FuseRunHooks(RunHooks):
             raise BreakerInterrupt(directive)
 
     async def on_tool_end(self, context: Any, agent: Any, tool: Any, result: Any) -> None:
-        # `state` is set unconditionally, matching openai_sdk.py's own
-        # TOOL_RESULT handling. This used to keyword-match the result text
-        # against a fixed list ("rotated", "secret-", "token:") lifted from
-        # this project's own demo scenario -- which meant a genuinely
-        # successful result outside that demo ("Invoice 123 created
-        # successfully") registered as NO progress at all, while a FAILURE
-        # message merely containing the substring "secret-" registered as
-        # progress. Reproduced directly; see REPORT.md. Whether a state is a
-        # GENUINE advance is not this adapter's call to make from keywords --
-        # the monitor already answers that question correctly via
-        # SeenStateTracker's bounded-window novelty check (the same fix
-        # CLAUDE.md point 13 already applied once to _verify_pending), so the
-        # adapter's only job is to report what happened, unfiltered.
+        # Tool output is not automatically proof of progress. Applications
+        # know which result fields represent durable milestones, so they can
+        # supply a validator that returns a stable state dictionary. Without
+        # one we abstain instead of guessing from demo-specific words.
         text = str(result)
-        state = {"tool": getattr(tool, "name", None), "result": text[:120]}
+        state = progress_state(self.progress_validator, getattr(tool, "name", "tool"), result)
         self._observe(AgentEvent(
             type=EventType.TOOL_RESULT, step=self._step, node=getattr(agent, "name", "agent"),
             tool_name=getattr(tool, "name", None), text=text[:200], state=state,
+            meta={"call_id": getattr(context, "tool_call_id", None)},
         ), defer_interrupt=True)
 
     # -- glue ------------------------------------------------------------
@@ -148,7 +144,10 @@ class FuseRunHooks(RunHooks):
 
         if defer_interrupt:
             # Raised at the next turn boundary — see on_llm_start.
-            self._deferred = directive
+            # A later recoverable finding must not erase a hard stop raised
+            # by another tool completing in the same batch.
+            if self._deferred is None or self._deferred.kind is DirectiveKind.INJECT:
+                self._deferred = directive
             return
         raise BreakerInterrupt(directive)
 
