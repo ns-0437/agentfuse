@@ -47,6 +47,10 @@ def guarded_tool_loop(
 
     ``tool_router(name, args)`` executes a tool and returns its result. Pricing
     for spend tracking can be passed via ``config_kwargs`` (max_tokens/max_cost).
+    If a declared read or idempotent tool raises, the model receives a sanitized
+    error result and can retry it. An exception from a write or undeclared tool
+    returns ``recovery_blocked`` because its external outcome may be unknown;
+    exception text is never sent back to the model or included in that summary.
 
     When no ``monitor=`` is supplied, one is built here from ``model``,
     ``system_prompt`` and ``user_input``. Independent review (2026-09-17)
@@ -284,23 +288,28 @@ def guarded_tool_loop(
                 try:
                     result = tool_router(tc.function.name, args)
                 except Exception as exc:
-                    if operation_id is None:
-                        raise
-                    return blocked_operation(
-                        tc.function.name,
-                        f"tool raised {type(exc).__name__}; its external outcome "
-                        "is unknown and must be reconciled")
-                if operation_id is not None:
-                    assert ledger is not None
-                    try:
-                        ledger.complete(operation_id)
-                    except Exception:
+                    if unsafe:
                         return blocked_operation(
                             tc.function.name,
-                            "tool returned but its completion could not be journaled; "
-                            "inspect external state before retrying")
-                if sig is not None:
-                    committed[sig] = result
+                            f"tool raised {type(exc).__name__}; its external outcome "
+                            "is unknown and must be reconciled")
+                    # A declared read or idempotent operation may be retried.
+                    # Do not expose exception text, which can contain secrets,
+                    # or cache this transient error as a completed result.
+                    result = (f"ERROR: {tc.function.name} failed "
+                              f"({type(exc).__name__}). Retry or choose another tool.")
+                else:
+                    if operation_id is not None:
+                        assert ledger is not None
+                        try:
+                            ledger.complete(operation_id)
+                        except Exception:
+                            return blocked_operation(
+                                tc.function.name,
+                                "tool returned but its completion could not be journaled; "
+                                "inspect external state before retrying")
+                    if sig is not None:
+                        committed[sig] = result
             d = mon.observe(AgentEvent(
                 type=EventType.TOOL_RESULT, step=step,
                 tool_name=tc.function.name, text=str(result)[:200],

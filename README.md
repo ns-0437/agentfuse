@@ -224,6 +224,10 @@ block automatic reruns after the tool completes. The run summary then reports
 `status="recovery_blocked"` and `blocked_tool`; inspect the external state before
 starting a new run. This safeguard tracks effects only within the current
 process, so use your own idempotency keys and reconciliation for durable writes.
+If a tool raises, AgentFuse passes a sanitized error back to the agent only for
+tools declared `read` or `idempotent`; errors from writes or undeclared tools
+block the run because the external outcome may be unknown. The exception's
+message is not exposed to the model or included in the run summary.
 
 For unattended writes, opt in to the local SQLite operation journal and use a
 stable scope for the logical job:
