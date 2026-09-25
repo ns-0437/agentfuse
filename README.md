@@ -23,12 +23,19 @@ official release is published under the collision-safe distribution name
 python -m pip install "ns0437-agentfuse @ git+https://github.com/ns-0437/agentfuse.git@main"
 agentfuse doctor
 agentfuse quickstart
+agentfuse quickstart --adapter openai
 ```
 
 `agentfuse quickstart` is offline and dependency-free. It drives the real
 monitor through a repeated-tool loop, verifies that deterministic steering is
 issued, and completes a recovered run. Add `--json` for automation or
 `--trace runs/quickstart.jsonl` to keep the complete event trace.
+
+`agentfuse quickstart --adapter openai` drives the actual OpenAI-compatible
+tool-loop adapter with a scripted model and read-only tools. It needs no API key,
+OpenAI package, or network connection. Its JSON output distinguishes tool calls
+requested by the model from tool executions (which may be deduplicated), and
+shows the final run status and output.
 
 Long-running agents (hours → days, hundreds of steps) don't usually fail with a
 crash. They fail *quietly*: an infinite tool loop, a slow drift from the original
@@ -211,6 +218,36 @@ guarded_tool_loop(OpenAI(), model="gpt-4.1", system_prompt=GOAL,
                   tool_effects={"search": "read", "upsert": "idempotent"})
 ```
 
+Declare a tool `idempotent` only if repeating it with the same arguments is safe
+(for example, an upsert keyed by a stable ID). Unknown or omitted tool effects
+block automatic reruns after the tool completes. The run summary then reports
+`status="recovery_blocked"` and `blocked_tool`; inspect the external state before
+starting a new run. This safeguard tracks effects only within the current
+process, so use your own idempotency keys and reconciliation for durable writes.
+
+For unattended writes, opt in to the local SQLite operation journal and use a
+stable scope for the logical job:
+
+```python
+result = guarded_tool_loop(
+    OpenAI(), model="gpt-4.1", system_prompt=GOAL, user_input=TASK,
+    tools=TOOLS, tool_router=run_tool,
+    tool_effects={"search": "read", "create_invoice": "write"},
+    operation_ledger_path="agentfuse-operations.sqlite3",
+    operation_scope=job_id,
+)
+if result["status"] == "recovery_blocked":
+    # Inspect the external system before deciding whether a new job is safe.
+    print(result["blocked_tool"], result["blocked_reason"])
+```
+
+The journal records a pending intent before invoking a write and marks it
+completed after the tool returns. Reusing the scope after either state stops
+before another model or tool call. A pending intent may already have committed
+externally; AgentFuse cannot infer that from a timeout. The journal stores tool
+names and state, not arguments or results. It is separate from monitor
+`checkpoint_path`, which preserves detector and budget state.
+
 ### LangGraph
 
 ```python
@@ -235,6 +272,11 @@ MonitorConfig(original_goal=GOAL, mode=MonitorMode.OBSERVE)  # record only
 MonitorConfig(original_goal=GOAL, mode=MonitorMode.ENFORCE)  # pause/abort only
 MonitorConfig(original_goal=GOAL, mode=MonitorMode.RECOVER)  # bounded steering
 ```
+
+Configuration is validated when `MonitorConfig` is created. Mode strings such
+as `mode="observe"` are accepted and normalized; blank goals, negative budgets,
+invalid thresholds, and unknown modes raise a focused `ValueError` before the
+agent starts running.
 
 Applications should pass a `progress_validator` to the Agents SDK hooks. It must
 return stable milestone data (for example `{"invoice_id": 123}`) or `None`.

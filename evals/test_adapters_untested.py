@@ -149,7 +149,8 @@ def test_openai_sdk_injects_steering_into_the_conversation():
     client = FakeOpenAI(_loop_turns())
     guarded_tool_loop(client, model="gpt-4.1", system_prompt=GOAL, user_input="go",
                       tools=[], tool_router=lambda n, a: "0 files matched",
-                      max_turns=10, monitor=mon)
+                      max_turns=10, monitor=mon,
+                      tool_effects={"search_files": "read"})
     assert _steering_messages(client), \
         "steering was produced but never reached the agent's messages"
 
@@ -171,7 +172,8 @@ def test_rerun_discards_the_failing_turns():
     client = FakeOpenAI(_loop_turns())
     guarded_tool_loop(client, model="gpt-4.1", system_prompt=GOAL, user_input="go",
                       tools=[], tool_router=lambda n, a: "0 files matched",
-                      max_turns=10, monitor=mon, intervention="rerun")
+                      max_turns=10, monitor=mon, intervention="rerun",
+                      tool_effects={"search_files": "read"})
 
     steered_turns = [t for t in client.seen
                      if any("CIRCUIT BREAKER STEERING" in str(m.get("content")) for m in t)]
@@ -334,13 +336,8 @@ def test_guarded_tool_loop_anchors_on_user_input_not_a_generic_system_prompt():
     assert mon_holder["config"].original_goal == "Reconcile invoice 123 against the ledger."
 
 
-def test_rerun_does_not_repeat_an_already_committed_write():
-    """Independent review (2026-09-17): ``rerun`` discards the failing turns'
-    MESSAGES on a steer but not their EFFECTS. If the model reissues the same
-    call after the restart, the old adapter re-invoked ``tool_router`` a
-    second time -- a real duplicate write. Reproduced directly with a
-    scripted two-write task before fixing.
-    """
+def test_rerun_is_blocked_when_an_earlier_tool_has_unknown_effects():
+    """A steer on a later read cannot replay an earlier undeclared write."""
     def turn(calls):
         return _Resp(_Msg("working", [
             _ToolCall(name, {}, i) for i, name in enumerate(calls)]))
@@ -378,13 +375,14 @@ def test_rerun_does_not_repeat_an_already_committed_write():
             writes.append("committed")
         return "ok"
 
-    guarded_tool_loop(RerunClient(), model="fake", system_prompt="task",
-                      user_input="task", tools=[], tool_router=route,
-                      monitor=OneTripMonitor())
+    result = guarded_tool_loop(RerunClient(), model="fake", system_prompt="task",
+                               user_input="task", tools=[], tool_router=route,
+                               monitor=OneTripMonitor(),
+                               tool_effects={"search": "read"})
 
-    assert len(writes) == 1, (
-        f"write_record was invoked {len(writes)} times across one rerun; "
-        f"a steer must not cause an already-committed write to repeat")
+    assert result["status"] == "recovery_blocked"
+    assert result["blocked_tool"] == "write_record"
+    assert len(writes) == 1
 
 
 # ------------------------------------------------------------- langgraph

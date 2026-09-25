@@ -1,5 +1,6 @@
 """Execution guarantees from the independent September reliability review."""
 import os
+import pytest
 os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 
 from agentfuse import AgentEvent, CircuitBreakerMonitor, EventType, MonitorConfig
@@ -15,7 +16,8 @@ def test_sdk_returns_the_agent_output_with_run_summary():
     assert result["output"] == "Invoice reconciled"
 
 
-def test_sdk_does_not_rerun_after_declared_external_write():
+@pytest.mark.parametrize("effects", [None, {"create_invoice": "write"}])
+def test_sdk_does_not_rerun_after_external_write(effects):
     from evals.test_adapters_untested import FakeOpenAI, _loop_turns
     from agentfuse.adapters.openai_sdk import guarded_tool_loop
     from agentfuse.monitor import Directive
@@ -30,8 +32,38 @@ def test_sdk_does_not_rerun_after_declared_external_write():
     result = guarded_tool_loop(FakeOpenAI(_loop_turns(tool="create_invoice")),
         "gpt-4o", "Assist", "Task", [],
         lambda *_: writes.append("committed") or "invoice created",
-        tool_effects={"create_invoice": "write"}, monitor=TripAfterResult(),
+        tool_effects=effects, monitor=TripAfterResult(),
         max_turns=6, echo=False)
+    assert result["status"] == "recovery_blocked"
+    assert result["blocked_tool"] == "create_invoice"
+    assert len(writes) == 1
+
+
+@pytest.mark.parametrize("trip_on", [EventType.LLM_CALL, EventType.TOOL_CALL])
+def test_sdk_blocks_later_rerun_after_unknown_tool_effect(trip_on):
+    from evals.test_adapters_untested import FakeOpenAI, _loop_turns
+    from agentfuse.adapters.openai_sdk import guarded_tool_loop
+    from agentfuse.monitor import Directive
+
+    class TripOnSecondTurn:
+        def __init__(self):
+            self.calls = 0
+
+        def observe(self, event):
+            if event.type is EventType.LLM_CALL:
+                self.calls += 1
+            if self.calls == 2 and event.type is trip_on:
+                return Directive(DirectiveKind.INJECT, steering_text="change plan")
+            return Directive()
+
+        def finish(self, status):
+            return {"status": status}
+
+    writes = []
+    result = guarded_tool_loop(FakeOpenAI(_loop_turns(tool="create_invoice")),
+        "gpt-4o", "Assist", "Task", [],
+        lambda *_: writes.append("committed") or "invoice created",
+        monitor=TripOnSecondTurn(), max_turns=4)
     assert result["status"] == "recovery_blocked"
     assert result["blocked_tool"] == "create_invoice"
     assert len(writes) == 1
@@ -45,6 +77,27 @@ def test_monitor_modes_separate_observation_enforcement_and_recovery():
     assert decision(MonitorMode.OBSERVE).kind is DirectiveKind.CONTINUE
     assert decision(MonitorMode.ENFORCE).kind is DirectiveKind.ABORT
     assert decision(MonitorMode.RECOVER).kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT)
+
+
+def test_config_normalizes_mode_strings_and_rejects_bad_values():
+    import pytest
+    from typing import Any, cast
+
+    config = MonitorConfig(original_goal="task", mode=cast(Any, "observe"),
+                           echo=False, max_tokens=1)
+    assert config.mode is MonitorMode.OBSERVE
+    decision = CircuitBreakerMonitor(config).observe(
+        AgentEvent(type=EventType.LLM_CALL, tokens_in=2))
+    assert decision.kind is DirectiveKind.CONTINUE
+
+    with pytest.raises(ValueError, match="original_goal"):
+        MonitorConfig(original_goal="   ")
+    with pytest.raises(ValueError, match="checkpoint_every"):
+        MonitorConfig(original_goal="task", checkpoint_every=0)
+    with pytest.raises(ValueError, match="mode must be one of"):
+        MonitorConfig(original_goal="task", mode=cast(Any, "shadow"))
+    with pytest.raises(ValueError, match="max_cost_usd"):
+        MonitorConfig(original_goal="task", max_cost_usd=-1.0)
 
 
 def test_long_runs_keep_bounded_working_history():
@@ -81,6 +134,26 @@ def test_quickstart_proves_recovery_and_can_write_a_trace(tmp_path, capsys):
     records = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
     assert any(record.get("kind") == "trip" for record in records)
     assert any(record.get("kind") == "recovery" for record in records)
+
+
+def test_offline_adapter_quickstart_exercises_real_tool_loop(tmp_path, capsys):
+    import json
+    from agentfuse.cli import main
+
+    trace = tmp_path / "adapter.jsonl"
+    assert main(["quickstart", "--adapter", "openai", "--json",
+                 "--trace", str(trace)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["ok"] is True
+    assert result["status"] == "complete"
+    assert result["recoveries"] == 1
+    assert result["requested_tools"].count("search_customers") >= 3
+    assert result["requested_tools"][-1] == "get_customer"
+    assert result["tool_calls"] == ["search_customers", "get_customer"]
+    assert result["output"] == "Support summary ready for customer 42."
+    records = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+    assert any(record.get("kind") == "trip" and record.get("detector") == "loop"
+               for record in records)
 
 
 def test_sdk_progress_requires_application_evidence():
