@@ -137,13 +137,58 @@ class MonitorConfig:
     history_limit: int = 10000
     route_history_limit: int = 100
 
+    def __post_init__(self) -> None:
+        """Normalize friendly inputs and reject unsafe configuration early."""
+        try:
+            self.mode = MonitorMode(self.mode)
+        except (TypeError, ValueError) as exc:
+            choices = ", ".join(mode.value for mode in MonitorMode)
+            raise ValueError(f"mode must be one of: {choices}") from exc
+
+        if not isinstance(self.original_goal, str) or not self.original_goal.strip():
+            raise ValueError("original_goal must be a non-empty string")
+
+        positive = (
+            "loop_threshold", "stall_patience", "burst_window",
+            "verify_window", "checkpoint_every", "route_history_limit",
+        )
+        for name in positive:
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+                raise ValueError(f"{name} must be an integer >= 1")
+
+        if (not isinstance(self.history_limit, int)
+                or isinstance(self.history_limit, bool)
+                or self.history_limit < 10):
+            raise ValueError("history_limit must be an integer >= 10")
+
+        if self.rate_patience is not None:
+            if (not isinstance(self.rate_patience, int)
+                    or isinstance(self.rate_patience, bool)
+                    or self.rate_patience < 1):
+                raise ValueError("rate_patience must be None or an integer >= 1")
+        if (not isinstance(self.max_recoveries, int)
+                or isinstance(self.max_recoveries, bool)
+                or self.max_recoveries < 0):
+            raise ValueError("max_recoveries must be an integer >= 0")
+
+        for name in ("max_tokens", "max_cost_usd", "burst_tokens"):
+            value = getattr(self, name)
+            if (value is not None
+                    and (not isinstance(value, (int, float))
+                         or isinstance(value, bool) or value < 0)):
+                raise ValueError(f"{name} must be None or >= 0")
+        if self.drift_threshold is not None:
+            if (not isinstance(self.drift_threshold, (int, float))
+                    or isinstance(self.drift_threshold, bool)
+                    or not 0.0 <= self.drift_threshold <= 1.0):
+                raise ValueError("drift_threshold must be None or between 0 and 1")
+
 
 class CircuitBreakerMonitor:
     def __init__(self, config: MonitorConfig, detectors: Optional[list[Detector]] = None,
                  recovery: Optional[RecoveryEngine] = None, tracer: Optional[Tracer] = None,
                  notifier: Optional[Notifier] = None):
-        if config.history_limit < 10 or config.route_history_limit < 1:
-            raise ValueError("history_limit must be >= 10 and route_history_limit >= 1")
         self.config = config
         self.calibrator = AdaptiveCalibrator(enabled=config.adaptive)
         self.detectors: list[Detector] = detectors or [

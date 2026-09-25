@@ -236,6 +236,11 @@ MonitorConfig(original_goal=GOAL, mode=MonitorMode.ENFORCE)  # pause/abort only
 MonitorConfig(original_goal=GOAL, mode=MonitorMode.RECOVER)  # bounded steering
 ```
 
+Configuration is validated when `MonitorConfig` is created. Mode strings such
+as `mode="observe"` are accepted and normalized; blank goals, negative budgets,
+invalid thresholds, and unknown modes raise a focused `ValueError` before the
+agent starts running.
+
 Applications should pass a `progress_validator` to the Agents SDK hooks. It must
 return stable milestone data (for example `{"invoice_id": 123}`) or `None`.
 AgentFuse no longer guesses progress from demo-specific words in tool output.

@@ -47,6 +47,27 @@ def test_monitor_modes_separate_observation_enforcement_and_recovery():
     assert decision(MonitorMode.RECOVER).kind in (DirectiveKind.PAUSE, DirectiveKind.ABORT)
 
 
+def test_config_normalizes_mode_strings_and_rejects_bad_values():
+    import pytest
+    from typing import Any, cast
+
+    config = MonitorConfig(original_goal="task", mode=cast(Any, "observe"),
+                           echo=False, max_tokens=1)
+    assert config.mode is MonitorMode.OBSERVE
+    decision = CircuitBreakerMonitor(config).observe(
+        AgentEvent(type=EventType.LLM_CALL, tokens_in=2))
+    assert decision.kind is DirectiveKind.CONTINUE
+
+    with pytest.raises(ValueError, match="original_goal"):
+        MonitorConfig(original_goal="   ")
+    with pytest.raises(ValueError, match="checkpoint_every"):
+        MonitorConfig(original_goal="task", checkpoint_every=0)
+    with pytest.raises(ValueError, match="mode must be one of"):
+        MonitorConfig(original_goal="task", mode=cast(Any, "shadow"))
+    with pytest.raises(ValueError, match="max_cost_usd"):
+        MonitorConfig(original_goal="task", max_cost_usd=-1.0)
+
+
 def test_long_runs_keep_bounded_working_history():
     mon = CircuitBreakerMonitor(MonitorConfig(original_goal="task", echo=False,
         mode=MonitorMode.OBSERVE, history_limit=10, route_history_limit=3), detectors=[])
