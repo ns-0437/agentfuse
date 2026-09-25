@@ -23,12 +23,19 @@ official release is published under the collision-safe distribution name
 python -m pip install "ns0437-agentfuse @ git+https://github.com/ns-0437/agentfuse.git@main"
 agentfuse doctor
 agentfuse quickstart
+agentfuse quickstart --adapter openai
 ```
 
 `agentfuse quickstart` is offline and dependency-free. It drives the real
 monitor through a repeated-tool loop, verifies that deterministic steering is
 issued, and completes a recovered run. Add `--json` for automation or
 `--trace runs/quickstart.jsonl` to keep the complete event trace.
+
+`agentfuse quickstart --adapter openai` drives the actual OpenAI-compatible
+tool-loop adapter with a scripted model and read-only tools. It needs no API key,
+OpenAI package, or network connection. Its JSON output distinguishes tool calls
+requested by the model from tool executions (which may be deduplicated), and
+shows the final run status and output.
 
 Long-running agents (hours → days, hundreds of steps) don't usually fail with a
 crash. They fail *quietly*: an infinite tool loop, a slow drift from the original

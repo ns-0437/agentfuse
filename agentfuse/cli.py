@@ -5,6 +5,7 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 
 from . import __version__
@@ -97,6 +98,66 @@ def quickstart(trace_path: Optional[str] = None) -> dict:
     }
 
 
+def adapter_quickstart(trace_path: Optional[str] = None) -> dict:
+    """Exercise the real OpenAI-compatible adapter with a scripted offline model."""
+    from .adapters.openai_sdk import guarded_tool_loop
+
+    goal = "Find customer 42 and produce a support summary."
+    tool_calls: list[str] = []
+    requested_tools: list[str] = []
+
+    class ScriptedCompletions:
+        def create(self, *, messages: list[dict], **kwargs: object) -> SimpleNamespace:
+            steered = any("CIRCUIT BREAKER STEERING" in str(m.get("content", ""))
+                          for m in messages)
+            customer_found = any(m.get("role") == "tool" and "customer 42" in
+                                 str(m.get("content", "")) for m in messages)
+            if customer_found:
+                content, calls = "Support summary ready for customer 42.", None
+            else:
+                name = "get_customer" if steered else "search_customers"
+                requested_tools.append(name)
+                arguments = {"customer_id": 42} if steered else {"email": "missing@example.com"}
+                content = "Checking the customer record."
+                calls = [SimpleNamespace(
+                    id=f"call_{len(messages)}", function=SimpleNamespace(
+                        name=name, arguments=json.dumps(arguments)))]
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(
+                    content=content, tool_calls=calls))],
+                usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+            )
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=ScriptedCompletions()))
+
+    def route(name: str, args: dict) -> str:
+        tool_calls.append(name)
+        if name == "search_customers":
+            return "no customer found"
+        if name == "get_customer" and args == {"customer_id": 42}:
+            return "customer 42 found"
+        raise ValueError(f"unexpected tool call: {name}")
+
+    result = guarded_tool_loop(
+        client, model="offline-scripted", system_prompt="Help the support team.",
+        user_input=goal, tools=[], tool_router=route, max_turns=8,
+        tool_effects={"search_customers": "read", "get_customer": "read"},
+        loop_threshold=3, echo=False, jsonl_path=trace_path,
+    )
+    recovered = (result.get("status") == "complete"
+                 and result.get("recoveries", 0) >= 1
+                 and requested_tools.count("search_customers") >= 3)
+    return {
+        "ok": recovered and "get_customer" in tool_calls,
+        "status": result["status"],
+        "recoveries": result.get("recoveries", 0),
+        "output": result.get("output"),
+        "requested_tools": requested_tools,
+        "tool_calls": tool_calls,
+        "trace_path": str(Path(trace_path).resolve()) if trace_path else None,
+    }
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="agentfuse")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -105,6 +166,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     demo = sub.add_parser("quickstart", help="run an offline loop-recovery smoke test")
     demo.add_argument("--json", action="store_true", dest="as_json")
     demo.add_argument("--trace", metavar="PATH", help="write the JSONL trace to PATH")
+    demo.add_argument("--adapter", choices=["monitor", "openai"], default="monitor",
+                      help="exercise the monitor or the OpenAI-compatible adapter")
     args = parser.parse_args(argv)
     if args.command == "doctor":
         report = doctor()
@@ -117,15 +180,17 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(f"{name}: {'available' if available else 'not installed'}")
         return 0
 
-    result = quickstart(args.trace)
+    result = adapter_quickstart(args.trace) if args.adapter == "openai" else quickstart(args.trace)
     if args.as_json:
         print(json.dumps(result, sort_keys=True))
     else:
-        print("AgentFuse offline quickstart")
+        print(f"AgentFuse offline quickstart ({args.adapter})")
         if result["ok"]:
             print("PASS: repeated tool loop detected")
             print("PASS: deterministic steering issued")
             print("PASS: supervised run recovered and completed")
+            if args.adapter == "openai":
+                print(f"Output: {result['output']}")
         else:
             print("FAIL: the expected loop-recovery path did not complete")
         if result["trace_path"]:

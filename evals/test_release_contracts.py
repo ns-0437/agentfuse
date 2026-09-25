@@ -136,6 +136,26 @@ def test_quickstart_proves_recovery_and_can_write_a_trace(tmp_path, capsys):
     assert any(record.get("kind") == "recovery" for record in records)
 
 
+def test_offline_adapter_quickstart_exercises_real_tool_loop(tmp_path, capsys):
+    import json
+    from agentfuse.cli import main
+
+    trace = tmp_path / "adapter.jsonl"
+    assert main(["quickstart", "--adapter", "openai", "--json",
+                 "--trace", str(trace)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["ok"] is True
+    assert result["status"] == "complete"
+    assert result["recoveries"] == 1
+    assert result["requested_tools"].count("search_customers") >= 3
+    assert result["requested_tools"][-1] == "get_customer"
+    assert result["tool_calls"] == ["search_customers", "get_customer"]
+    assert result["output"] == "Support summary ready for customer 42."
+    records = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+    assert any(record.get("kind") == "trip" and record.get("detector") == "loop"
+               for record in records)
+
+
 def test_sdk_progress_requires_application_evidence():
     import asyncio
     import pytest
