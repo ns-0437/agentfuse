@@ -248,6 +248,25 @@ externally; AgentFuse cannot infer that from a timeout. The journal stores tool
 names and state, not arguments or results. It is separate from monitor
 `checkpoint_path`, which preserves detector and budget state.
 
+If a tool timed out, inspect the authoritative external system using your
+`operation_scope` (for example, a job or invoice ID). Only when you have
+confirmed that the write **did not happen**, clear the pending intent and retry
+with the same scope:
+
+```python
+from agentfuse.operation_ledger import SQLiteOperationLedger
+
+ledger = SQLiteOperationLedger("agentfuse-operations.sqlite3")
+for pending in ledger.pending(job_id):
+    if invoice_store.confirm_absent(job_id):  # Your application's own check
+        ledger.confirm_not_applied(pending.operation_id)
+```
+
+If the write did happen or its outcome remains uncertain, leave it pending and
+reconcile the external operation manually. Completed writes cannot be cleared
+this way. The journal keeps reconciled rows for audit; it never treats a timeout
+alone as proof that a write failed.
+
 ### LangGraph
 
 ```python
