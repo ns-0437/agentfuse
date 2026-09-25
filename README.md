@@ -211,6 +211,13 @@ guarded_tool_loop(OpenAI(), model="gpt-4.1", system_prompt=GOAL,
                   tool_effects={"search": "read", "upsert": "idempotent"})
 ```
 
+Declare a tool `idempotent` only if repeating it with the same arguments is safe
+(for example, an upsert keyed by a stable ID). Unknown or omitted tool effects
+block automatic reruns after the tool completes. The run summary then reports
+`status="recovery_blocked"` and `blocked_tool`; inspect the external state before
+starting a new run. This safeguard tracks effects only within the current
+process, so use your own idempotency keys and reconciliation for durable writes.
+
 ### LangGraph
 
 ```python

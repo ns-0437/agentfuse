@@ -75,11 +75,11 @@ def guarded_tool_loop(
     complete fix would still need (reconciliation after an unknown-outcome
     timeout, cross-restart persistence).
 
-    ``tool_effects`` can classify each tool as ``"read"``, ``"idempotent"``,
-    ``"write"``, or ``"unknown"``. When supplied, a rerun is blocked after a
-    completed write or unknown effect because replaying the conversation may
-    cause a different follow-up write even when exact duplicate calls are
-    deduplicated in memory. Omitting this mapping preserves compatibility.
+    ``tool_effects`` classifies tools as ``"read"``, ``"idempotent"``,
+    ``"write"``, or ``"unknown"``. A rerun is blocked after any completed
+    tool without a ``"read"`` or ``"idempotent"`` declaration, including when
+    this mapping is omitted. Replaying the conversation can cause a different
+    follow-up write even when exact duplicate calls are deduplicated in memory.
     """
     config_kwargs.setdefault("model", model)
     original_goal = config_kwargs.pop("original_goal", None) or user_input or system_prompt
@@ -98,6 +98,19 @@ def guarded_tool_loop(
     # reissues the exact same call replays this instead of re-invoking
     # tool_router, so a write that already committed cannot commit twice.
     committed: dict[tuple[str, str], Any] = {}
+    unsafe_tool: Optional[str] = None
+
+    def blocked_recovery(directive: Directive) -> Optional[dict]:
+        if (unsafe_tool is None or intervention != "rerun"
+                or directive.kind is not DirectiveKind.INJECT
+                or not directive.steering_text):
+            return None
+        summary = mon.finish("recovery_blocked")
+        summary["blocked_tool"] = unsafe_tool
+        summary["blocked_reason"] = (
+            "rerun requires every completed tool to be declared read or idempotent")
+        return summary
+
     step = 0
     for _ in range(max_turns):
         step += 1
@@ -159,6 +172,9 @@ def guarded_tool_loop(
             ]
         messages.append(assistant)
 
+        blocked = blocked_recovery(directive)
+        if blocked is not None:
+            return blocked
         outcome = _apply_directive(mon, directive, messages, intervention, baseline)
         if outcome == "stop":
             return mon.finish("escalated")
@@ -199,6 +215,9 @@ def guarded_tool_loop(
                 # default. It must be on both events or the pair never matches.
                 meta={"call_id": tc.id},
             ))
+            blocked = blocked_recovery(d)
+            if blocked is not None:
+                return blocked
             outcome = _apply_directive(mon, d, messages, intervention, baseline)
             if outcome == "stop":
                 return mon.finish("escalated")
@@ -227,15 +246,13 @@ def guarded_tool_loop(
                 state={"last_tool": tc.function.name, "result": str(result)[:200]},
                 meta={"call_id": tc.id},
             ))
-            effect = (tool_effects or {}).get(tc.function.name)
-            if (d.kind is DirectiveKind.INJECT and intervention == "rerun"
-                    and tool_effects is not None
-                    and effect not in ("read", "idempotent")):
-                summary = mon.finish("recovery_blocked")
-                summary["blocked_tool"] = tc.function.name
-                summary["blocked_reason"] = (
-                    "rerun requires the completed tool to be declared read or idempotent")
-                return summary
+            if (bad_args is None and unsafe_tool is None
+                    and (tool_effects or {}).get(tc.function.name)
+                    not in ("read", "idempotent")):
+                unsafe_tool = tc.function.name
+            blocked = blocked_recovery(d)
+            if blocked is not None:
+                return blocked
             # The directive from the RESULT was previously discarded. That is
             # where the loop detector now fires — it deliberately waits for the
             # outcome rather than judging a call it has not seen the result of —

@@ -1,5 +1,6 @@
 """Execution guarantees from the independent September reliability review."""
 import os
+import pytest
 os.environ.setdefault("AGENTFUSE_OFFLINE", "1")
 
 from agentfuse import AgentEvent, CircuitBreakerMonitor, EventType, MonitorConfig
@@ -15,7 +16,8 @@ def test_sdk_returns_the_agent_output_with_run_summary():
     assert result["output"] == "Invoice reconciled"
 
 
-def test_sdk_does_not_rerun_after_declared_external_write():
+@pytest.mark.parametrize("effects", [None, {"create_invoice": "write"}])
+def test_sdk_does_not_rerun_after_external_write(effects):
     from evals.test_adapters_untested import FakeOpenAI, _loop_turns
     from agentfuse.adapters.openai_sdk import guarded_tool_loop
     from agentfuse.monitor import Directive
@@ -30,8 +32,38 @@ def test_sdk_does_not_rerun_after_declared_external_write():
     result = guarded_tool_loop(FakeOpenAI(_loop_turns(tool="create_invoice")),
         "gpt-4o", "Assist", "Task", [],
         lambda *_: writes.append("committed") or "invoice created",
-        tool_effects={"create_invoice": "write"}, monitor=TripAfterResult(),
+        tool_effects=effects, monitor=TripAfterResult(),
         max_turns=6, echo=False)
+    assert result["status"] == "recovery_blocked"
+    assert result["blocked_tool"] == "create_invoice"
+    assert len(writes) == 1
+
+
+@pytest.mark.parametrize("trip_on", [EventType.LLM_CALL, EventType.TOOL_CALL])
+def test_sdk_blocks_later_rerun_after_unknown_tool_effect(trip_on):
+    from evals.test_adapters_untested import FakeOpenAI, _loop_turns
+    from agentfuse.adapters.openai_sdk import guarded_tool_loop
+    from agentfuse.monitor import Directive
+
+    class TripOnSecondTurn:
+        def __init__(self):
+            self.calls = 0
+
+        def observe(self, event):
+            if event.type is EventType.LLM_CALL:
+                self.calls += 1
+            if self.calls == 2 and event.type is trip_on:
+                return Directive(DirectiveKind.INJECT, steering_text="change plan")
+            return Directive()
+
+        def finish(self, status):
+            return {"status": status}
+
+    writes = []
+    result = guarded_tool_loop(FakeOpenAI(_loop_turns(tool="create_invoice")),
+        "gpt-4o", "Assist", "Task", [],
+        lambda *_: writes.append("committed") or "invoice created",
+        monitor=TripOnSecondTurn(), max_turns=4)
     assert result["status"] == "recovery_blocked"
     assert result["blocked_tool"] == "create_invoice"
     assert len(writes) == 1
