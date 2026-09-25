@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import json
 from typing import Any, Callable, Optional
+from uuid import uuid4
 
 from ..confidence import _token_logprobs, summarize
 from ..events import AgentEvent, EventType
 from ..monitor import CircuitBreakerMonitor, MonitorConfig, Directive, DirectiveKind
+from ..operation_ledger import SQLiteOperationLedger
 
 
 def guarded_tool_loop(
@@ -37,6 +39,8 @@ def guarded_tool_loop(
     intervention: str = "rerun",
     idempotent_tools: Optional[frozenset] = None,
     tool_effects: Optional[dict[str, str]] = None,
+    operation_ledger_path: Optional[str] = None,
+    operation_scope: Optional[str] = None,
     **config_kwargs: Any,
 ) -> dict:
     """Run a guarded manual tool-use loop against the OpenAI Chat Completions API.
@@ -80,12 +84,42 @@ def guarded_tool_loop(
     tool without a ``"read"`` or ``"idempotent"`` declaration, including when
     this mapping is omitted. Replaying the conversation can cause a different
     follow-up write even when exact duplicate calls are deduplicated in memory.
+
+    Set both ``operation_ledger_path`` and a stable, unique
+    ``operation_scope`` for a logical run to journal non-read/non-idempotent
+    tool effects in local SQLite. Intent is committed before invoking the tool;
+    on a subsequent invocation with the same scope, any pending or completed
+    effect blocks execution before another model or tool call. A pending entry
+    means the outcome must be reconciled externally. The ledger contains no
+    arguments or results and cannot itself undo or verify an external write.
     """
+    if (operation_ledger_path is None) != (operation_scope is None):
+        raise ValueError("operation_ledger_path and operation_scope must be set together")
+    if operation_ledger_path is not None and not operation_ledger_path.strip():
+        raise ValueError("operation_ledger_path must not be blank")
+    if operation_scope is not None and not operation_scope.strip():
+        raise ValueError("operation_scope must not be blank")
+    ledger = (SQLiteOperationLedger(operation_ledger_path)
+              if operation_ledger_path else None)
+    owner = uuid4().hex
     config_kwargs.setdefault("model", model)
     original_goal = config_kwargs.pop("original_goal", None) or user_input or system_prompt
     mon = monitor or CircuitBreakerMonitor(
         MonitorConfig(original_goal=original_goal, **config_kwargs)
     )
+
+    def blocked_operation(tool_name: str, reason: str) -> dict:
+        summary = mon.finish("recovery_blocked")
+        summary["blocked_tool"] = tool_name
+        summary["blocked_reason"] = reason
+        return summary
+
+    if ledger is not None and operation_scope is not None:
+        prior = ledger.prior(operation_scope)
+        if prior is not None:
+            return blocked_operation(
+                prior[0], f"previous {prior[1]} tool effect in operation scope; "
+                "inspect external state before starting a new scope")
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_input},
@@ -237,7 +271,34 @@ def guarded_tool_loop(
                 # second real write.
                 result = committed[sig]
             else:
-                result = tool_router(tc.function.name, args)
+                effect = (tool_effects or {}).get(tc.function.name)
+                unsafe = effect not in ("read", "idempotent")
+                operation_id = None
+                if unsafe and ledger is not None and operation_scope is not None:
+                    operation_id, conflict = ledger.begin(
+                        operation_scope, owner, tc.function.name)
+                    if conflict is not None:
+                        return blocked_operation(
+                            conflict[0], f"another invocation has a {conflict[1]} "
+                            "tool effect in this operation scope")
+                try:
+                    result = tool_router(tc.function.name, args)
+                except Exception as exc:
+                    if operation_id is None:
+                        raise
+                    return blocked_operation(
+                        tc.function.name,
+                        f"tool raised {type(exc).__name__}; its external outcome "
+                        "is unknown and must be reconciled")
+                if operation_id is not None:
+                    assert ledger is not None
+                    try:
+                        ledger.complete(operation_id)
+                    except Exception:
+                        return blocked_operation(
+                            tc.function.name,
+                            "tool returned but its completion could not be journaled; "
+                            "inspect external state before retrying")
                 if sig is not None:
                     committed[sig] = result
             d = mon.observe(AgentEvent(

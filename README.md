@@ -225,6 +225,29 @@ block automatic reruns after the tool completes. The run summary then reports
 starting a new run. This safeguard tracks effects only within the current
 process, so use your own idempotency keys and reconciliation for durable writes.
 
+For unattended writes, opt in to the local SQLite operation journal and use a
+stable scope for the logical job:
+
+```python
+result = guarded_tool_loop(
+    OpenAI(), model="gpt-4.1", system_prompt=GOAL, user_input=TASK,
+    tools=TOOLS, tool_router=run_tool,
+    tool_effects={"search": "read", "create_invoice": "write"},
+    operation_ledger_path="agentfuse-operations.sqlite3",
+    operation_scope=job_id,
+)
+if result["status"] == "recovery_blocked":
+    # Inspect the external system before deciding whether a new job is safe.
+    print(result["blocked_tool"], result["blocked_reason"])
+```
+
+The journal records a pending intent before invoking a write and marks it
+completed after the tool returns. Reusing the scope after either state stops
+before another model or tool call. A pending intent may already have committed
+externally; AgentFuse cannot infer that from a timeout. The journal stores tool
+names and state, not arguments or results. It is separate from monitor
+`checkpoint_path`, which preserves detector and budget state.
+
 ### LangGraph
 
 ```python
