@@ -808,6 +808,13 @@ with an oracle that reads only the agent's actions — never the breaker's outpu
 python evals/score_real_suite.py
 ```
 
+To score traces from other agents without adding them to this project's own
+corpus, use the [external validation procedure](evals/EXTERNAL_VALIDATION.md)
+and `python -m evals.score_external path/to/labels.json`. It requires manual
+outcome labels, rejects missing captures, runs offline, and reports uncertainty.
+No independent corpus has been scored yet; the numbers below are from this
+project's existing captured suite.
+
 ```
 n=34   TP=5  FP=0  FN=1  TN=28
 precision 100.0%   95% CI [56.6%, 100.0%]

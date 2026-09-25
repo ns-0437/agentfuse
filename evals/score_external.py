@@ -9,10 +9,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import sys
 from pathlib import Path
 from typing import Any
+
+# This command promises an offline replay even on a machine whose shell is
+# configured for paid hosted inference. Set the guard before importing runner.
+os.environ["AGENTFUSE_OFFLINE"] = "1"
 
 from .runner import run_scenario
 from .schema import Label
