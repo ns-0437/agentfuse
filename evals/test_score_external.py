@@ -93,3 +93,52 @@ def test_manifest_cannot_change_original_goal(tmp_path):
     write_manifest(manifest, [spec])
     with pytest.raises(ValueError, match="goal differs"):
         load_cases(manifest)
+
+
+def test_intervened_trace_is_rejected_even_when_it_completed(tmp_path):
+    trace = tmp_path / "trace.jsonl"
+    write_trace(trace)
+    records = trace.read_text(encoding="utf-8").splitlines()
+    records.insert(-1, json.dumps({"kind": "recovery", "action": "inject"}))
+    trace.write_text("\n".join(records) + "\n", encoding="utf-8")
+    manifest = tmp_path / "labels.json"
+    write_manifest(manifest, [case("intervened", "trace.jsonl", False)])
+    with pytest.raises(ValueError, match="intervention"):
+        load_cases(manifest)
+
+
+def test_observation_only_trip_is_valid_evidence(tmp_path):
+    trace = tmp_path / "trace.jsonl"
+    write_trace(trace)
+    records = trace.read_text(encoding="utf-8").splitlines()
+    records.insert(-1, json.dumps({"kind": "trip", "detector": "loop"}))
+    trace.write_text("\n".join(records) + "\n", encoding="utf-8")
+    manifest = tmp_path / "labels.json"
+    write_manifest(manifest, [case("observe", "trace.jsonl", False)])
+    assert len(load_cases(manifest)) == 1
+
+
+def test_unpaired_calls_and_records_after_summary_are_rejected(tmp_path):
+    trace = tmp_path / "trace.jsonl"
+    write_trace(trace)
+    records = trace.read_text(encoding="utf-8").splitlines()
+    manifest = tmp_path / "labels.json"
+    write_manifest(manifest, [case("incomplete", "trace.jsonl", False)])
+
+    trace.write_text("\n".join(records[:-2] + records[-1:]) + "\n",
+                     encoding="utf-8")
+    with pytest.raises(ValueError, match="without results"):
+        load_cases(manifest)
+
+    trace.write_text("\n".join(records + [records[1]]) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="after summary"):
+        load_cases(manifest)
+
+
+def test_same_capture_cannot_be_counted_twice(tmp_path):
+    write_trace(tmp_path / "trace.jsonl")
+    manifest = tmp_path / "labels.json"
+    write_manifest(manifest, [case("first", "trace.jsonl", False),
+                              case("second", "./trace.jsonl", False)])
+    with pytest.raises(ValueError, match="reuses a trace"):
+        load_cases(manifest)

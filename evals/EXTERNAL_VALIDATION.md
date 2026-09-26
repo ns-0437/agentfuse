@@ -6,9 +6,12 @@ other teams' agents. This procedure keeps a separate corpus and scores it
 offline without a model call or paid service.
 
 1. Collect complete JSONL traces from ordinary agent tasks with
-   `MonitorConfig(jsonl_path="runs/task-001.jsonl")`. Include healthy runs,
+   `MonitorConfig(mode="observe", jsonl_path="runs/task-001.jsonl")` so
+   AgentFuse can record trips without steering the task. Include healthy runs,
    legitimate retries, and polling, as well as failures. Each trace needs its
-   original goal, events, and one final summary record. Keep the raw traces
+   original goal, paired tool calls/results, and one final summary record. The
+   scorer rejects recovered/interrupted traces because their trajectories have
+   already been changed by AgentFuse. Keep the raw traces
    private if they contain customer data or secrets.
 2. Label each run from its task outcome and external evidence **before**
    looking at AgentFuse's trip decision. Write down why it was a failure or a
