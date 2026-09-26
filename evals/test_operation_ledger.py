@@ -116,6 +116,17 @@ def test_completed_effect_cannot_be_cleared_as_not_applied(tmp_path):
     assert ledger.prior("invoice-42") == ("create_invoice", "completed")
 
 
+def test_completion_cannot_silently_succeed_without_a_pending_intent(tmp_path):
+    ledger = SQLiteOperationLedger(str(tmp_path / "operations.db"))
+    with pytest.raises(ValueError, match="not pending"):
+        ledger.complete("missing-operation")
+    operation_id, conflict = ledger.begin("invoice-42", "owner-a", "create_invoice")
+    assert operation_id and conflict is None
+    ledger.complete(operation_id)
+    with pytest.raises(ValueError, match="not pending"):
+        ledger.complete(operation_id)
+
+
 def test_existing_journal_is_migrated_without_losing_pending_intent(tmp_path):
     path = tmp_path / "operations.db"
     with sqlite3.connect(path) as conn:

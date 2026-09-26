@@ -111,8 +111,11 @@ class SQLiteOperationLedger:
     def complete(self, operation_id: str) -> None:
         with closing(sqlite3.connect(self.path, timeout=30)) as conn:
             with conn:
-                conn.execute(
+                cursor = conn.execute(
                     "UPDATE tool_operations SET state = 'completed', "
-                    "completed_at = CURRENT_TIMESTAMP WHERE operation_id = ?",
+                    "completed_at = CURRENT_TIMESTAMP WHERE operation_id = ? "
+                    "AND state = 'pending' AND resolved = 0",
                     (operation_id,),
                 )
+                if cursor.rowcount != 1:
+                    raise ValueError("operation is not pending or was already completed")
