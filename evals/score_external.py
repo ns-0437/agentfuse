@@ -30,6 +30,8 @@ def _validate_trace(path: Path) -> str:
         raise ValueError(f"missing trace: {path}")
     events = summaries = 0
     goals: list[str] = []
+    open_calls: dict[str, int] = {}
+    seen_summary = False
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
             continue
@@ -39,17 +41,45 @@ def _validate_trace(path: Path) -> str:
             raise ValueError(f"malformed trace {path}:{number}: {exc.msg}") from exc
         if not isinstance(record, dict):
             raise ValueError(f"trace record must be an object: {path}:{number}")
+        kind = record.get("kind")
+        if seen_summary:
+            raise ValueError(f"records after summary make trace ambiguous: {path}:{number}")
+        # OBSERVE mode logs trips but leaves the agent alone. Those records are
+        # valid evidence. A recovery/resume changes the trajectory being scored.
+        if kind == "recovery" or (kind == "event" and
+                record.get("type") in ("recovery", "resume")):
+            raise ValueError(f"trace contains AgentFuse intervention: {path}:{number}; "
+                             "capture without recovery or interruption")
         if record.get("kind") == "meta":
             goal = record.get("original_goal")
             if not isinstance(goal, str) or not goal.strip():
                 raise ValueError(f"trace has no original goal: {path}:{number}")
             goals.append(goal)
+        if kind == "event" and record.get("type") in ("tool_call", "tool_result"):
+            event_type = record["type"]
+            call_id = (record.get("meta") or {}).get("call_id")
+            step = record.get("step")
+            key = f"id:{call_id}" if call_id else f"step:{step}"
+            if event_type == "tool_call":
+                if open_calls.get(key, 0):
+                    raise ValueError(f"overlapping tool calls share an identity: "
+                                     f"{path}:{number}")
+                open_calls[key] = open_calls.get(key, 0) + 1
+            else:
+                if open_calls.get(key, 0) == 0:
+                    raise ValueError(f"unpaired tool result: {path}:{number}")
+                open_calls[key] -= 1
         events += (record.get("kind") == "event"
                    and record.get("type") in ("tool_call", "llm_call"))
-        summaries += record.get("kind") == "summary"
+        summaries += kind == "summary"
+        if kind == "summary" and record.get("status") not in ("complete", "max_turns"):
+            raise ValueError(f"trace ended with interrupted status: {path}:{number}")
+        seen_summary = kind == "summary"
     if events == 0 or summaries != 1 or len(goals) != 1:
         raise ValueError(f"trace needs one goal, replayable events, and exactly "
                          f"one summary: {path}")
+    if any(open_calls.values()):
+        raise ValueError(f"trace has tool calls without results: {path}")
     return goals[0]
 
 
@@ -62,6 +92,7 @@ def load_cases(manifest: Path) -> list[tuple[dict, Path]]:
     if not isinstance(specs, list) or not specs:
         raise ValueError("manifest must be a non-empty list of labelled cases")
     seen: set[str] = set()
+    seen_traces: set[Path] = set()
     cases: list[tuple[dict, Path]] = []
     for index, spec in enumerate(specs):
         if not isinstance(spec, dict):
@@ -86,6 +117,10 @@ def load_cases(manifest: Path) -> list[tuple[dict, Path]]:
         trace = Path(trace_name)
         if not trace.is_absolute():
             trace = manifest.parent / trace
+        trace = trace.resolve()
+        if trace in seen_traces:
+            raise ValueError(f"case {case_id} reuses a trace already scored")
+        seen_traces.add(trace)
         trace_goal = _validate_trace(trace)
         if "goal" in spec and spec["goal"] != trace_goal:
             raise ValueError(f"case {case_id} goal differs from its trace")
