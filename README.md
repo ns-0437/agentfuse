@@ -271,6 +271,12 @@ reconcile the external operation manually. Completed writes cannot be cleared
 this way. The journal keeps reconciled rows for audit; it never treats a timeout
 alone as proof that a write failed.
 
+Run `python examples/sqlite_write_recovery.py` for an offline walkthrough using
+a real SQLite invoice store. It shows both timeout timings: a write that
+committed before the response was lost remains blocked on restart, while a
+write verified absent can be retried with the same scope. No API key or service
+is needed; the example uses temporary local databases.
+
 ### LangGraph
 
 ```python
