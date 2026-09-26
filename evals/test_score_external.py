@@ -5,6 +5,8 @@ import json
 import pytest
 
 from evals.score_external import load_cases, main, score_manifest
+from evals.schema import Label
+from evals.trace_import import scenario_from_trace
 
 
 def write_trace(path, *, repeated=False):
@@ -142,3 +144,29 @@ def test_same_capture_cannot_be_counted_twice(tmp_path):
                               case("second", "./trace.jsonl", False)])
     with pytest.raises(ValueError, match="reuses a trace"):
         load_cases(manifest)
+
+
+def test_parallel_results_pair_by_call_id_not_shared_step(tmp_path):
+    trace = tmp_path / "parallel.jsonl"
+    records = [
+        {"kind": "meta", "original_goal": "Read both accounts"},
+        {"kind": "event", "type": "tool_call", "step": 2,
+         "tool_name": "read_account", "tool_args": {"id": "a"},
+         "meta": {"call_id": "call-a"}},
+        {"kind": "event", "type": "tool_call", "step": 2,
+         "tool_name": "read_account", "tool_args": {"id": "b"},
+         "meta": {"call_id": "call-b"}},
+        {"kind": "event", "type": "tool_result", "step": 2,
+         "text": "account b", "meta": {"call_id": "call-b"}},
+        {"kind": "event", "type": "tool_result", "step": 2,
+         "text": "account a", "meta": {"call_id": "call-a"}},
+        {"kind": "summary", "status": "complete"},
+    ]
+    trace.write_text("\n".join(json.dumps(record) for record in records) + "\n",
+                     encoding="utf-8")
+    manifest = tmp_path / "labels.json"
+    write_manifest(manifest, [case("parallel", "parallel.jsonl", False)])
+    assert len(load_cases(manifest)) == 1
+    scenario = scenario_from_trace(trace, Label(should_trip=False))
+    assert [(step.tool_args["id"], step.result) for step in scenario.steps] == [
+        ("a", "account a"), ("b", "account b")]

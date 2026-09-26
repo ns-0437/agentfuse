@@ -42,7 +42,8 @@ def scenario_from_trace(path: Path, label: Label, goal: Optional[str] = None,
     """Rebuild a Scenario from a JSONL trace produced by ``Tracer``."""
     steps: list[StepSpec] = []
     meta: dict = {}
-    pending: dict[int, StepSpec] = {}
+    pending_by_id: dict[str, StepSpec] = {}
+    pending_by_step: dict[int, list[StepSpec]] = {}
     # Real captures (the plain-SDK adapter) never emit a standalone
     # `state_update` event -- they set `state=` directly on the TOOL_RESULT
     # event itself (see `guarded_tool_loop`, openai_sdk.py). A trace_import
@@ -82,11 +83,26 @@ def scenario_from_trace(path: Path, label: Label, goal: Optional[str] = None,
                          tokens_in=rec.get("tokens_in", 0),
                          tokens_out=rec.get("tokens_out", 0),
                          goal=rec.get("goal"), node=rec.get("node", "agent"))
-            pending[step_no] = s
+            pending_by_step.setdefault(step_no, []).append(s)
+            call_id = (rec.get("meta") or {}).get("call_id")
+            if call_id:
+                pending_by_id[str(call_id)] = s
             steps.append(s)
         elif t == "tool_result":
-            pending_step = pending.get(step_no)
+            call_id = (rec.get("meta") or {}).get("call_id")
+            if call_id:
+                pending_step = pending_by_id.pop(str(call_id), None)
+            else:
+                queue = pending_by_step.get(step_no, [])
+                pending_step = queue[0] if queue else None
             if pending_step is not None:
+                # Use identity: two calls with identical arguments have equal
+                # StepSpec values, but their results belong to distinct calls.
+                for queue in pending_by_step.values():
+                    queue[:] = [item for item in queue if item is not pending_step]
+                for key, item in list(pending_by_id.items()):
+                    if item is pending_step:
+                        del pending_by_id[key]
                 pending_step.result = rec.get("text")
             state = rec.get("state")
             if state is not None and seen.advance(stable_hash(state)):
