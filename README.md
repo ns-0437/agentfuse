@@ -31,6 +31,19 @@ monitor through a repeated-tool loop, verifies that deterministic steering is
 issued, and completes a recovered run. Add `--json` for automation or
 `--trace runs/quickstart.jsonl` to keep the complete event trace.
 
+To inspect a saved trace without an SDK, API key, or dashboard:
+
+```bash
+agentfuse quickstart --trace runs/quickstart.jsonl
+agentfuse inspect runs/quickstart.jsonl
+agentfuse inspect runs/quickstart.jsonl --json
+```
+
+`inspect` reports the final status, trip detectors, steering strategies, and
+event counts without printing tool arguments or model text. A trace without a
+final summary (including one appended after an earlier summary) is marked
+`incomplete`; it cannot establish that the run recovered.
+
 `agentfuse quickstart --adapter openai` drives the actual OpenAI-compatible
 tool-loop adapter with a scripted model and read-only tools. It needs no API key,
 OpenAI package, or network connection. Its JSON output distinguishes tool calls

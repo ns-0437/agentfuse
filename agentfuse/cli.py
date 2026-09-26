@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
@@ -12,6 +13,7 @@ from . import __version__
 from .embedding import describe
 from .events import AgentEvent, EventType
 from .monitor import CircuitBreakerMonitor, DirectiveKind, MonitorConfig
+from .trace_inspect import inspect_trace
 
 
 def doctor() -> dict:
@@ -168,6 +170,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     demo.add_argument("--trace", metavar="PATH", help="write the JSONL trace to PATH")
     demo.add_argument("--adapter", choices=["monitor", "openai"], default="monitor",
                       help="exercise the monitor or the OpenAI-compatible adapter")
+    inspect = sub.add_parser("inspect", help="summarize a local JSONL run trace")
+    inspect.add_argument("trace", metavar="PATH", help="trace file to inspect")
+    inspect.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args(argv)
     if args.command == "doctor":
         report = doctor()
@@ -178,6 +183,29 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"Drift: {report['drift_backend']}")
             for name, available in report["integrations"].items():
                 print(f"{name}: {'available' if available else 'not installed'}")
+        return 0
+
+    if args.command == "inspect":
+        try:
+            report = inspect_trace(args.trace)
+        except ValueError as exc:
+            print(f"agentfuse inspect: {exc}", file=sys.stderr)
+            return 2
+        if args.as_json:
+            print(json.dumps(report, sort_keys=True))
+        else:
+            print(f"Status: {report['status']}")
+            print(f"Events: {report['events']}  Steps: {report['steps']}")
+            print(f"Trips: {report['trips']}  Recoveries: {report['recoveries']}")
+            if report["detectors"]:
+                print("Detectors: " + ", ".join(
+                    f"{name} ({count})" for name, count in report["detectors"].items()))
+            if report["strategies"]:
+                print("Strategies: " + ", ".join(
+                    f"{name} ({count})" for name, count in report["strategies"].items()))
+            if not report["has_final_summary"]:
+                print("No final summary: this run may have stopped or crashed.")
+            print(f"Trace: {report['trace_path']}")
         return 0
 
     result = adapter_quickstart(args.trace) if args.adapter == "openai" else quickstart(args.trace)
